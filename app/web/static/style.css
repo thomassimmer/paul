@@ -1,6 +1,6 @@
 /* Paul (Emploi) — single stylesheet, no build step.
    Layout: header, main and footer share the same centered container whose
-   width follows --content, so every page lines up. Wide pages set it on body. */
+   width follows --content, so every page lines up. */
 
 :root {
   color-scheme: light dark;
@@ -22,7 +22,7 @@
   --warn-text: #7a5300;
 
   /* Shared rhythm, so pages stay consistent. */
-  --content: 760px;
+  --content: 1180px;
   --gutter: 1.5rem;
   --radius: 10px;
   --space: 1.25rem;
@@ -68,8 +68,6 @@ body {
   margin-inline: auto;
   padding-inline: var(--gutter);
 }
-
-body.wide { --content: 1180px; }
 
 a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
 a:hover { color: color-mix(in srgb, var(--accent) 80%, var(--text)); }
