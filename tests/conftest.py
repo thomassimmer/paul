@@ -16,13 +16,17 @@ os.environ["PAUL_DATA_DIR"] = str(_DATA_DIR)
 
 @pytest.fixture(autouse=True)
 def clean_data_dir():
-    """Start each test from an empty data directory."""
+    """Start each test from an empty data directory and no running job."""
+    from app.ranking import jobs
+
+    jobs.reset()
     for child in _DATA_DIR.iterdir():
         if child.is_dir():
             shutil.rmtree(child)
         else:
             child.unlink()
     yield
+    jobs.reset()
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -35,13 +35,21 @@ dev = [
 [tool.setuptools.packages.find]
 include = ["app*"]
 
-# Ship the templates and static files inside the wheel, so the app runs
-# identically from the source tree and from site-packages (Docker).
+# Ship the templates and the prompts inside the wheel, so the app behaves the same
+# from the source tree and from site-packages (Docker). The globs are spelled out
+# per depth on purpose: setuptools does not recurse, so `**` would silently ship
+# only the first level.
 [tool.setuptools.package-data]
 "app.web" = [
     "templates/*.html",
-    "templates/partials/*.html",
+    "templates/*/*.html",
+    "templates/*/*/*.html",
     "static/*",
+]
+"app.prompts" = [
+    "*.md",
+    "*/*.md",
+    "*/*/*.md",
 ]
 
 [tool.pytest.ini_options]

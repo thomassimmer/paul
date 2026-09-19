@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from app.config import load_settings
 from app.offers import store as offers_store
 from app.profiler import service, store
+from app.ranking import store as ranking_store
 from app.web.templating import render
 
 router = APIRouter()
@@ -33,4 +34,5 @@ async def dashboard(request: Request) -> HTMLResponse:
         configured=bool(settings.model),
         summary=service.summary(profile),
         offers_count=offers_store.count_offers(),
+        ranked_count=len(ranking_store.list_rankings()),
     )

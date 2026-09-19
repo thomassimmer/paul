@@ -42,10 +42,16 @@
         {% endif %}
       </p>
     </li>
-    <li>
+    <li class="{% if ranked_count %}done{% endif %}">
       <strong>Filter and rank</strong>
-      <p>Elimination rules and explainable scores against your profile.
-        <span class="soon">next milestone</span></p>
+      <p>
+        {% if ranked_count %}
+          {{ ranked_count }} offer(s) ranked. <a href="/ranking">See the shortlist</a>.
+        {% else %}
+          Set your elimination rules and wishes, then rank the offers you
+          collected. <a href="/ranking">Open the ranking</a>.
+        {% endif %}
+      </p>
     </li>
   </ol>
 </div>

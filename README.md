@@ -179,25 +179,62 @@ Nothing is invented: a field the offer does not state stays empty. Company facts
 
 ### 3. Filter and ranker
 
-Two stages, both run by the LLM against structured data.
+Two stages, both run against your own data. Your elimination rules and your
+weighted wishes are edited on the **Ranking** page and stored with your settings;
+*Run ranking* applies them to every stored offer.
 
 **Stage 1: elimination.** You write natural-language rules once, for example:
 
 > Eliminate offers that explicitly require citizenship, a security clearance, or an existing work permit.
 > Eliminate offers requiring fewer than 3 or more than 10 years of experience.
 
-The agent returns, per offer: `eliminated: true/false` and the exact excerpt that triggered the rule. Nothing disappears silently: eliminated offers stay visible with the reason and can be restored.
+Per offer, the model returns `eliminated` plus the rule it applied and the exact
+excerpt that triggered it. An elimination missing either one is discarded **in
+code**: nothing disappears on an impression. Eliminated offers stay visible with
+their reason and can be restored in one click.
 
-**Stage 2: scoring.** For the remaining offers, the LLM fills a fixed grid, returned as JSON:
+**Stage 2: scoring.** For the offers that survive, the model fills a fixed grid:
 
-| Axis | Source |
+| Axis | Source | Weight |
+|---|---|---|
+| Technical match | requirements vs. profile skills and achievements | 0.40 |
+| Seniority and scope | responsibilities vs. experience | 0.20 |
+| Your wishes | your weighted criteria, e.g. *startup, funded, scientific domain, remote* | 0.25 |
+| Red flags | vague role, unrealistic requirements, contradictions | 0.15 |
+
+Each axis comes back with a score from 0 to 5 and a one-sentence justification.
+The weights are fixed in code and the total (0-100) is computed by code, never by
+the model: that is what makes a score explainable (you can disagree with a
+specific line) and stable (the same grid always gives the same total). Company
+facts (funding, domain) are only known if they appear in the pasted content: the
+ranker says "unknown" rather than guessing.
+
+A manual decision always wins over the rules. Restoring an offer keeps it
+restored across later runs; eliminating one by hand drops its score, so a
+restored offer is scored again the next time you run the ranking.
+
+**Running it.** A run is a background task, not a request that blocks for two
+minutes: the page shows its progress, the table refreshes as offers come in, and
+*Stop* ends it (the calls already in flight finish, no new one starts). What gets
+ranked is your choice:
+
+| Scope | What it ranks |
 |---|---|
-| Technical match | requirements vs. profile skills and achievements |
-| Seniority and scope | responsibilities vs. experience |
-| Your wishes | your weighted criteria, e.g. *startup, funded, scientific domain, remote* |
-| Red flags | vague role, unrealistic requirements, contradictions |
+| Not ranked yet, or out of date *(default)* | only what needs it |
+| Every offer | recomputes everything |
+| Only the offers I tick | an explicit selection |
 
-Each axis has a score, a weight and a one-line justification; the total is computed by code, not by the LLM. The result is explainable and stable across runs. Company facts (funding, domain) are only known if they appear in the pasted content: the ranker says "unknown" rather than guessing.
+"Out of date" is decided without asking the model anything: each ranking stores a
+fingerprint of what produced it (rules, wishes, profile, offer, model). Change one
+of those and the offers affected are flagged *out of date* and picked up again —
+and nothing else is. Adding three offers to a batch of twenty therefore costs six
+calls instead of forty, and changing your wishes only re-ranks what that change
+affects. The number of calls in flight is configurable (1 to 8, default 4); lower
+it if your provider complains about the rate.
+
+> **Not there yet.** A scope for *the offers you have not applied to* needs the
+> statuses the tracker will hold (`Applied`, `Rejected`, ...). It plugs into the
+> same selection mechanism, so it is a small addition once the tracker exists.
 
 ### 4. Writer
 
@@ -324,7 +361,8 @@ paul-emploi/
 │   ├── models.py              # Pydantic models: Profile, Offer, Score, Application
 │   ├── prompts/               # prompts as plain text files
 │   │   ├── offers/
-│   │   └── profiler/
+│   │   ├── profiler/
+│   │   └── ranking/
 │   ├── profiler/              # CV import, interview, editable profile
 │   │   ├── cv.py              # PDF/DOCX text extraction
 │   │   ├── draft.py           # LLM: CV text -> ProfileDraft
@@ -342,7 +380,14 @@ paul-emploi/
 │   │   ├── router.py          # HTTP routes
 │   │   ├── service.py         # analysis orchestration
 │   │   └── store.py           # offers in SQLite (raw + cleaned kept)
-│   ├── ranking/               # elimination rules, scoring grid
+│   ├── ranking/               # filter and ranker
+│   │   ├── context.py         # profile/offer/wishes as the prompts see them
+│   │   ├── eliminate.py       # stage 1, with the quote-it-or-drop-it guard
+│   │   ├── jobs.py            # background run: progress, stop, bounded calls
+│   │   ├── router.py          # HTTP routes
+│   │   ├── score.py           # stage 2, weights and total computed in code
+│   │   ├── service.py         # scope, staleness, and one offer at a time
+│   │   └── store.py           # rankings in SQLite (verdict, override, score)
 │   ├── writer/                # tailoring, grounding check, form answers
 │   ├── ats.py                 # keyword coverage and format checks
 │   ├── templates_engine/      # DOCX analysis, blueprint, rendering
@@ -379,10 +424,11 @@ Conventions: each feature package owns its HTTP routes (`app/profiler/router.py`
 - [x] Docker Compose install, settings page
 - [x] Profiler: CV import, interview, editable profile
 - [x] Offer analyzer: HTML fragment and text, form question extraction
-- [ ] Filter and ranker with explainable scores
+- [x] Filter and ranker with explainable scores
 - [ ] DOCX template import and rendering (CV and letter)
 - [ ] Writer with grounding check, form answers, ATS coverage
-- [ ] Tracker with manual statuses and follow-up reminders
+- [ ] Tracker: manual statuses and follow-up reminders
+- [ ] Ranker scope "not applied yet", once the tracker holds the statuses
 
 **Next**
 

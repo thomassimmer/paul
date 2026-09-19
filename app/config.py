@@ -41,6 +41,9 @@ class Settings(BaseModel):
     api_base: str = ""
     output_language: str = "auto"
     followup_days: int = 7
+    # How many offers the ranker works on at once. 1 is the polite setting for a
+    # provider with a strict rate limit; 4 keeps a twenty-offer run short.
+    ranking_concurrency: int = 4
     target_pages: TargetPages = Field(default_factory=TargetPages)
     filter_rules: str = ""
     wishes: list[Wish] = Field(default_factory=list)

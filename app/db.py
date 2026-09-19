@@ -13,7 +13,7 @@ from app.config import DATA_DIR
 
 DB_PATH = DATA_DIR / "paul.sqlite3"
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 5
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -38,7 +38,27 @@ CREATE TABLE IF NOT EXISTS offers (
     cleaned     TEXT NOT NULL DEFAULT '',
     offer_json  TEXT NOT NULL
 );
+
+-- Filter and ranker: one row per ranked offer. Kept apart from ``offers`` because
+-- it is our judgement of an offer, not what the offer says, and because a manual
+-- override has to survive a re-run of the rules.
+CREATE TABLE IF NOT EXISTS rankings (
+    offer_id    INTEGER PRIMARY KEY REFERENCES offers(id) ON DELETE CASCADE,
+    eliminated  INTEGER NOT NULL DEFAULT 0,
+    rule        TEXT NOT NULL DEFAULT '',
+    excerpt     TEXT NOT NULL DEFAULT '',
+    override    TEXT NOT NULL DEFAULT '',
+    score_json  TEXT,
+    fingerprint TEXT NOT NULL DEFAULT '',
+    scored_at   TEXT NOT NULL DEFAULT ''
+);
 """
+
+# Added after the first release of the table: ``CREATE TABLE IF NOT EXISTS``
+# cannot add a column to a database that already has the table.
+_COLUMN_MIGRATIONS = {
+    "rankings": {"fingerprint": "TEXT NOT NULL DEFAULT ''"},
+}
 
 
 def connect() -> sqlite3.Connection:
@@ -51,11 +71,22 @@ def connect() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """Create the schema. Safe to call on every start and from tests."""
+    """Create the schema and apply the column migrations. Safe on every start."""
     with connect() as conn:
         conn.executescript(_SCHEMA)
+        _migrate(conn)
         conn.execute(
             "INSERT INTO meta (key, value) VALUES ('schema_version', ?) "
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             (str(SCHEMA_VERSION),),
         )
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, columns in _COLUMN_MIGRATIONS.items():
+        existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if not existing:
+            continue  # the table was just created, it is already up to date
+        for name, definition in columns.items():
+            if name not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")

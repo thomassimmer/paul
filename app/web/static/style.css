@@ -254,6 +254,53 @@ input[type="file"] { padding: 0.4rem; }
 .keywords li, .questions li { margin-bottom: 0.4rem; }
 .options { color: var(--muted); font-size: 0.92em; margin: 0.2rem 0 0; }
 
+/* --- Ranking ----------------------------------------------------------- */
+
+.verdict {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.verdict-ok { background: var(--ok-bg); color: var(--ok-text); }
+.verdict-no { background: var(--error-bg); color: var(--error-text); }
+
+.excerpt {
+  margin: 0.35rem 0 0;
+  padding-left: 0.7rem;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+  font-size: 0.88em;
+}
+
+.actions-cell { white-space: nowrap; }
+.actions-cell button { padding: 0.3rem 0.6rem; font-size: 0.85em; }
+
+.table td .hint { margin-top: 0.15rem; }
+.table details summary { cursor: pointer; color: var(--muted); font-size: 0.9em; }
+.table details .kv { margin: 0.6rem 0 0; }
+.table th.tick, .table td.tick { width: 2rem; padding-right: 0; }
+.table td.tick input { margin: 0; }
+
+.tag-warn { border-color: var(--warn-border); color: var(--warn-text); }
+
+.job-list { list-style: none; margin: 0.75rem 0 0; padding: 0; font-size: 0.92em; }
+.job-list li { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; padding: 0.15rem 0; }
+.job-status {
+  min-width: 6.5rem;
+  font-size: 0.78em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.job-scored .job-status { color: var(--ok-text); }
+.job-eliminated .job-status { color: var(--warn-text); }
+.job-error .job-status { color: var(--error-text); }
+.job-running .job-status { color: var(--accent); }
+
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
 @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
 

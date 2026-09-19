@@ -199,3 +199,75 @@ class OfferRecord(BaseModel):
     analyzed_at: str = ""
     source: str = ""
     offer: Offer
+
+
+# --- Ranking ------------------------------------------------------------------
+
+
+class Elimination(BaseModel):
+    """The verdict of stage 1, with the evidence that justifies it.
+
+    ``rule`` is the candidate's rule that applied and ``excerpt`` the offer text
+    that triggered it. An elimination without both is not an elimination: the
+    caller downgrades it (nothing disappears silently).
+    """
+
+    eliminated: bool = False
+    rule: str = ""
+    excerpt: str = ""
+
+
+def effective_eliminated(override: str, elimination: Elimination) -> bool:
+    """A manual override wins over the rules; otherwise the rules decide."""
+    if override == "kept":
+        return False
+    if override == "eliminated":
+        return True
+    return elimination.eliminated
+
+
+class AxisVerdict(BaseModel):
+    """What the model returns for one axis of the grid."""
+
+    score: int = Field(default=0, ge=0, le=5)
+    justification: str = ""
+
+
+class ScoringGrid(BaseModel):
+    """The fixed grid. Deliberately has no ``total``: it is computed by code."""
+
+    technical_match: AxisVerdict = Field(default_factory=AxisVerdict)
+    seniority_scope: AxisVerdict = Field(default_factory=AxisVerdict)
+    wishes: AxisVerdict = Field(default_factory=AxisVerdict)
+    red_flags: AxisVerdict = Field(default_factory=AxisVerdict)
+
+
+class AxisScore(AxisVerdict):
+    """A verdict plus the weight the application gives that axis."""
+
+    axis: str = ""
+    label: str = ""
+    weight: float = 0.0
+
+
+class Score(BaseModel):
+    axes: list[AxisScore] = Field(default_factory=list)
+    total: int = 0  # 0-100, computed by code from the axes and their weights
+
+
+class RankingRecord(BaseModel):
+    """What we decided about an offer, as stored."""
+
+    offer_id: int
+    elimination: Elimination = Field(default_factory=Elimination)
+    # Manual override: "kept", "eliminated", or "" to trust the rules again.
+    override: str = ""
+    score: Score | None = None
+    # Snapshot of what produced this ranking (criteria, profile, offer, model),
+    # so an unchanged offer is never scored twice and an outdated one is visible.
+    fingerprint: str = ""
+    scored_at: str = ""
+
+    @property
+    def eliminated(self) -> bool:
+        return effective_eliminated(self.override, self.elimination)
