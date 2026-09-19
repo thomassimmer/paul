@@ -9,6 +9,8 @@ from app.config import load_settings
 from app.offers import store as offers_store
 from app.profiler import service, store
 from app.ranking import store as ranking_store
+from app.tracker import service as tracker_service
+from app.tracker import store as tracker_store
 from app.web.templating import render
 
 router = APIRouter()
@@ -35,4 +37,13 @@ async def dashboard(request: Request) -> HTMLResponse:
         summary=service.summary(profile),
         offers_count=offers_store.count_offers(),
         ranked_count=len(ranking_store.list_rankings()),
+        tracker=tracker_service.board_summary(
+            tracker_service.tracker_rows(
+                offers_store.list_offers(),
+                ranking_store.list_rankings(),
+                tracker_store.list_applications(),
+                settings,
+                tracker_service.today_utc(),
+            )
+        ),
     )

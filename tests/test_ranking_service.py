@@ -84,6 +84,21 @@ def test_is_stale_only_for_an_existing_outdated_ranking():
 # --- scope selection ----------------------------------------------------------
 
 
+def test_not_applied_scope_ignores_offers_with_an_application():
+    first, second = _saved("First"), _saved("Second")
+    offers = offers_store.list_offers()
+
+    assert [
+        offer.id
+        for offer in service.select_offers(
+            "not_applied", offers, {}, SETTINGS, PROFILE, applied_ids=[second]
+        )
+    ] == [first]
+    assert len(
+        service.select_offers("not_applied", offers, {}, SETTINGS, PROFILE, applied_ids=[second, first])
+    ) == 0
+
+
 def test_pending_means_never_ranked_or_out_of_date():
     first, second = _saved("First"), _saved("Second")
     offers = offers_store.list_offers()

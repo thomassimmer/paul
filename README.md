@@ -222,6 +222,7 @@ ranked is your choice:
 |---|---|
 | Not ranked yet, or out of date *(default)* | only what needs it |
 | Every offer | recomputes everything |
+| Only the offers I have not applied to yet | uses the tracker's statuses |
 | Only the offers I tick | an explicit selection |
 
 "Out of date" is decided without asking the model anything: each ranking stores a
@@ -231,10 +232,6 @@ and nothing else is. Adding three offers to a batch of twenty therefore costs si
 calls instead of forty, and changing your wishes only re-ranks what that change
 affects. The number of calls in flight is configurable (1 to 8, default 4); lower
 it if your provider complains about the rate.
-
-> **Not there yet.** A scope for *the offers you have not applied to* needs the
-> statuses the tracker will hold (`Applied`, `Rejected`, ...). It plugs into the
-> same selection mechanism, so it is a small addition once the tracker exists.
 
 ### 4. Writer
 
@@ -276,18 +273,32 @@ Treat it as an indicator, not a guarantee.
 
 ### 5. Tracker
 
-A single HTML page with a sortable, filterable table:
+One page, one row per analyzed offer, sortable on any column and filterable:
 
 | Column | Content |
 |---|---|
-| Company / role | link to the application folder |
-| Score | total, with the breakdown on hover |
+| Company / role | link to the application record |
+| Score | the ranking total, when there is one |
 | Status | `Analyzed` → `Shortlisted` → `Ready` → `Applied` → `Interview` → `Offer` / `Rejected` / `No response` |
-| Dates | analyzed, applied, last contact |
-| Follow-up | highlighted when *N days* (configurable, default 7) have passed since `Applied` without news |
+| Applied | the date the application was sent |
+| Follow-up | highlighted when *N days* (configurable, default 7) have passed with no news |
 | Notes | free text |
 
-Statuses are changed by hand in the MVP. **After the MVP:** one click reads your mailbox over **IMAP with an app password** (no OAuth setup), matches messages to applications, proposes status updates (acknowledgment, interview, rejection) and asks you to confirm.
+A filter switches between *Follow-up due*, *Not applied to yet*, every status, or
+everything. The status is changed from the row itself, and moving to an applied
+status records **today's date** so the follow-up clock starts on its own; the
+record page holds the dates and the notes. Nothing is inferred: the follow-up
+counts from the last contact, or from the application date when there has been
+none, and only a status still *Applied* waits for news.
+
+Statuses are changed by hand in the MVP. **After the MVP:** one click reads your
+mailbox over **IMAP with an app password** (no OAuth setup), matches messages to
+applications, proposes status updates (acknowledgment, interview, rejection) and
+asks you to confirm.
+
+The *Not applied to yet* filter is also what the ranker's **“only the offers I
+have not applied to yet”** scope uses, so you can rank what you have not sent
+yet without re-ranking the rest.
 
 ### 6. Settings
 
@@ -392,6 +403,9 @@ paul-emploi/
 │   ├── ats.py                 # keyword coverage and format checks
 │   ├── templates_engine/      # DOCX analysis, blueprint, rendering
 │   ├── tracker/               # statuses, follow-ups, (later) IMAP
+│   │   ├── router.py          # the board, and one application's detail
+│   │   ├── service.py         # statuses, dates, the follow-up rule
+│   │   └── store.py           # applications in SQLite
 │   ├── web/                   # presentation layer
 │   │   ├── templating.py      # Jinja env, render/redirect/flash helpers
 │   │   ├── routes/            # dashboard, settings
@@ -427,8 +441,8 @@ Conventions: each feature package owns its HTTP routes (`app/profiler/router.py`
 - [x] Filter and ranker with explainable scores
 - [ ] DOCX template import and rendering (CV and letter)
 - [ ] Writer with grounding check, form answers, ATS coverage
-- [ ] Tracker: manual statuses and follow-up reminders
-- [ ] Ranker scope "not applied yet", once the tracker holds the statuses
+- [x] Tracker with manual statuses and follow-up reminders
+- [x] Ranker scope "not applied yet", fed by the tracker's statuses
 
 **Next**
 

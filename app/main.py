@@ -17,6 +17,7 @@ from app.config import DATA_DIR
 from app.offers import router as offers_router
 from app.profiler import router as profiler_router
 from app.ranking import router as ranking_router
+from app.tracker import router as tracker_router
 from app.web import WEB_DIR
 from app.web.routes import dashboard, settings
 
@@ -26,6 +27,7 @@ ROUTERS = (
     profiler_router.router,
     offers_router.router,
     ranking_router.router,
+    tracker_router.router,
 )
 
 

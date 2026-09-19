@@ -13,7 +13,7 @@ from app.config import DATA_DIR
 
 DB_PATH = DATA_DIR / "paul.sqlite3"
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -51,6 +51,17 @@ CREATE TABLE IF NOT EXISTS rankings (
     score_json  TEXT,
     fingerprint TEXT NOT NULL DEFAULT '',
     scored_at   TEXT NOT NULL DEFAULT ''
+);
+
+-- Tracker: one row per application the user has touched. No row means the
+-- default status, so analyzing an offer already puts it on the board.
+CREATE TABLE IF NOT EXISTS applications (
+    offer_id     INTEGER PRIMARY KEY REFERENCES offers(id) ON DELETE CASCADE,
+    status       TEXT NOT NULL DEFAULT 'analyzed',
+    applied_on   TEXT NOT NULL DEFAULT '',
+    last_contact TEXT NOT NULL DEFAULT '',
+    notes        TEXT NOT NULL DEFAULT '',
+    updated_at   TEXT NOT NULL DEFAULT ''
 );
 """
 

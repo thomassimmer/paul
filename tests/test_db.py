@@ -10,7 +10,7 @@ def test_init_db_creates_the_tables():
             row["name"]
             for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
-    assert {"meta", "interview_skipped", "offers", "rankings"} <= tables
+    assert {"meta", "interview_skipped", "offers", "rankings", "applications"} <= tables
 
 
 def test_init_db_adds_a_column_a_previous_version_did_not_have():

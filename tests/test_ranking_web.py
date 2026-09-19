@@ -5,6 +5,8 @@ from app.models import AxisVerdict, Elimination, Identity, Offer, OfferDraft, Pr
 from app.offers import store as offers_store
 from app.profiler import store as profile_store
 from app.ranking import jobs, score, store
+from app.tracker import service as tracker_service
+from app.tracker import store as tracker_store
 
 MODEL = "openai/gpt-4o"
 
@@ -208,6 +210,24 @@ def test_selected_scope_ranks_only_the_ticked_offers(client, monkeypatch):
     assert "1 offer(s)" in response.text
     assert store.load_ranking(second) is not None
     assert store.load_ranking(first) is None
+
+
+def test_not_applied_scope_skips_the_offers_already_applied_to(client, monkeypatch):
+    _seed_profile()
+    fresh = _seed_offer("Senior Backend Engineer")
+    sent = _seed_offer("Data Engineer")
+    _configure()
+    _patch(monkeypatch)
+    _run_inline(monkeypatch)
+    tracker_store.set_status(sent, "applied", today=tracker_service.today_utc())
+
+    response = client.post(
+        "/ranking/run", data={"scope": "not_applied"}, follow_redirects=True
+    )
+
+    assert "1 offer(s)" in response.text
+    assert store.load_ranking(fresh) is not None
+    assert store.load_ranking(sent) is None
 
 
 def test_a_changed_criterion_marks_the_score_out_of_date(client, monkeypatch):

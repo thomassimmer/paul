@@ -53,6 +53,18 @@
         {% endif %}
       </p>
     </li>
+    <li class="{% if tracker.applied %}done{% endif %}">
+      <strong>Track and follow up</strong>
+      <p>
+        {% if tracker.total %}
+          {{ tracker.not_applied }} not applied to yet · {{ tracker.applied }} applied ·
+          <strong>{{ tracker.due }}</strong> follow-up(s) due.
+        {% else %}
+          Keep the status of every application and get reminded when a follow-up is
+          due.{% endif %}
+        <a href="/tracker">Open the tracker</a>.
+      </p>
+    </li>
   </ol>
 </div>
 

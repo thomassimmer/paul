@@ -14,6 +14,7 @@ from app.models import Profile
 from app.offers import store as offers_store
 from app.profiler import store as profile_store
 from app.ranking import jobs, service, store
+from app.tracker import store as tracker_store
 from app.web.templating import redirect, render
 
 router = APIRouter(prefix="/ranking", tags=["ranking"])
@@ -29,6 +30,7 @@ _EMPTY_SCOPE_MESSAGES = {
     "selected": "No offer was ticked, so there was nothing to rank.",
     "pending": "Nothing to do: every offer is already ranked and up to date.",
     "all": "No offer to rank yet.",
+    "not_applied": "Every offer already has an application, so there is nothing to rank.",
 }
 
 
@@ -130,7 +132,15 @@ async def ranking_run(request: Request):
 
     offers = offers_store.list_offers()
     rankings = store.list_rankings()
-    records = service.select_offers(scope, offers, rankings, settings, profile, selected_ids)
+    records = service.select_offers(
+        scope,
+        offers,
+        rankings,
+        settings,
+        profile,
+        selected_ids,
+        tracker_store.applied_offer_ids(),
+    )
 
     if not records:
         return redirect(

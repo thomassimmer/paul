@@ -271,3 +271,22 @@ class RankingRecord(BaseModel):
     @property
     def eliminated(self) -> bool:
         return effective_eliminated(self.override, self.elimination)
+
+
+# --- Tracker ------------------------------------------------------------------
+
+
+class Application(BaseModel):
+    """Where an offer stands in your process, as stored.
+
+    Kept apart from the offer and the ranking: this is what *you* did about it,
+    not what the offer says nor what we scored it. A missing row means the
+    default status, ``analyzed``.
+    """
+
+    offer_id: int
+    status: str = "analyzed"
+    applied_on: str = ""  # YYYY-MM-DD
+    last_contact: str = ""  # YYYY-MM-DD, the date follow-ups count from
+    notes: str = ""
+    updated_at: str = ""

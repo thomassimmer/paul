@@ -301,6 +301,26 @@ input[type="file"] { padding: 0.4rem; }
 .job-error .job-status { color: var(--error-text); }
 .job-running .job-status { color: var(--accent); }
 
+/* --- Tracker ----------------------------------------------------------- */
+
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 0.6rem; margin: 1rem 0; }
+.filters label { margin: 0; }
+.filters select, .filters input { width: auto; }
+
+.table th a { color: inherit; text-decoration: none; }
+.table th a:hover { color: var(--text); }
+.sort-mark { color: var(--accent); }
+
+.status-form { display: flex; gap: 0.35rem; align-items: center; }
+.status-form select { width: auto; padding: 0.25rem 0.45rem; font-size: 0.88em; }
+.status-form button { padding: 0.25rem 0.55rem; font-size: 0.82em; }
+
+.notes-cell { color: var(--muted); font-size: 0.9em; max-width: 20rem; }
+
+.verdict-warn { background: var(--warn-bg); color: var(--warn-text); }
+tr.due { background: var(--warn-bg); }
+tr.due .muted, tr.due .hint { color: var(--warn-text); }
+
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
 @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
 

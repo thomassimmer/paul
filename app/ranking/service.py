@@ -27,6 +27,7 @@ class RankingError(RuntimeError):
 SCOPES = {
     "pending": "Not ranked yet, or out of date",
     "all": "Every offer, even the ones already up to date",
+    "not_applied": "Only the offers I have not applied to yet",
     "selected": "Only the offers I tick",
 }
 DEFAULT_SCOPE = "pending"
@@ -82,13 +83,17 @@ def select_offers(
     settings: Settings,
     profile: Profile,
     selected_ids: Iterable[int] = (),
+    applied_ids: Iterable[int] = (),
 ) -> list[OfferRecord]:
     """The offers a run should touch, given the chosen scope.
 
     ``pending`` is the cheap default: never ranked, or ranked before the
-    criteria, the profile or the offer changed.
+    criteria, the profile or the offer changed. ``not_applied`` comes from the
+    tracker, which is passed in rather than imported: the ranker knows nothing
+    about statuses.
     """
     wanted = set(selected_ids)
+    applied = set(applied_ids)
     selected: list[OfferRecord] = []
     for offer in offers:
         ranking = rankings.get(offer.id)
@@ -96,6 +101,9 @@ def select_offers(
             selected.append(offer)
         elif scope == "selected":
             if offer.id in wanted:
+                selected.append(offer)
+        elif scope == "not_applied":
+            if offer.id not in applied:
                 selected.append(offer)
         elif ranking is None or is_stale(settings, profile, offer.offer, ranking):
             selected.append(offer)
