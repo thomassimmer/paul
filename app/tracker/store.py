@@ -20,6 +20,7 @@ def _record(row) -> Application:
         applied_on=row["applied_on"],
         last_contact=row["last_contact"],
         notes=row["notes"],
+        folder=row["folder"],
         updated_at=row["updated_at"],
     )
 
@@ -47,22 +48,35 @@ def save_application(
     applied_on: str,
     last_contact: str,
     notes: str,
+    folder: str | None = None,
 ) -> Application:
+    """Write the row. ``folder`` is only touched when it is given.
+
+    The tracker page saves the status and the notes without knowing anything about
+    the writer's folder, so ``None`` means "keep whatever is there" rather than
+    "erase it": losing the link to the generated documents on a status change
+    would be invisible and infuriating.
+    """
     db.init_db()
+    current = load_application(offer_id)
+    if folder is None:
+        folder = current.folder if current is not None else ""
     updated_at = service.today_utc().isoformat()
     with db.connect() as conn:
         conn.execute(
             """
-            INSERT INTO applications (offer_id, status, applied_on, last_contact, notes, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO applications
+                (offer_id, status, applied_on, last_contact, notes, folder, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(offer_id) DO UPDATE SET
                 status       = excluded.status,
                 applied_on   = excluded.applied_on,
                 last_contact = excluded.last_contact,
                 notes        = excluded.notes,
+                folder       = excluded.folder,
                 updated_at   = excluded.updated_at
             """,
-            (offer_id, status, applied_on, last_contact, notes, updated_at),
+            (offer_id, status, applied_on, last_contact, notes, folder, updated_at),
         )
     return Application(
         offer_id=offer_id,
@@ -70,6 +84,7 @@ def save_application(
         applied_on=applied_on,
         last_contact=last_contact,
         notes=notes,
+        folder=folder,
         updated_at=updated_at,
     )
 
@@ -89,6 +104,19 @@ def set_status(offer_id: int, status: str, *, today: date) -> Application:
         applied_on=applied_on,
         last_contact=last_contact,
         notes=current.notes,
+    )
+
+
+def set_folder(offer_id: int, folder: str) -> Application:
+    """Remember where the writer put the documents for this offer."""
+    current = load_application(offer_id) or Application(offer_id=offer_id)
+    return save_application(
+        offer_id,
+        status=current.status,
+        applied_on=current.applied_on,
+        last_contact=current.last_contact,
+        notes=current.notes,
+        folder=folder,
     )
 
 
