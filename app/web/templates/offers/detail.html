@@ -26,9 +26,9 @@
 </div>
 
 {% if folder %}
-<div class="hint">
-  <p>Documents prepared in <code>{{ folder }}/</code>.</p>
-  <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form">
+<p class="hint">Documents prepared in <code>{{ folder }}/</code>.</p>
+<div class="actions">
+  <form method="post" action="/applications/{{ record.id }}/prepare">
     <button type="submit" onclick="this.disabled=true; this.form.submit();">Prepare again</button>
   </form>
 </div>

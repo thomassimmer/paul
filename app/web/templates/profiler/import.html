@@ -29,12 +29,12 @@
   <input id="file" name="file" type="file" accept=".pdf,.docx,.md,.txt">
   <p class="hint">PDF or DOCX, up to 10 MB. An image-based PDF has no text to extract: paste it instead.</p>
 
-  <h2 style="margin-top:1.5rem">Or paste the text</h2>
+  <h2>Or paste the text</h2>
   <label for="text">CV text</label>
   <textarea id="text" name="text" rows="10" placeholder="Paste your CV here…"></textarea>
 
   {% if has_profile %}
-  <label class="check" style="margin-top:1rem">
+  <label class="check">
     <input type="checkbox" name="replace" value="1"> Replace my profile
   </label>
   {% endif %}

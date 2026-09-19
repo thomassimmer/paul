@@ -87,7 +87,9 @@
     These are answered by you, never by the model, and are needed to fill
     application forms: {{ summary.missing_facts | join(', ') }}.
   </p>
-  <p><a class="button" href="/profiler/interview">Answer in the interview</a></p>
+  <div class="actions">
+    <a class="button" href="/profiler/interview">Answer in the interview</a>
+  </div>
 </div>
 {% endif %}
 
@@ -103,6 +105,8 @@
     <dt>Follow-up delay</dt>
     <dd>{{ settings.followup_days }} days</dd>
   </dl>
-  <p><a class="button" href="/settings">Edit settings</a></p>
+  <div class="actions">
+    <a class="button" href="/settings">Edit settings</a>
+  </div>
 </div>
 {% endblock %}

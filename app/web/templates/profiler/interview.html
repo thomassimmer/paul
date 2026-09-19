@@ -43,12 +43,8 @@
     {% endif %}
     <div class="actions">
       <button type="submit" class="primary">Save and continue</button>
+      <button type="submit" formaction="/profiler/interview/skip">Skip this question</button>
     </div>
-  </form>
-
-  <form method="post" action="/profiler/interview/skip" class="inline-form">
-    <input type="hidden" name="key" value="{{ step.question.key }}">
-    <button type="submit">Skip this question</button>
   </form>
 </div>
 {% endif %}

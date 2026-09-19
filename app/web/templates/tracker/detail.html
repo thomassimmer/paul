@@ -91,9 +91,11 @@
 </form>
 
 {% if application %}
-<form method="post" action="/tracker/{{ record.id }}/clear" class="inline-form"
-      onsubmit="return confirm('Forget this application and go back to Analyzed?');">
-  <button type="submit">Reset to Analyzed</button>
-</form>
+<div class="actions">
+  <form method="post" action="/tracker/{{ record.id }}/clear"
+        onsubmit="return confirm('Forget this application and go back to Analyzed?');">
+    <button type="submit">Reset to Analyzed</button>
+  </form>
+</div>
 {% endif %}
 {% endblock %}

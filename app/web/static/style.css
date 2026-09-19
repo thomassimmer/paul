@@ -1,3 +1,7 @@
+/* Paul (Emploi) — single stylesheet, no build step.
+   Layout: header, main and footer share the same centered container whose
+   width follows --content, so every page lines up. Wide pages set it on body. */
+
 :root {
   color-scheme: light dark;
   --bg: #f5f6f8;
@@ -16,6 +20,13 @@
   --warn-bg: #fdf3e3;
   --warn-border: #e6c286;
   --warn-text: #7a5300;
+
+  /* Shared rhythm, so pages stay consistent. */
+  --content: 760px;
+  --gutter: 1.5rem;
+  --radius: 10px;
+  --space: 1.25rem;
+  --control-height: 2.4rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,50 +58,100 @@ body {
   font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem 1.5rem;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
+/* --- Layout ------------------------------------------------------------ */
+
+/* Header, main and footer all render inside this container and therefore
+   share the same left and right edges. */
+.container {
+  width: 100%;
+  max-width: var(--content);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
 }
 
-.brand { font-weight: 700; font-size: 1.05rem; color: var(--text); text-decoration: none; }
-.brand span { color: var(--muted); font-weight: 500; }
+body.wide { --content: 1180px; }
 
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: color-mix(in srgb, var(--accent) 80%, var(--text)); }
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+header .container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding-block: 0.85rem;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.brand span { color: var(--muted); font-weight: 500; }
+.brand:hover { color: var(--text); }
+
+nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 1.1rem; }
 nav a {
   color: var(--muted);
   text-decoration: none;
-  margin-left: 1.1rem;
-  padding-bottom: 2px;
+  padding: 0.2rem 0;
+  border-bottom: 2px solid transparent;
 }
 nav a:hover { color: var(--text); }
-nav a.active { color: var(--text); border-bottom: 2px solid var(--accent); }
+nav a.active { color: var(--text); border-bottom-color: var(--accent); }
 
-main { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+main { padding-block: 2rem 4rem; }
 
-h1 { font-size: 1.6rem; margin: 0 0 0.4rem; }
+footer {
+  padding-block: 0 2.5rem;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+/* --- Typography -------------------------------------------------------- */
+
+h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 0.4rem; }
 h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+h3 { font-size: 0.95rem; margin: 1.15rem 0 0.5rem; }
 .lede { color: var(--muted); margin: 0 0 1.5rem; max-width: 62ch; }
+
+/* A second section inside one card keeps breathing room from the first. */
+.card > h2:not(:first-child) { margin-top: 1.5rem; }
+
+/* --- Cards ------------------------------------------------------------- */
 
 .card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 1.25rem 1.35rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--space);
 }
 
+/* --- Forms ------------------------------------------------------------- */
+
 label { display: block; font-weight: 600; margin: 1rem 0 0.35rem; }
+/* No double gap at the top of a card when the label is the first visible bit. */
+.card > label:first-child,
+.card > input[type="hidden"] + label { margin-top: 0; }
 .optional { color: var(--muted); font-weight: 400; font-size: 0.85em; }
 .check { display: flex; align-items: center; gap: 0.5rem; font-weight: 400; }
-.check input { width: auto; margin: 0; }
+.check input { width: auto; min-height: 0; margin: 0; }
 
-input[type="text"], input[type="password"], input[type="number"], select, textarea {
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select,
+textarea {
   width: 100%;
   padding: 0.5rem 0.6rem;
   font: inherit;
@@ -99,8 +160,29 @@ input[type="text"], input[type="password"], input[type="number"], select, textar
   border: 1px solid var(--border);
   border-radius: 7px;
 }
+
+/* Inputs, selects and buttons share one height, so a row never looks ragged. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select { min-height: var(--control-height); }
+
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; }
+
+textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+input[type="file"] {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  font-size: 0.92em;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 7px;
+}
 
 .hint { color: var(--muted); font-size: 0.87em; margin: 0.35rem 0 0; }
 .soon {
@@ -114,30 +196,61 @@ textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, C
   white-space: nowrap;
 }
 
-.actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.25rem; }
-.actions.sticky { margin-top: 0; }
+/* --- Buttons and action rows ------------------------------------------- */
 
 button, .button {
   font: inherit;
   font-weight: 600;
+  line-height: 1.2;
   padding: 0.5rem 1rem;
+  min-height: var(--control-height);
   border-radius: 7px;
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
   cursor: pointer;
   text-decoration: none;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  text-align: center;
+  white-space: nowrap;
 }
 button:hover, .button:hover { border-color: var(--muted); }
-button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
-button.primary:hover { filter: brightness(1.08); }
-button[disabled] { opacity: 0.6; cursor: progress; }
+button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button.primary:hover, .button.primary:hover { filter: brightness(1.08); }
+button[disabled], .button[disabled] { opacity: 0.6; cursor: progress; }
+button:focus-visible, .button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* A row of buttons, always vertically centered and evenly spaced. Forms are
+   unwrapped so a submit button aligns with a plain link button. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: var(--space);
+}
+.actions form { display: flex; margin: 0; }
+.page-head .actions { margin-top: 0; }
+.actions.sticky {
+  position: sticky;
+  bottom: 0;
+  margin-top: 0;
+  padding-block: 0.9rem;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.inline-form { display: inline-flex; margin: 0; }
+
+/* --- Banners ----------------------------------------------------------- */
 
 .banner {
   border-radius: 8px;
-  padding: 0.6rem 0.85rem;
-  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.85rem;
+  margin: 0.75rem 0;
   border: 1px solid transparent;
 }
 .banner-error { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
@@ -152,7 +265,7 @@ ul.banner { padding-left: 2rem; }
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.6rem 1rem;
 }
 
 .tag {
@@ -174,7 +287,7 @@ ul.banner { padding-left: 2rem; }
   overflow: hidden;
   margin-bottom: 0.4rem;
 }
-.progress-bar { height: 100%; background: var(--accent); }
+.progress-bar { height: 100%; background: var(--accent); transition: width 0.3s ease; }
 
 .topic { color: var(--muted); margin: 0.6rem 0 0; font-size: 0.9em; }
 .question { font-size: 1.3rem; margin: 0.2rem 0 0.6rem; }
@@ -216,10 +329,6 @@ ul.banner { padding-left: 2rem; }
 
 .yaml { font-size: 0.88em; line-height: 1.45; }
 
-.inline-form { display: inline; margin-top: 0.75rem; }
-
-input[type="file"] { padding: 0.4rem; }
-
 /* --- Offers ------------------------------------------------------------ */
 
 .table {
@@ -228,12 +337,12 @@ input[type="file"] { padding: 0.4rem; }
   margin: 1rem 0;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   overflow: hidden;
 }
-.table th, .table td { text-align: left; padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--border); }
+.table th, .table td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .table th { color: var(--muted); font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.04em; }
-.table tr:last-child td { border-bottom: 0; }
+.table tbody tr:last-child td { border-bottom: 0; }
 .table td.muted, .muted { color: var(--muted); }
 
 .source {
@@ -276,7 +385,8 @@ input[type="file"] { padding: 0.4rem; }
 }
 
 .actions-cell { white-space: nowrap; }
-.actions-cell button { padding: 0.3rem 0.6rem; font-size: 0.85em; }
+.actions-cell form + form { margin-left: 0.35rem; }
+.actions-cell button { min-height: auto; padding: 0.3rem 0.6rem; font-size: 0.85em; }
 
 .table td .hint { margin-top: 0.15rem; }
 .table details summary { cursor: pointer; color: var(--muted); font-size: 0.9em; }
@@ -307,7 +417,7 @@ input[type="file"] { padding: 0.4rem; }
 
 /* --- Tracker ----------------------------------------------------------- */
 
-.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 0.6rem; margin: 1rem 0; }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 1rem 0; }
 .filters label { margin: 0; }
 .filters select, .filters input { width: auto; }
 
@@ -315,9 +425,9 @@ input[type="file"] { padding: 0.4rem; }
 .table th a:hover { color: var(--text); }
 .sort-mark { color: var(--accent); }
 
-.status-form { display: flex; gap: 0.35rem; align-items: center; }
-.status-form select { width: auto; padding: 0.25rem 0.45rem; font-size: 0.88em; }
-.status-form button { padding: 0.25rem 0.55rem; font-size: 0.82em; }
+.status-form { display: flex; gap: 0.4rem; align-items: center; }
+.status-form select { width: auto; padding: 0.3rem 0.45rem; font-size: 0.85em; min-height: auto; }
+.status-form button { padding: 0.3rem 0.6rem; font-size: 0.82em; min-height: auto; }
 
 .notes-cell { color: var(--muted); font-size: 0.9em; max-width: 20rem; }
 
@@ -325,15 +435,23 @@ input[type="file"] { padding: 0.4rem; }
 tr.due { background: var(--warn-bg); }
 tr.due .muted, tr.due .hint { color: var(--warn-text); }
 
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; align-items: end; }
 @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
 
 .steps { margin: 0; padding-left: 1.2rem; }
 .steps li { margin-bottom: 0.85rem; }
+.steps li:last-child { margin-bottom: 0; }
 .steps li.done strong::after { content: " ✓"; color: var(--accent); }
 .steps p { margin: 0.15rem 0 0; color: var(--muted); }
 
-.kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0 0 1rem; }
+.kv {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0 0 1rem;
+  align-items: baseline;
+}
+.kv:last-child { margin-bottom: 0; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; }
 
@@ -345,17 +463,7 @@ code {
   border-radius: 4px;
 }
 
-footer {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 0 1.5rem 2.5rem;
-  color: var(--muted);
-  font-size: 0.85em;
-}
-
 /* --- Writer ------------------------------------------------------------ */
-
-main.wide { max-width: 1180px; }
 
 .doc-head {
   display: flex;
@@ -365,7 +473,7 @@ main.wide { max-width: 1180px; }
   gap: 0.5rem 1rem;
 }
 .doc-head h2 { margin-bottom: 0; }
-.doc-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.9em; }
+.doc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; font-size: 0.9em; }
 
 .review {
   display: grid;
@@ -420,5 +528,13 @@ main.wide { max-width: 1180px; }
 
 .regenerate { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.75rem; }
 .regenerate label { margin-top: 0; }
-.regenerate-row { display: flex; gap: 0.6rem; align-items: center; }
+.regenerate-row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .regenerate-row input { flex: 1; }
+
+/* --- Small screens ----------------------------------------------------- */
+
+@media (max-width: 560px) {
+  :root { --gutter: 1rem; }
+  h1 { font-size: 1.35rem; }
+  main { padding-block: 1.5rem 3rem; }
+}
