@@ -13,7 +13,7 @@ from app.config import DATA_DIR
 
 DB_PATH = DATA_DIR / "paul.sqlite3"
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS applications (
     applied_on   TEXT NOT NULL DEFAULT '',
     last_contact TEXT NOT NULL DEFAULT '',
     notes        TEXT NOT NULL DEFAULT '',
+    folder       TEXT NOT NULL DEFAULT '',
     updated_at   TEXT NOT NULL DEFAULT ''
 );
 """
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS applications (
 # cannot add a column to a database that already has the table.
 _COLUMN_MIGRATIONS = {
     "rankings": {"fingerprint": "TEXT NOT NULL DEFAULT ''"},
+    "applications": {"folder": "TEXT NOT NULL DEFAULT ''"},
 }
 
 

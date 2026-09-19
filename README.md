@@ -325,20 +325,23 @@ Structure, colors, fonts, page setup and decorative elements, all read directly 
 
 ### How it is reused
 
-1. **Analysis.** A parser walks the document and groups its content into blocks. One LLM call then assigns each block a **role**:
+1. **Analysis.** A parser walks the document — table cells included — and groups its content into blocks. Each block gets a **role**:
 
-   `name`, `headline`, `contact`, `section_title`, `entry_title`, `entry_subtitle`, `entry_dates`, `bullet`, `body_text`, `skill_line`, `recipient`, `date`, `salutation`, `closing`, `signature`, or `fixed` (logo, decorative line, footer: kept untouched).
+   `name`, `headline`, `contact`, `section_title`, `entry_title`, `entry_subtitle`, `entry_dates`, `bullet`, `body_text`, `skill_line`, `recipient`, `date`, `salutation`, `closing`, `signature`, or `fixed`.
 
-2. **Blueprint.** The result is saved as `template.json` and shown as a preview where you can correct any wrongly detected role.
-3. **Rendering.** The original DOCX is used as the base. For each role, one existing block acts as a **prototype**: its XML (run formatting, numbering, borders, shading) is deep-copied and filled with the new text, and the sample content is removed. A section missing from the template (e.g. *Projects*) is created by cloning a section title and an entry prototype. Because the file itself is the base, fonts, colors and layout are preserved exactly, rather than approximated.
-4. **Fit check.** The document is converted to PDF to count pages. If it overflows the target length, the writer condenses the content (shorter bullets, fewer old items) and re-renders, up to two times.
+   The role comes first from the layout, which already says a lot (a bullet style is a bullet, a short bold line is a title, a line of dates is not a phone number), then one LLM call settles the rest. Without a model, the layout alone decides.
+2. **Blueprint.** The result is stored as JSON next to your file, and shown as a preview where every block's role can be corrected in a select. A wrongly read role would silently produce a wrongly styled document, so it is meant to be checked.
+3. **Rendering.** The original DOCX is used as the base, and its body is rebuilt: for each line, the XML of the block it was modelled on (its **prototype**) is deep-copied and its text replaced. Fonts, sizes, colours, spacing, numbering, borders and shading therefore come from your file rather than being approximated, and page size, margins, styles, theme, headers and footers are untouched because the file itself stays the base. A role your template does not show (e.g. *Projects* when there is no such section) falls back to the closest role it does show.
+4. **Fit check.** The document is converted to PDF to count pages. If it overflows the target length, the writer condenses the content and re-renders, up to two times. Without LibreOffice (`WITH_PDF=0`), a line-count estimate is used instead and says so.
 
-If you provide no template, a clean, single-column, parser-friendly default is used.
+If you provide no template, a clean, single-column, parser-friendly default is used — built in code, so it needs no analysis and no model call.
 
 ### Limitations
 
 - Templates built from text boxes, floating shapes or images of text may be only partially understood; the preview tells you what was detected.
-- A **PDF** template (e.g. exported from Canva) cannot be edited in place. In that case only the *look* (fonts, colors, section order) is extracted and applied to the default template. This is an approximation and is labeled as such.
+- A **PDF** template (e.g. exported from Canva) is not supported in this version. Converting it to DOCX first is the only way in.
+- A **two-column layout built with a table** is analyzed (you see its blocks and can set their roles), but rendering re-emits those paragraphs at body level: the result is single-column. Reproducing an arbitrary table layout cell by cell is a bigger job than it looks.
+- A decorative element *inside the body* (`fixed`) is not carried over either, since the body is rebuilt; anything in the **header or footer** is preserved, which is where logos and page numbers usually live.
 - Exotic Word features may not survive; report them with an anonymized sample file.
 
 ### Exports

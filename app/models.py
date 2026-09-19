@@ -7,6 +7,8 @@ rule). ``Profile`` is owned by the profiler, ``Offer`` by the offer analyzer;
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -289,4 +291,154 @@ class Application(BaseModel):
     applied_on: str = ""  # YYYY-MM-DD
     last_contact: str = ""  # YYYY-MM-DD, the date follow-ups count from
     notes: str = ""
+    # Where the writer put the generated documents, once it has run.
+    folder: str = ""
     updated_at: str = ""
+
+
+# --- Templates ----------------------------------------------------------------
+
+# The roles a template block can play. The two tuples are the contract between
+# the blueprint, the prompts and the renderer; a draft line whose role is not one
+# of these is rejected by validation, and the model is asked to answer again.
+CV_ROLES = (
+    "name",
+    "headline",
+    "contact",
+    "section_title",
+    "entry_title",
+    "entry_subtitle",
+    "entry_dates",
+    "bullet",
+    "body_text",
+    "skill_line",
+    "fixed",
+)
+LETTER_ROLES = (
+    "name",
+    "contact",
+    "date",
+    "recipient",
+    "salutation",
+    "body_text",
+    "closing",
+    "signature",
+    "fixed",
+)
+# Roles that state a fact about the candidate, and therefore need a citation.
+FACTUAL_ROLES = ("bullet", "body_text", "entry_subtitle")
+
+CvRole = Literal[
+    "name",
+    "headline",
+    "contact",
+    "section_title",
+    "entry_title",
+    "entry_subtitle",
+    "entry_dates",
+    "bullet",
+    "body_text",
+    "skill_line",
+    "fixed",
+]
+LetterRole = Literal[
+    "name",
+    "contact",
+    "date",
+    "recipient",
+    "salutation",
+    "body_text",
+    "closing",
+    "signature",
+    "fixed",
+]
+
+
+class TemplateBlock(BaseModel):
+    """One paragraph of a template, with its role and the XML behind it."""
+
+    role: str = ""
+    text: str = ""  # the sample text, shown in the preview
+    xml: str = ""  # the serialized paragraph: the renderer's prototype
+
+
+class TemplateBlueprint(BaseModel):
+    """A template, read once and reused for every rendering."""
+
+    kind: str = "cv"  # "cv" | "letter"
+    blocks: list[TemplateBlock] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+    def prototype(self, role: str) -> str | None:
+        for block in self.blocks:
+            if block.role == role and block.xml:
+                return block.xml
+        return None
+
+    def roles(self) -> list[str]:
+        return [block.role for block in self.blocks]
+
+
+# --- Writer -------------------------------------------------------------------
+
+
+class DraftLine(BaseModel):
+    """One line of a generated document, and where it comes from."""
+
+    role: str = "body_text"
+    text: str = ""
+    achievement_ids: list[str] = Field(default_factory=list)
+
+
+class CvDraft(BaseModel):
+    """What the model returns for a CV."""
+
+    lines: list[DraftLine] = Field(default_factory=list)
+
+
+class LetterDraft(BaseModel):
+    """What the model returns for a cover letter."""
+
+    lines: list[DraftLine] = Field(default_factory=list)
+
+
+class CvLine(DraftLine):
+    role: CvRole = "body_text"
+
+
+class LetterLine(DraftLine):
+    role: LetterRole = "body_text"
+
+
+class CvContent(BaseModel):
+    lines: list[CvLine] = Field(default_factory=list)
+
+
+class LetterContent(BaseModel):
+    lines: list[LetterLine] = Field(default_factory=list)
+
+
+class GroundingIssue(BaseModel):
+    index: int = 0
+    role: str = ""
+    text: str = ""
+    reason: str = ""
+
+
+class GroundingReport(BaseModel):
+    checked: int = 0
+    issues: list[GroundingIssue] = Field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return not self.issues
+
+
+class FormAnswer(BaseModel):
+    question: str = ""
+    answer: str = ""
+    # "fact": taken from the facts section; "generated": drafted by the model;
+    # "missing": a fact question whose fact is not filled in yet.
+    source: str = "generated"
+    max_length: int | None = None
+    note: str = ""

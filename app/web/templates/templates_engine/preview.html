@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ label }} template{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>{{ label }} template</h1>
+  <div class="actions">
+    <a class="button" href="/templates">Back to templates</a>
+  </div>
+</div>
+<p class="lede">
+  Every block read from your file, with the role Paul gave it. Correct anything
+  that is wrong: it decides which style each line of your documents will get.
+</p>
+
+{% if notes %}
+<p class="banner banner-warning" role="status">{{ notes | join(' ') }}</p>
+{% endif %}
+
+<form method="post" action="/templates/{{ kind }}/roles">
+  <input type="hidden" name="block_count" value="{{ blocks | length }}">
+  <table class="table">
+    <thead>
+      <tr><th>#</th><th>Text found in your file</th><th>Role</th></tr>
+    </thead>
+    <tbody>
+      {% for block in blocks %}
+      <tr>
+        <td class="muted">{{ loop.index }}</td>
+        <td>{{ block.text }}</td>
+        <td>
+          <select name="role.{{ loop.index0 }}" aria-label="Role of block {{ loop.index }}">
+            {% for role in allowed %}
+            <option value="{{ role }}" {% if role == block.role %}selected{% endif %}>{{ labels[role] }}</option>
+            {% endfor %}
+            {% if block.role not in allowed %}
+            <option value="{{ block.role }}" selected>{{ block.role }} (unknown)</option>
+            {% endif %}
+          </select>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="actions">
+    <button type="submit" class="primary">Save roles</button>
+  </div>
+</form>
+{% endblock %}

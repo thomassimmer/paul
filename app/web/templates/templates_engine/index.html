@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Templates{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Templates</h1>
+</div>
+<p class="lede">
+  Your CV and your cover letter should look like <em>you</em>. Import a
+  <code>.docx</code> you are happy with: Paul reads its structure, colours and
+  fonts, and renders your documents in that style. Without a template, a clean
+  single-column default is used.
+</p>
+
+{% for kind in kinds %}
+<div class="card">
+  <div class="page-head">
+    <h2>{{ kind.label }}</h2>
+    {% if kind.custom %}
+    <form method="post" action="/templates/{{ kind.kind }}/reset" class="inline-form"
+          onsubmit="return confirm('Remove this template and use the default again?');">
+      <button type="submit">Use the default</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if kind.error %}
+  <p class="banner banner-error" role="alert">{{ kind.error }}</p>
+  {% endif %}
+
+  {% if kind.custom %}
+  <p class="hint">
+    {{ kind.count }} blocks read from your file.
+    <a href="/templates/{{ kind.kind }}">Check the detected roles</a>.
+  </p>
+  {% else %}
+  <p class="hint">The default template is in use.</p>
+  {% endif %}
+
+  {% if not kind.settings.model %}
+  <p class="banner banner-warning" role="status">
+    No model configured: the roles will be guessed from the layout only. You can
+    still correct them on the next page, or set a model in
+    <a href="/settings">Settings</a> for a better reading.
+  </p>
+  {% endif %}
+
+  <form method="post" action="/templates/{{ kind.kind }}" enctype="multipart/form-data">
+    <label for="file-{{ kind.kind }}">Your {{ kind.label|lower }} (.docx)</label>
+    <input id="file-{{ kind.kind }}" name="file" type="file" accept=".docx">
+    <div class="actions">
+      <button type="submit" class="primary">Import and read it</button>
+    </div>
+  </form>
+</div>
+{% endfor %}
+
+<p class="hint">
+  A PDF template cannot be edited in place: only its look could be approximated,
+  which this version does not attempt. A <code>.doc</code> file has to be saved as
+  <code>.docx</code> first. Text boxes, floating shapes and images of text are only
+  partially understood, and a two-column layout built with a table is re-emitted
+  single-column.
+</p>
+{% endblock %}
