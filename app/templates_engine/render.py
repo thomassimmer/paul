@@ -11,6 +11,7 @@ from __future__ import annotations
 from io import BytesIO
 
 from docx import Document
+from docx.document import Document as DocumentType
 from docx.oxml import OxmlElement, parse_xml
 from docx.oxml.ns import qn
 
@@ -42,7 +43,7 @@ def render(base_docx: bytes, blueprint: TemplateBlueprint, lines: list[DraftLine
     return buffer.getvalue()
 
 
-def _clear_body(document: Document) -> None:
+def _clear_body(document: DocumentType) -> None:
     """Drop the sample content, keeping the section properties (page setup)."""
     body = document.element.body
     for child in list(body.iterchildren()):

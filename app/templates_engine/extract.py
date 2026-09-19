@@ -106,5 +106,5 @@ def _is_list(paragraph: Paragraph) -> bool:
     properties = paragraph._p.pPr
     if properties is not None and properties.numPr is not None:
         return True
-    style = paragraph.style.name if paragraph.style is not None else ""
-    return "list" in style.lower()
+    name = paragraph.style.name if paragraph.style is not None else ""
+    return "list" in (name or "").lower()

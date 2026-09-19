@@ -143,7 +143,7 @@ def test_rendering_replaces_the_sample_text_and_keeps_the_style():
     # The sample content is gone, and the bullet keeps its list style.
     assert "Your Name" not in " ".join(texts)
     bullet = next(p for p in document.paragraphs if p.text.startswith("Cut ingestion"))
-    assert bullet.style.name == "List Bullet"
+    assert bullet.style is not None and bullet.style.name == "List Bullet"
     name = next(p for p in document.paragraphs if p.text == "Camille Moreau")
     assert name.runs[0].bold is True
     assert name.runs[0].font.size == Pt(22)
