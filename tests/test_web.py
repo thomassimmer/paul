@@ -27,6 +27,10 @@ def test_dashboard_renders(client):
     assert "Paul" in response.text
 
 
+def test_the_dashboard_lists_the_writer_step(client):
+    assert "Write the tailored documents" in client.get("/").text
+
+
 def test_settings_page_renders(client):
     response = client.get("/settings")
     assert response.status_code == 200

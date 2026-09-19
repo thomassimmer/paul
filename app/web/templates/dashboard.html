@@ -53,6 +53,18 @@
         {% endif %}
       </p>
     </li>
+    <li class="{% if prepared_count %}done{% endif %}">
+      <strong>Write the tailored documents</strong>
+      <p>
+        {% if prepared_count %}
+          {{ prepared_count }} application(s) prepared. <a href="/applications">Review them</a>.
+        {% else %}
+          For the offers worth applying to, Paul writes a CV and a cover letter in
+          your own template, drafts the form answers and scores the keyword
+          coverage. <a href="/applications">Open Applications</a>.
+        {% endif %}
+      </p>
+    </li>
     <li class="{% if tracker.applied %}done{% endif %}">
       <strong>Track and follow up</strong>
       <p>

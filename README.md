@@ -254,7 +254,9 @@ The **Applications** page lists the offers with their score and status, says whi
 ones already have a folder, and is where *Prepare* is clicked. Preparing takes a
 minute — it is three or four model calls plus a page measurement — and writing
 into an existing folder updates it in place rather than creating a second one. The
-folder is remembered on the application, so the tracker links straight back to it.
+folder is remembered on the application, so the tracker links straight back to it,
+and the same button sits on the offer page so you do not have to guess where the
+writing starts. Either way it needs an imported profile and a configured model.
 
 **Tailoring.** The writer selects and orders the most relevant experiences and achievements from your profile, rephrases them with the offer's vocabulary, and writes a letter grounded in the company and the role. Documents are generated in the **language of the offer** (or the one you force in settings).
 

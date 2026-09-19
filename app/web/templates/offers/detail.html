@@ -5,7 +5,15 @@
 <div class="page-head">
   <h1>{{ offer.title or 'Untitled offer' }}</h1>
   <div class="actions">
-    <a class="button primary" href="/offers/{{ record.id }}/edit">Complete / edit</a>
+    {% if folder %}
+    <a class="button primary" href="/applications/{{ record.id }}">Review application</a>
+    {% else %}
+    <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form">
+      <button type="submit" class="primary"
+              onclick="this.disabled=true; this.form.submit();">Prepare CV, letter and answers</button>
+    </form>
+    {% endif %}
+    <a class="button" href="/offers/{{ record.id }}/edit">Complete / edit</a>
     <form method="post" action="/offers/{{ record.id }}/reanalyze" class="inline-form">
       <button type="submit">Analyze again</button>
     </form>
@@ -16,6 +24,21 @@
     </form>
   </div>
 </div>
+
+{% if folder %}
+<div class="hint">
+  <p>Documents prepared in <code>{{ folder }}/</code>.</p>
+  <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form">
+    <button type="submit" onclick="this.disabled=true; this.form.submit();">Prepare again</button>
+  </form>
+</div>
+{% else %}
+<p class="hint">
+  Preparing writes a CV and a cover letter tailored to this offer, in your own
+  template, plus the form answers and an ATS coverage report. It needs a profile
+  and a configured model.
+</p>
+{% endif %}
 
 <p class="lede">
   {{ offer.company }}{% if offer.company and offer.location %} · {% endif %}{{ offer.location }}

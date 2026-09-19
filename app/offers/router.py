@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse
 from app.config import load_settings
 from app.llm import LLMError
 from app.offers import clean, editor, service, store
+from app.tracker import store as tracker_store
 from app.web.templating import redirect, render
 
 router = APIRouter(prefix="/offers", tags=["offers"])
@@ -89,6 +90,10 @@ async def offer_detail(request: Request, offer_id: int):
     if response is not None:
         return response
     assert record is not None
+    # The writer lives in its own package; this page only needs to know whether
+    # an application folder was already prepared for this offer, so it reads the
+    # tracker's row rather than importing the writer.
+    application = tracker_store.load_application(offer_id)
     return render(
         request,
         "offers/detail.html",
@@ -96,6 +101,7 @@ async def offer_detail(request: Request, offer_id: int):
         record=record,
         offer=record.offer,
         missing=service.missing_fields(record.offer),
+        folder=application.folder if application else "",
     )
 
 

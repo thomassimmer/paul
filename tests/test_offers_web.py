@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.config import Settings, save_settings
 from app.models import OfferDraft, Requirements
 from app.offers import store
+from app.tracker import store as tracker_store
 
 FRAGMENT = """
 <div>
@@ -188,6 +189,30 @@ def test_missing_offer_redirects_to_the_list(client):
     response = client.get("/offers/9999", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"] == "/offers"
+
+
+def test_the_offer_page_offers_to_prepare_the_documents(client, monkeypatch):
+    save_settings(Settings(model="openai/gpt-4o"))
+    _patch_extract(monkeypatch)
+    offer_id = _analyze(client)
+
+    page = client.get(f"/offers/{offer_id}")
+
+    assert f'action="/applications/{offer_id}/prepare"' in page.text
+    assert "Prepare CV, letter and answers" in page.text
+
+
+def test_the_offer_page_links_to_the_application_once_prepared(client, monkeypatch):
+    save_settings(Settings(model="openai/gpt-4o"))
+    _patch_extract(monkeypatch)
+    offer_id = _analyze(client)
+    tracker_store.set_folder(offer_id, "2026-09-acme-senior-backend-engineer")
+
+    page = client.get(f"/offers/{offer_id}")
+
+    assert f'href="/applications/{offer_id}"' in page.text
+    assert "Prepare again" in page.text
+    assert "2026-09-acme-senior-backend-engineer/" in page.text
 
 
 def test_dashboard_links_to_the_offers(client):

@@ -15,6 +15,18 @@
   · analyzed on {{ (record.analyzed_at or '')[:10] or '—' }}
 </p>
 
+{% if application and application.folder %}
+<p class="hint">
+  Tailored documents prepared: <a href="/applications/{{ record.id }}">review them</a>
+  (<code>{{ application.folder }}/</code>).
+</p>
+{% else %}
+<p class="hint">
+  No tailored documents yet.
+  <a href="/applications">Prepare a CV, a cover letter and the form answers</a>.
+</p>
+{% endif %}
+
 {% if ranking %}
 <div class="card">
   <h2>Ranking</h2>

@@ -28,6 +28,7 @@ async def dashboard(request: Request) -> HTMLResponse:
     except store.ProfileError:
         profile = None
     settings = load_settings()
+    applications = tracker_store.list_applications()
     return render(
         request,
         "dashboard.html",
@@ -37,11 +38,12 @@ async def dashboard(request: Request) -> HTMLResponse:
         summary=service.summary(profile),
         offers_count=offers_store.count_offers(),
         ranked_count=len(ranking_store.list_rankings()),
+        prepared_count=sum(1 for application in applications.values() if application.folder),
         tracker=tracker_service.board_summary(
             tracker_service.tracker_rows(
                 offers_store.list_offers(),
                 ranking_store.list_rankings(),
-                tracker_store.list_applications(),
+                applications,
                 settings,
                 tracker_service.today_utc(),
             )

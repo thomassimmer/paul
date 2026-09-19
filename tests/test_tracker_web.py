@@ -40,6 +40,24 @@ def test_analyzed_offers_show_up_with_the_default_status(client):
     assert '<option value="analyzed" selected>' in response.text
 
 
+def test_the_detail_page_points_to_the_writer(client):
+    offer_id = _seed_offer()
+
+    page = client.get(f"/tracker/{offer_id}")
+
+    assert "Prepare a CV, a cover letter and the form answers" in page.text
+
+
+def test_the_detail_page_links_to_the_prepared_documents(client):
+    offer_id = _seed_offer()
+    _seed_application(offer_id, folder="2026-09-acme-senior-backend-engineer")
+
+    page = client.get(f"/tracker/{offer_id}")
+
+    assert f'href="/applications/{offer_id}"' in page.text
+    assert "2026-09-acme-senior-backend-engineer/" in page.text
+
+
 def test_a_status_can_be_changed_from_the_board(client):
     offer_id = _seed_offer()
 
