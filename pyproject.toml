@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paul-emploi"
+version = "0.1.0"
+description = "Self-hosted assistant to apply to more jobs, and apply better."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.12",
+    "pydantic>=2.9",
+    # LiteLLM is the single entry point to every provider (OpenAI, Anthropic,
+    # Mistral, Ollama, ...). Loaded lazily, only when a call is made.
+    "litellm>=1.55",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.27",
+    "pytest>=8.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+# Ship the templates and static files inside the wheel, so the app runs
+# identically from the source tree and from site-packages (Docker).
+[tool.setuptools.package-data]
+"app.web" = [
+    "templates/*.html",
+    "templates/partials/*.html",
+    "static/*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

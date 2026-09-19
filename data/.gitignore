@@ -1,0 +1,4 @@
+# User data is never committed. The directory itself is kept so the Docker
+# volume mount target exists on a fresh clone.
+*
+!.gitignore

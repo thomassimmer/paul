@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1>Paul</h1>
+<p class="lede">
+  Self-hosted assistant to apply to more jobs, and apply better. Nothing is ever
+  sent automatically and your data never leaves this machine, except the text you
+  send to the LLM provider you configure.
+</p>
+
+<div class="card">
+  <h2>Get started</h2>
+  <ol class="steps">
+    <li class="{% if configured %}done{% endif %}">
+      <strong>Configure your model</strong>
+      <p>Pick a provider, paste an API key and test the connection in
+        <a href="/settings">Settings</a>.</p>
+    </li>
+    <li>
+      <strong>Import your CV</strong>
+      <p>The profiler turns your CV into an editable profile and interviews you
+        to fill the gaps. <span class="soon">next milestone</span></p>
+    </li>
+    <li>
+      <strong>Paste a job offer</strong>
+      <p>Analyzed, filtered and scored against your profile and your wishes.
+        <span class="soon">next milestone</span></p>
+    </li>
+  </ol>
+</div>
+
+<div class="card">
+  <h2>Current configuration</h2>
+  <dl class="kv">
+    <dt>Model</dt>
+    <dd>{% if settings.model %}<code>{{ settings.model }}</code>{% else %}<em>not set</em>{% endif %}</dd>
+    <dt>API base</dt>
+    <dd>{% if settings.api_base %}<code>{{ settings.api_base }}</code>{% else %}<em>provider default</em>{% endif %}</dd>
+    <dt>Output language</dt>
+    <dd>{{ settings.output_language }}</dd>
+    <dt>Follow-up delay</dt>
+    <dd>{{ settings.followup_days }} days</dd>
+  </dl>
+  <p><a class="button" href="/settings">Edit settings</a></p>
+</div>
+{% endblock %}

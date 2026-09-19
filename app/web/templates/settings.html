@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+<p class="lede">
+  Stored locally in <code>data/settings.json</code>, including your API key.
+  This folder is git-ignored: never commit or share it.
+</p>
+
+{% if errors %}
+<ul class="banner banner-error" role="alert">
+  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+</ul>
+{% endif %}
+
+{% if saved %}
+<p class="banner banner-ok" role="status">Settings saved.</p>
+{% endif %}
+
+<form method="post" action="/settings">
+  <section class="card">
+    <h2>LLM provider</h2>
+    <p class="hint">
+      Any provider supported by
+      <a href="https://docs.litellm.ai/docs/providers" rel="noreferrer">LiteLLM</a>,
+      through a single key. Use <code>ollama/…</code> for a local model.
+    </p>
+
+    <label for="model">Model</label>
+    <input id="model" name="model" value="{{ settings.model }}"
+           placeholder="anthropic/claude-sonnet-4-5" autocomplete="off" spellcheck="false">
+    <p class="hint">Examples: <code>openai/gpt-4o</code>, <code>mistral/mistral-large-latest</code>, <code>ollama/llama3</code>.</p>
+
+    <label for="api_key">API key</label>
+    <input id="api_key" name="api_key" type="password" value="" autocomplete="new-password"
+           placeholder="{% if has_api_key %}A key is stored — leave blank to keep it{% else %}not needed for local models{% endif %}">
+    {% if has_api_key %}
+    <label class="check"><input type="checkbox" name="clear_api_key" value="1"> Remove the stored key</label>
+    {% endif %}
+
+    <label for="api_base">API base <span class="optional">optional</span></label>
+    <input id="api_base" name="api_base" value="{{ settings.api_base }}"
+           placeholder="http://host.docker.internal:11434" autocomplete="off" spellcheck="false">
+    <p class="hint">Custom or local endpoint. Inside Docker, a model running on your machine is reachable at <code>http://host.docker.internal:…</code>.</p>
+
+    <div class="actions">
+      <button type="submit" class="primary">Save</button>
+      <button type="submit" formaction="/settings/test"
+              hx-post="/settings/test" hx-target="#test-result" hx-swap="innerHTML"
+              hx-disabled-elt="this">Test connection</button>
+    </div>
+    <div id="test-result">
+      {% if test is not none %}{% include "partials/test_result.html" %}{% endif %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Output</h2>
+
+    <label for="output_language">Language</label>
+    <select id="output_language" name="output_language">
+      {% for language in languages %}
+      <option value="{{ language }}" {% if settings.output_language == language %}selected{% endif %}>
+        {% if language == 'auto' %}auto (follow the offer){% else %}{{ language }}{% endif %}
+      </option>
+      {% endfor %}
+    </select>
+
+    <label for="followup_days">Follow-up delay (days)</label>
+    <input id="followup_days" name="followup_days" type="number" min="0" step="1" value="{{ settings.followup_days }}">
+
+    <div class="grid-2">
+      <div>
+        <label for="target_pages_cv">Target CV length (pages)</label>
+        <input id="target_pages_cv" name="target_pages_cv" type="number" min="1" step="1" value="{{ settings.target_pages.cv }}">
+      </div>
+      <div>
+        <label for="target_pages_letter">Target letter length (pages)</label>
+        <input id="target_pages_letter" name="target_pages_letter" type="number" min="1" step="1" value="{{ settings.target_pages.letter }}">
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Filtering and ranking</h2>
+    <p class="hint">Used by the ranker (<span class="soon">next milestone</span>). Stored with the settings and edited here or on the ranker page.</p>
+
+    <label for="filter_rules">Elimination rules</label>
+    <textarea id="filter_rules" name="filter_rules" rows="5"
+              placeholder="Eliminate offers that explicitly require citizenship, a security clearance, or an existing work permit.">{{ settings.filter_rules }}</textarea>
+    <p class="hint">Plain language, one rule per line. Eliminated offers stay visible with the excerpt that triggered the rule.</p>
+
+    <label for="wishes">Weighted wishes</label>
+    <textarea id="wishes" name="wishes" rows="4"
+              placeholder="startup: 3&#10;funded&#10;scientific domain: 2&#10;remote: 2">{{ wishes_text }}</textarea>
+    <p class="hint">One criterion per line, optionally <code>label: weight</code> (default 1). They feed the "Your wishes" scoring axis.</p>
+  </section>
+
+  <div class="actions sticky">
+    <button type="submit" class="primary">Save settings</button>
+  </div>
+</form>
+{% endblock %}
