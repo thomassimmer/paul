@@ -13,11 +13,13 @@
     <a class="brand" href="/">Paul <span>Emploi</span></a>
     <nav>
       <a href="/" {% if active == 'home' %}class="active"{% endif %}>Dashboard</a>
+      <a href="/profiler" {% if active == 'profiler' %}class="active"{% endif %}>Profile</a>
       <a href="/settings" {% if active == 'settings' %}class="active"{% endif %}>Settings</a>
     </nav>
   </header>
 
   <main>
+    {% include "partials/flash.html" %}
     {% block content %}{% endblock %}
   </main>
 

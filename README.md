@@ -100,13 +100,15 @@ Typical session:
 
 ### 1. Profiler
 
-**Input:** an existing CV (PDF or DOCX).
+**Input:** an existing CV (PDF or DOCX), or its text pasted in.
 
-1. Text is extracted (`pypdf`, `python-docx`) and the LLM produces a first draft of the profile.
-2. The agent then **interviews you**, one experience at a time, targeting what a CV usually omits: context, team size, stack, your exact role, measurable results, difficulties solved, things you would like to do more (or less) of.
-3. Answers are merged into the profile. You can also edit the file by hand at any time.
+1. **Extraction (deterministic).** Text is read locally (`pypdf`, `python-docx`), and the raw text is kept in `data/profile/cv.txt` so the draft can be re-run later with a better model.
+2. **First draft (LLM, structured output).** The model fills a `ProfileDraft`, which deliberately has **no** `facts` and **no** `preferences` fields: those are yours to answer, and the type makes it impossible for the model to invent them. Facts and preferences are also preserved when you re-import a CV.
+3. **Interview.** Paul asks **one question at a time**, targeting what a CV usually omits: what the company was, your exact remit, team size, the stack you really used, measurable results, the hard problems, then the facts and what you want more or less of. The questions are computed by code from your profile, not by the LLM, so the same profile always yields the same questions; a skipped question is remembered in SQLite and can be brought back.
+4. **Answer structuring (LLM, optional).** When an answer describes results and a model is configured, the model splits it into achievements with their `metrics` and `skills`. It is never trusted blindly: each item must quote the excerpt of your answer it came from, and it may not state a number your answer does not contain. A breakdown that fails either check is discarded whole and your own lines are kept as written, one achievement per line. Nothing is ever added to what you wrote.
+5. **Editable profile.** Correct anything in the structured editor, or directly as YAML. You can also edit the file by hand at any time.
 
-**Storage:** `data/profile/profile.yaml`, a single readable file.
+**Storage:** `data/profile/profile.yaml`, a single readable file, next to the extracted `cv.txt`.
 
 ```yaml
 identity:
@@ -123,19 +125,24 @@ experiences:
     company: Acme
     title: Lead Software Engineer
     period: 2022-03 / 2024-06
-    context: ...
+    context: ...           # what the company and the role were
+    team_size: 7 engineers
+    stack: [Rust, Kafka]
+    difficulties: ...
     achievements:
       - id: exp-acme-2022-a1
         text: Cut ingestion latency by 60% by ...
-        metrics: ["-60% latency"]
+        metrics: ["60%"]
         skills: [Rust, Kafka]
 education: [...]
 projects: [...]
-skills: {...}
-preferences: {...}
+skills: {Languages: [Rust], Tools: [Kafka]}
+preferences:
+  more_of: [...]
+  less_of: [...]
 ```
 
-Every achievement has a stable `id`. The writer cites these ids, which is what makes the fact-checking pass possible.
+Every experience and achievement has a stable `id` (`exp-acme-2022`, `exp-acme-2022-a1`), derived from its content so that a re-import does not churn the ids. The writer cites these ids, which is what makes the fact-checking pass possible. A complete fictional example lives in `app/examples/profile.example.yaml`.
 
 ### 2. Offer analyzer
 
@@ -309,26 +316,42 @@ paul-emploi/
 ├── pyproject.toml
 ├── README.md
 ├── app/
-│   ├── main.py                # FastAPI app and routes
+│   ├── main.py                # composition root: app, lifespan, routers
 │   ├── config.py              # settings load/save
 │   ├── db.py                  # SQLite access
 │   ├── llm.py                 # LiteLLM wrapper, structured output + retry
 │   ├── models.py              # Pydantic models: Profile, Offer, Score, Application
-│   ├── profiler/              # CV import, interview loop, profile merge
+│   ├── prompts/               # prompts as plain text files
+│   │   └── profiler/
+│   ├── profiler/              # CV import, interview, editable profile
+│   │   ├── cv.py              # PDF/DOCX text extraction
+│   │   ├── draft.py           # LLM: CV text -> ProfileDraft
+│   │   ├── editor.py          # structured profile form <-> Profile
+│   │   ├── ids.py             # stable ids (exp-acme-2022-a1)
+│   │   ├── interview.py       # gap-driven questions, answer merge
+│   │   ├── router.py          # HTTP routes
+│   │   ├── service.py         # import orchestration
+│   │   ├── store.py           # profile.yaml, cv.txt, interview state
+│   │   └── text.py            # list, metric and text helpers
 │   ├── offers/                # HTML cleaning, extraction
 │   ├── ranking/               # elimination rules, scoring grid
 │   ├── writer/                # tailoring, grounding check, form answers
 │   ├── ats.py                 # keyword coverage and format checks
 │   ├── templates_engine/      # DOCX analysis, blueprint, rendering
 │   ├── tracker/               # statuses, follow-ups, (later) IMAP
-│   ├── prompts/               # prompts as plain text files
-│   ├── web/                   # Jinja templates, static files
+│   ├── web/                   # presentation layer
+│   │   ├── templating.py      # Jinja env, render/redirect/flash helpers
+│   │   ├── routes/            # dashboard, settings
+│   │   ├── templates/         # Jinja templates
+│   │   └── static/            # CSS, vendored HTMX
 │   └── examples/              # fictional profile, sample templates
 ├── tests/
 └── data/                      # git-ignored, mounted as a volume
 ```
 
-Design rules: prompts live in files, not in code; every LLM call returns a validated Pydantic object; anything that can be computed by code (totals, keyword matching, follow-up dates) is not left to the LLM.
+Design rules: prompts live in files, not in code; every LLM call returns a validated Pydantic object; anything that can be computed by code (totals, keyword matching, follow-up dates, interview questions) is not left to the LLM.
+
+Conventions: each feature package owns its HTTP routes (`app/profiler/router.py`) and keeps them thin, delegating to its own modules; the shell routes live in `app/web/routes/` and `app/main.py` only wires routers together.
 
 ## Configuration
 
@@ -346,7 +369,7 @@ Design rules: prompts live in files, not in code; every LLM call returns a valid
 **MVP**
 
 - [x] Docker Compose install, settings page
-- [ ] Profiler: CV import, interview, editable profile
+- [x] Profiler: CV import, interview, editable profile
 - [ ] Offer analyzer: HTML fragment and text, form question extraction
 - [ ] Filter and ranker with explainable scores
 - [ ] DOCX template import and rendering (CV and letter)

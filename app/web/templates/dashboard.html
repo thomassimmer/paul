@@ -17,10 +17,18 @@
       <p>Pick a provider, paste an API key and test the connection in
         <a href="/settings">Settings</a>.</p>
     </li>
-    <li>
+    <li class="{% if summary.has_profile %}done{% endif %}">
       <strong>Import your CV</strong>
-      <p>The profiler turns your CV into an editable profile and interviews you
-        to fill the gaps. <span class="soon">next milestone</span></p>
+      <p>
+        {% if summary.has_profile %}
+          {{ summary.experiences }} experience(s), {{ summary.achievements }} achievement(s).
+          <a href="/profiler/interview">Continue the interview</a> or
+          <a href="/profiler">view the profile</a>.
+        {% else %}
+          The profiler turns your CV into an editable profile and interviews you
+          to fill the gaps. <a href="/profiler/import">Import your CV</a>.
+        {% endif %}
+      </p>
     </li>
     <li>
       <strong>Paste a job offer</strong>
@@ -29,6 +37,17 @@
     </li>
   </ol>
 </div>
+
+{% if summary.has_profile and summary.missing_facts %}
+<div class="card">
+  <h2>Missing facts</h2>
+  <p class="hint">
+    These are answered by you, never by the model, and are needed to fill
+    application forms: {{ summary.missing_facts | join(', ') }}.
+  </p>
+  <p><a class="button" href="/profiler/interview">Answer in the interview</a></p>
+</div>
+{% endif %}
 
 <div class="card">
   <h2>Current configuration</h2>

@@ -1,8 +1,8 @@
 """SQLite access: one process, one database file under ``data/``.
 
-Settings live in ``data/settings.json``; the database is for the domain data
-(offers, applications) that the next modules add. For now it only records its
-own schema version, which is enough to initialise the Docker volume on first run.
+The profile itself lives in ``data/profile/profile.yaml``; the database holds
+what does not belong in a readable file, starting with the interview's skipped
+questions. Domain tables (offers, applications) arrive with the next modules.
 """
 
 from __future__ import annotations
@@ -13,12 +13,19 @@ from app.config import DATA_DIR
 
 DB_PATH = DATA_DIR / "paul.sqlite3"
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
+);
+
+-- Questions the user chose to skip during the profiler interview. Skipping is
+-- UI state, not profile data, so it lives here and never touches the YAML.
+CREATE TABLE IF NOT EXISTS interview_skipped (
+    key        TEXT PRIMARY KEY,
+    skipped_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
 
@@ -33,7 +40,7 @@ def connect() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """Create the schema. Safe to call on every start."""
+    """Create the schema. Safe to call on every start and from tests."""
     with connect() as conn:
         conn.executescript(_SCHEMA)
         conn.execute(

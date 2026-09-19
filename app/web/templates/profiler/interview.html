@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Interview{% endblock %}
+
+{% block content %}
+<h1>Interview</h1>
+<p class="lede">
+  One question at a time, targeting what a CV usually omits. Answers are merged
+  into your profile; skip anything you would rather not answer.
+  <a href="/profiler">View the profile</a>.
+</p>
+
+{% if step.done %}
+<div class="card">
+  <h2>Interview complete</h2>
+  <p class="hint">All {{ step.total }} questions are answered or skipped.</p>
+  <div class="actions">
+    <a class="button primary" href="/profiler">Review the profile</a>
+    <form method="post" action="/profiler/interview/restart">
+      <button type="submit">Ask the skipped questions again</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="progress">
+    <div class="progress-bar" style="width: {{ (step.position / step.total * 100) | round(0) }}%"></div>
+  </div>
+  <p class="hint">
+    Question {{ step.position }} of {{ step.total }} · {{ step.remaining }} remaining
+  </p>
+
+  <p class="topic">{{ step.question.topic }}</p>
+  <h2 class="question">{{ step.question.prompt }}</h2>
+  {% if step.question.hint %}<p class="hint">{{ step.question.hint }}</p>{% endif %}
+
+  <form method="post" action="/profiler/interview">
+    <input type="hidden" name="key" value="{{ step.question.key }}">
+    <label for="answer">Your answer</label>
+    {% if step.question.kind == 'list' %}
+    <input id="answer" name="answer" type="text" autocomplete="off" autofocus>
+    {% else %}
+    <textarea id="answer" name="answer" rows="5" autofocus></textarea>
+    {% endif %}
+    <div class="actions">
+      <button type="submit" class="primary">Save and continue</button>
+    </div>
+  </form>
+
+  <form method="post" action="/profiler/interview/skip" class="inline-form">
+    <input type="hidden" name="key" value="{{ step.question.key }}">
+    <button type="submit">Skip this question</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

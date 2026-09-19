@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Edit as YAML{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Edit as YAML</h1>
+  <div class="actions">
+    <a class="button" href="/profiler">View</a>
+    <a class="button" href="/profiler/edit">Structured editor</a>
+  </div>
+</div>
+<p class="lede">
+  The profile is a plain file you own: <code>data/profile/profile.yaml</code>.
+  Comments you add here are not kept when the app rewrites the file, but ids,
+  facts and anything hand-added are.
+</p>
+
+{% if error %}
+<p class="banner banner-error" role="alert">This is not a valid profile: {{ error }}</p>
+{% endif %}
+
+<form method="post" action="/profiler/yaml">
+  <textarea name="yaml_text" rows="28" class="yaml">{{ yaml_text }}</textarea>
+  <div class="actions">
+    <button type="submit" class="primary">Save profile</button>
+  </div>
+</form>
+{% endblock %}

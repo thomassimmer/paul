@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+
+{% macro field(label, value) %}
+  <dt>{{ label }}</dt>
+  <dd>{% if value %}{{ value }}{% else %}<em class="missing">to fill</em>{% endif %}</dd>
+{% endmacro %}
+
+{% block content %}
+<div class="page-head">
+  <h1>{{ profile.identity.name or 'Your profile' }}</h1>
+  <div class="actions">
+    <a class="button primary" href="/profiler/interview">Interview</a>
+    <a class="button" href="/profiler/edit">Edit</a>
+    <a class="button" href="/profiler/yaml">Edit as YAML</a>
+    <a class="button" href="/profiler/profile.yaml">Download</a>
+  </div>
+</div>
+
+{% if profile.identity.headline or profile.identity.location %}
+<p class="lede">
+  {{ profile.identity.headline }}{% if profile.identity.headline and profile.identity.location %} · {% endif %}{{ profile.identity.location }}
+</p>
+{% endif %}
+
+{% if summary.missing_facts %}
+<p class="banner banner-warning" role="status">
+  Not answered yet: {{ summary.missing_facts | join(', ') }}.
+  The writer needs them for application forms.
+</p>
+{% endif %}
+
+<div class="card">
+  <h2>Identity</h2>
+  <dl class="kv">
+    {{ field('Name', profile.identity.name) }}
+    {{ field('Headline', profile.identity.headline) }}
+    {{ field('Location', profile.identity.location) }}
+    {{ field('Email', profile.identity.email) }}
+    {{ field('Phone', profile.identity.phone) }}
+    {{ field('Links', profile.identity.links | join(', ')) }}
+  </dl>
+</div>
+
+<div class="card">
+  <h2>Facts <span class="tag">answered by you</span></h2>
+  <dl class="kv">
+    {{ field('Work authorization', profile.facts.work_authorization) }}
+    {{ field('Notice period', profile.facts.notice_period) }}
+    {{ field('Salary expectation', profile.facts.salary_expectation) }}
+    {{ field('Relocation', profile.facts.relocation) }}
+    {{ field('Languages', profile.facts.languages | join(', ')) }}
+  </dl>
+</div>
+
+<div class="card">
+  <h2>Experience <span class="tag">{{ summary.experiences }}</span></h2>
+  {% for experience in profile.experiences %}
+  <article class="entry">
+    <h3>{{ experience.title or 'Untitled role' }}{% if experience.company %} · {{ experience.company }}{% endif %}</h3>
+    <p class="entry-meta">
+      {{ experience.period or 'dates unknown' }}
+      <code>{{ experience.id }}</code>
+    </p>
+    {% if experience.context %}<p>{{ experience.context }}</p>{% endif %}
+    <dl class="kv compact">
+      {% if experience.team_size %}{{ field('Team', experience.team_size) }}{% endif %}
+      {% if experience.stack %}{{ field('Stack', experience.stack | join(', ')) }}{% endif %}
+    </dl>
+    {% if experience.difficulties %}<p><strong>Hard problems:</strong> {{ experience.difficulties }}</p>{% endif %}
+
+    {% if experience.achievements %}
+    <ul class="achievements">
+      {% for achievement in experience.achievements %}
+      <li>
+        {{ achievement.text }}
+        {% for metric in achievement.metrics %}<span class="metric">{{ metric }}</span>{% endfor %}
+        <code class="id">{{ achievement.id }}</code>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="missing">No achievement recorded yet. <a href="/profiler/interview">Answer the interview</a>.</p>
+    {% endif %}
+  </article>
+  {% else %}
+  <p class="missing">No experience yet. <a href="/profiler/edit">Add one</a>.</p>
+  {% endfor %}
+</div>
+
+{% if profile.education or profile.projects or profile.skills %}
+<div class="card">
+  <h2>Education, projects and skills</h2>
+
+  {% for education in profile.education %}
+  <article class="entry">
+    <h3>{{ education.degree or 'Education' }}{% if education.school %} · {{ education.school }}{% endif %}</h3>
+    <p class="entry-meta">{{ education.period }} <code>{{ education.id }}</code></p>
+    {% if education.details %}<p>{{ education.details }}</p>{% endif %}
+  </article>
+  {% endfor %}
+
+  {% for project in profile.projects %}
+  <article class="entry">
+    <h3>{{ project.name or 'Project' }}</h3>
+    {% if project.description %}<p>{{ project.description }}</p>{% endif %}
+    <p class="entry-meta">{{ project.links | join(', ') }} <code>{{ project.id }}</code></p>
+  </article>
+  {% endfor %}
+
+  {% if profile.skills %}
+  <dl class="kv">
+    {% for group, items in profile.skills.items() %}
+    <dt>{{ group }}</dt>
+    <dd>{{ items | join(', ') }}</dd>
+    {% endfor %}
+  </dl>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if profile.preferences %}
+<div class="card">
+  <h2>Preferences</h2>
+  <dl class="kv">
+    {{ field('Target roles', profile.preferences.target_roles | join(', ')) }}
+    {{ field('Locations', profile.preferences.locations | join(', ')) }}
+    {{ field('Remote', profile.preferences.remote) }}
+    {{ field('Contract types', profile.preferences.contract_types | join(', ')) }}
+    {{ field('More of', profile.preferences.more_of | join(', ')) }}
+    {{ field('Less of', profile.preferences.less_of | join(', ')) }}
+  </dl>
+</div>
+{% endif %}
+{% endblock %}

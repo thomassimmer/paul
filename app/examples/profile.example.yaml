@@ -1,0 +1,110 @@
+# Fictional profile used in examples, documentation and tests.
+# It contains no real personal data: copy it, replace it, or ignore it.
+identity:
+  name: Camille Moreau
+  headline: Senior Backend Engineer
+  location: Lyon, France
+  email: camille.moreau@example.com
+  phone: "+33 6 00 00 00 00"
+  links:
+    - https://github.com/example-camille
+facts:
+  work_authorization: EU citizen, no sponsorship needed
+  notice_period: 2 months
+  salary_expectation: "75 000 € gross / year"
+  relocation: Open to relocation within the EU
+  languages:
+    - French (native)
+    - English (C1)
+experiences:
+  - id: exp-acme-2022
+    company: Acme Analytics
+    title: Lead Backend Engineer
+    period: 2022-03 / 2024-06
+    context: >-
+      Acme sells a product-analytics platform to e-commerce teams; I owned the
+      ingestion and storage path end to end.
+    team_size: 7 engineers, reporting to the VP Engineering
+    stack:
+      - Rust
+      - Kafka
+      - PostgreSQL
+      - Kubernetes
+    difficulties: >-
+      Rebuilding the ingestion pipeline without downtime while traffic doubled.
+    achievements:
+      - id: exp-acme-2022-a1
+        text: Cut end-to-end ingestion latency by 60% by batching writes and
+          replacing a synchronous fan-out with a Kafka consumer group.
+        metrics:
+          - "-60% latency"
+        skills:
+          - Rust
+          - Kafka
+      - id: exp-acme-2022-a2
+        text: Led the migration of 40 services to a shared deployment pipeline.
+        metrics:
+          - 40 services
+        skills:
+          - Kubernetes
+          - CI/CD
+  - id: exp-northwind-2019
+    company: Northwind Software
+    title: Backend Engineer
+    period: 2019-09 / 2022-02
+    context: B2B invoicing SaaS, small team, I was the second backend hire.
+    team_size: 4 engineers
+    stack:
+      - Python
+      - Django
+      - PostgreSQL
+    achievements:
+      - id: exp-northwind-2019-a1
+        text: Designed the multi-tenant data model still in use today.
+        metrics: []
+        skills:
+          - PostgreSQL
+          - Django
+education:
+  - id: edu-insa-lyon
+    school: INSA Lyon
+    degree: MSc in Computer Science
+    period: 2014 / 2019
+    details: Specialisation in distributed systems.
+projects:
+  - id: proj-job-board
+    name: Open-source job-board scraper
+    description: A small Python tool that normalises job postings into JSON.
+    links:
+      - https://github.com/example-camille/job-board
+    skills:
+      - Python
+      - BeautifulSoup
+skills:
+  Languages:
+    - Rust
+    - Python
+    - SQL
+  Frameworks:
+    - Django
+    - FastAPI
+  Tools:
+    - Kafka
+    - Kubernetes
+    - PostgreSQL
+    - Docker
+preferences:
+  target_roles:
+    - Senior Backend Engineer
+    - Staff Engineer
+  locations:
+    - Lyon
+    - Remote (EU)
+  remote: Hybrid or full remote
+  contract_types:
+    - Permanent
+  more_of:
+    - System design
+    - Mentoring
+  less_of:
+    - On-call rotations

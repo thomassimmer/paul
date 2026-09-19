@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Edit profile{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Edit profile</h1>
+  <div class="actions">
+    <a class="button" href="/profiler">View</a>
+    <a class="button" href="/profiler/yaml">Edit as YAML</a>
+  </div>
+</div>
+<p class="lede">
+  Each list ends with a blank row: fill it to add an entry, empty a row to delete
+  it. Ids are generated for new entries and kept for existing ones.
+</p>
+
+<form method="post" action="/profiler/edit">
+  <section class="card">
+    <h2>Identity</h2>
+    <div class="grid-2">
+      <div><label for="identity.name">Name</label>
+        <input id="identity.name" name="identity.name" value="{{ profile.identity.name }}"></div>
+      <div><label for="identity.headline">Headline</label>
+        <input id="identity.headline" name="identity.headline" value="{{ profile.identity.headline }}"></div>
+      <div><label for="identity.location">Location</label>
+        <input id="identity.location" name="identity.location" value="{{ profile.identity.location }}"></div>
+      <div><label for="identity.email">Email</label>
+        <input id="identity.email" name="identity.email" value="{{ profile.identity.email }}"></div>
+      <div><label for="identity.phone">Phone</label>
+        <input id="identity.phone" name="identity.phone" value="{{ profile.identity.phone }}"></div>
+      <div><label for="identity.links">Links</label>
+        <input id="identity.links" name="identity.links" value="{{ profile.identity.links | join(', ') }}"
+               placeholder="comma-separated"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Facts <span class="tag">answered by you</span></h2>
+    <div class="grid-2">
+      <div><label for="facts.work_authorization">Work authorization</label>
+        <input id="facts.work_authorization" name="facts.work_authorization" value="{{ profile.facts.work_authorization }}"></div>
+      <div><label for="facts.notice_period">Notice period</label>
+        <input id="facts.notice_period" name="facts.notice_period" value="{{ profile.facts.notice_period }}"></div>
+      <div><label for="facts.salary_expectation">Salary expectation</label>
+        <input id="facts.salary_expectation" name="facts.salary_expectation" value="{{ profile.facts.salary_expectation }}"></div>
+      <div><label for="facts.relocation">Relocation</label>
+        <input id="facts.relocation" name="facts.relocation" value="{{ profile.facts.relocation }}"></div>
+      <div><label for="facts.languages">Languages</label>
+        <input id="facts.languages" name="facts.languages" value="{{ profile.facts.languages | join(', ') }}"
+               placeholder="comma-separated"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Experience</h2>
+    <input type="hidden" name="exp_count" value="{{ experience_count }}">
+    <input type="hidden" name="ach_count" value="{{ achievement_count }}">
+
+    {% for item in experiences %}
+    <article class="entry {% if item.blank %}blank{% endif %}">
+      <input type="hidden" name="exp.{{ item.index }}.id" value="{{ item.experience.id }}">
+      <div class="grid-2">
+        <div><label>Company</label>
+          <input name="exp.{{ item.index }}.company" value="{{ item.experience.company }}"></div>
+        <div><label>Title</label>
+          <input name="exp.{{ item.index }}.title" value="{{ item.experience.title }}"></div>
+        <div><label>Period</label>
+          <input name="exp.{{ item.index }}.period" value="{{ item.experience.period }}" placeholder="2022-03 / 2024-06"></div>
+        <div><label>Team size</label>
+          <input name="exp.{{ item.index }}.team_size" value="{{ item.experience.team_size }}"></div>
+      </div>
+      <label>Context</label>
+      <textarea name="exp.{{ item.index }}.context" rows="2">{{ item.experience.context }}</textarea>
+      <label>Stack</label>
+      <input name="exp.{{ item.index }}.stack" value="{{ item.experience.stack | join(', ') }}" placeholder="comma-separated">
+      <label>Hard problems</label>
+      <textarea name="exp.{{ item.index }}.difficulties" rows="2">{{ item.experience.difficulties }}</textarea>
+
+      <h4>Achievements</h4>
+      {% for row in item.achievements %}
+      <div class="achievement-row">
+        <input type="hidden" name="ach.{{ row.index }}.id" value="{{ row.achievement.id }}">
+        <input type="hidden" name="ach.{{ row.index }}.exp_index" value="{{ item.index }}">
+        <textarea name="ach.{{ row.index }}.text" rows="2" placeholder="What you achieved">{{ row.achievement.text }}</textarea>
+        <div class="grid-2">
+          <input name="ach.{{ row.index }}.metrics" value="{{ row.achievement.metrics | join(', ') }}" placeholder="metrics">
+          <input name="ach.{{ row.index }}.skills" value="{{ row.achievement.skills | join(', ') }}" placeholder="skills">
+        </div>
+      </div>
+      {% endfor %}
+      {# one blank achievement row, so this entry can gain one #}
+      <div class="achievement-row blank">
+        <input type="hidden" name="ach.{{ item.blank_index }}.exp_index" value="{{ item.index }}">
+        <textarea name="ach.{{ item.blank_index }}.text" rows="2" placeholder="Add an achievement…"></textarea>
+        <div class="grid-2">
+          <input name="ach.{{ item.blank_index }}.metrics" placeholder="metrics">
+          <input name="ach.{{ item.blank_index }}.skills" placeholder="skills">
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>Education</h2>
+    <input type="hidden" name="edu_count" value="{{ education_rows | length }}">
+    {% for row in education_rows %}
+    <article class="entry {% if row.blank %}blank{% endif %}">
+      <input type="hidden" name="edu.{{ row.index }}.id" value="{{ row.entry.id }}">
+      <div class="grid-2">
+        <div><label>School</label>
+          <input name="edu.{{ row.index }}.school" value="{{ row.entry.school }}"></div>
+        <div><label>Degree</label>
+          <input name="edu.{{ row.index }}.degree" value="{{ row.entry.degree }}"></div>
+        <div><label>Period</label>
+          <input name="edu.{{ row.index }}.period" value="{{ row.entry.period }}"></div>
+        <div><label>Details</label>
+          <input name="edu.{{ row.index }}.details" value="{{ row.entry.details }}"></div>
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>Projects</h2>
+    <input type="hidden" name="proj_count" value="{{ project_rows | length }}">
+    {% for row in project_rows %}
+    <article class="entry {% if row.blank %}blank{% endif %}">
+      <input type="hidden" name="proj.{{ row.index }}.id" value="{{ row.entry.id }}">
+      <div class="grid-2">
+        <div><label>Name</label>
+          <input name="proj.{{ row.index }}.name" value="{{ row.entry.name }}"></div>
+        <div><label>Links</label>
+          <input name="proj.{{ row.index }}.links" value="{{ row.entry.links | join(', ') }}" placeholder="comma-separated"></div>
+      </div>
+      <label>Description</label>
+      <textarea name="proj.{{ row.index }}.description" rows="2">{{ row.entry.description }}</textarea>
+      <label>Skills</label>
+      <input name="proj.{{ row.index }}.skills" value="{{ row.entry.skills | join(', ') }}" placeholder="comma-separated">
+    </article>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>Skills and preferences</h2>
+    <label for="skills">Skills</label>
+    <textarea id="skills" name="skills" rows="4" placeholder="Languages: Rust, Python&#10;Tools: Docker, Kafka">{{ skills_text }}</textarea>
+    <p class="hint">One <code>Group: item, item</code> line per family.</p>
+
+    <div class="grid-2">
+      <div><label for="preferences.target_roles">Target roles</label>
+        <input id="preferences.target_roles" name="preferences.target_roles" value="{{ profile.preferences.target_roles | join(', ') }}"></div>
+      <div><label for="preferences.locations">Locations</label>
+        <input id="preferences.locations" name="preferences.locations" value="{{ profile.preferences.locations | join(', ') }}"></div>
+      <div><label for="preferences.remote">Remote</label>
+        <input id="preferences.remote" name="preferences.remote" value="{{ profile.preferences.remote }}"></div>
+      <div><label for="preferences.contract_types">Contract types</label>
+        <input id="preferences.contract_types" name="preferences.contract_types" value="{{ profile.preferences.contract_types | join(', ') }}"></div>
+      <div><label for="preferences.more_of">More of</label>
+        <input id="preferences.more_of" name="preferences.more_of" value="{{ profile.preferences.more_of | join(', ') }}"></div>
+      <div><label for="preferences.less_of">Less of</label>
+        <input id="preferences.less_of" name="preferences.less_of" value="{{ profile.preferences.less_of | join(', ') }}"></div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button type="submit" class="primary">Save profile</button>
+    <a class="button" href="/profiler">Cancel</a>
+  </div>
+</form>
+{% endblock %}
