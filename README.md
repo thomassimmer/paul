@@ -63,6 +63,8 @@ Then open <http://localhost:8000>, go to **Settings**, choose a model and paste 
 
 The app is bound to `127.0.0.1` only. Your data lives in `./data`, which is mounted as a volume, so it survives updates (`git pull && docker compose up --build`).
 
+Rebuilds are cheap: the Dockerfile installs the dependencies from `pyproject.toml` before copying the source, and keeps the pip and apt caches in BuildKit mounts, so editing a file under `app/` rebuilds in about a second instead of reinstalling every wheel. Only the first build — and any change to the apt package line, which re-runs the LibreOffice install once — is the long one.
+
 ### Without Docker (development)
 
 ```bash
@@ -275,7 +277,7 @@ on the offer page so you do not have to guess where the writing starts.
 
 **Form answers.** Open questions ("Why do you want to join us?") get a draft that respects the max length, using your profile and the offer.
 
-**Review screen.** Side-by-side preview and editor for CV, letter and answers; regenerate a section with an instruction ("shorter", "more focus on data engineering"). Regenerating runs in the background too, with the same progress panel, and
+**Review screen.** Side-by-side preview and editor for CV, letter and answers; a sticky section nav, and a *Checks* card that folds away so the long page stays short. Buttons above each editor add a line under the role you pick, so the `[role]` prefix never has to be typed. Regenerate a section with an instruction ("shorter", "more focus on data engineering"). Regenerating runs in the background too, with the same progress panel, and
 the review refreshes itself when it lands. Then export.
 
 **ATS score.** There is no universal ATS score: ATS (*Applicant Tracking System*, e.g. Workday, Greenhouse, Lever) is the software companies use to receive and sort applications, and vendors' "scores" are in practice keyword coverage. Paul does the same, transparently:
@@ -364,6 +366,7 @@ If you provide no template, a clean, single-column, parser-friendly default is u
 
 - **DOCX** (always) and **Markdown** (always).
 - **PDF** through headless LibreOffice, included in the Docker image (larger image, about 500 MB). Build without it with `docker compose build --build-arg WITH_PDF=0`; the fit check then falls back to an estimate.
+- **Preview.** The review screen frames the rendered PDF, so you see the real layout and *where the page break falls*. It is converted on demand from the DOCX you last saved, so it refreshes when you save. Without LibreOffice, it falls back to a plain HTML preview that cannot show the pagination.
 
 ## Data and privacy
 
@@ -495,3 +498,8 @@ Issues and pull requests are welcome. Please keep the code small and readable, a
 ## License
 
 MIT (suggested, adjust as you prefer).
+
+### Third-party
+
+- The Docker image installs **LibreOffice** (MPL-2.0) from Debian packages and calls it headless for PDF export, page counting and the preview. It is a separate program invoked as a subprocess, not a linked library, so this project's MIT license is unaffected. Distributing the image does redistribute LibreOffice: keep its license notices (`/usr/share/doc/libreoffice*/copyright`) and point to its sources.
+- Fonts: the image bundles **DejaVu** (Bitstream Vera/Arev license). No proprietary font is shipped; a template that references **Calibri** (Microsoft) relies on LibreOffice's substitution, and adding the metric-compatible **Carlito** (SIL OFL 1.1) is what keeps the page breaks close to Word's.

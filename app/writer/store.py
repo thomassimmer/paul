@@ -129,6 +129,19 @@ def exists(name: str, filename: str) -> bool:
     return file_path(name, filename).is_file()
 
 
+def revision(name: str, filename: str) -> str:
+    """A token that changes whenever the file changes.
+
+    Put in a preview URL, it lets the browser keep the rendered PDF until the
+    document is written again: saving changes the token, so the frame reloads.
+    """
+    try:
+        stat = file_path(name, filename).stat()
+    except (OSError, FolderError):
+        return "0"
+    return f"{stat.st_mtime_ns:x}{stat.st_size:x}"
+
+
 # --- The offer the folder was made for ----------------------------------------
 
 

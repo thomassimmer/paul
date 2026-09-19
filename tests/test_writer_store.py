@@ -134,6 +134,16 @@ def test_written_files_lists_what_exists():
     assert store.written_files("app") == [store.ATS_JSON, store.CV_MD]
 
 
+def test_a_revision_changes_when_the_document_is_written_again():
+    store.write_bytes("app", store.CV_DOCX, b"one")
+    first = store.revision("app", store.CV_DOCX)
+
+    store.write_bytes("app", store.CV_DOCX, b"a longer document")
+
+    assert store.revision("app", store.CV_DOCX) != first
+    assert store.revision("app", "missing.docx") == "0"
+
+
 def test_the_download_whitelist_covers_the_documents():
     for name in (store.CV_DOCX, store.CV_MD, store.LETTER_DOCX, store.LETTER_MD, store.ANSWERS_MD):
         assert name in store.DOWNLOADABLE

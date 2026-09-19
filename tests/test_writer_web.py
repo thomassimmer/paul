@@ -467,3 +467,138 @@ def test_a_pdf_export_without_libreoffice_says_so(client, monkeypatch):
     response = client.get(f"/applications/{offer_id}/download/cv.pdf", follow_redirects=True)
 
     assert "needs LibreOffice" in response.text
+
+
+# --- the framed preview ---------------------------------------------------------
+
+
+def _framing(monkeypatch) -> None:
+    """Pretend LibreOffice is installed, so the review screen frames the PDF."""
+    monkeypatch.setattr("app.writer.router.pdf.converter", lambda: "soffice")
+
+
+def test_the_review_frames_the_saved_documents_when_libreoffice_is_there(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+    _framing(monkeypatch)
+
+    page = client.get(f"/applications/{offer_id}")
+
+    assert "doc-pdf" in page.text
+    assert f'src="/applications/{offer_id}/preview/cv?v=' in page.text
+    assert f'src="/applications/{offer_id}/preview/letter?v=' in page.text
+
+
+def test_the_review_falls_back_to_html_without_libreoffice(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+    monkeypatch.setattr("app.writer.router.pdf.converter", lambda: None)
+
+    page = client.get(f"/applications/{offer_id}")
+
+    assert 'class="doc-preview"' in page.text
+    assert "doc-pdf" not in page.text
+    assert "Install LibreOffice" in page.text
+
+
+def test_the_preview_serves_the_converted_pdf_inline(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+    monkeypatch.setattr("app.writer.router.pdf.to_pdf", lambda data: b"%PDF-1.4 fake")
+
+    response = client.get(f"/applications/{offer_id}/preview/cv")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"] == 'inline; filename="cv.pdf"'
+    assert response.content == b"%PDF-1.4 fake"
+
+
+def test_the_preview_explains_a_failed_conversion(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+    monkeypatch.setattr("app.writer.router.pdf.to_pdf", lambda data: None)
+
+    response = client.get(f"/applications/{offer_id}/preview/cv")
+
+    assert response.status_code == 503
+    assert "needs LibreOffice" in response.text
+
+
+def test_the_preview_refuses_an_unknown_document(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    response = client.get(f"/applications/{offer_id}/preview/secrets")
+
+    assert response.status_code == 404
+
+
+# --- navigating a long review page ---------------------------------------------
+
+
+def test_the_review_links_to_its_sections(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    page = client.get(f"/applications/{offer_id}")
+
+    assert 'class="section-nav"' in page.text
+    for anchor in ("checks", "cv", "letter", "answers"):
+        assert f'href="#{anchor}"' in page.text
+        assert f'id="{anchor}"' in page.text
+
+
+def test_the_checks_can_be_folded_away(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    page = client.get(f"/applications/{offer_id}")
+
+    assert '<details class="collapse">' in page.text
+    assert "<summary>" in page.text
+
+
+def test_the_pdf_frame_hides_the_viewer_toolbar(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+    _framing(monkeypatch)
+
+    page = client.get(f"/applications/{offer_id}")
+
+    assert "#toolbar=0" in page.text
+    assert "&amp;navpanes=0" in page.text
+
+
+# --- adding a line by hand ------------------------------------------------------
+
+
+def test_the_editors_offer_a_button_per_role(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    page = client.get(f"/applications/{offer_id}")
+
+    assert 'data-insert-role="bullet"' in page.text  # CV
+    assert 'data-insert-role="salutation"' in page.text  # letter
+    assert 'data-insert-role="fixed"' not in page.text  # decorative, not typed
+
+
+def test_the_editors_have_the_ids_the_insert_needs(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    page = client.get(f"/applications/{offer_id}")
+
+    assert 'id="cv-source"' in page.text
+    assert 'id="letter-source"' in page.text

@@ -12,6 +12,13 @@
 </form>
 {% endmacro %}
 
+{% macro pdf_missing_hint() %}
+<p class="hint">
+  Install LibreOffice, or build the image with <code>WITH_PDF=1</code>, to see the
+  document as it will be rendered, page breaks included.
+</p>
+{% endmacro %}
+
 {% macro grounding(report, label) %}
   {% if report.issues %}
   <ul class="issues">
@@ -29,42 +36,56 @@
 
 {% set busy = job and job.running %}
 
-<div class="card">
-  <h2>Checks</h2>
-  {% if review.ats %}
-  <p>
-    <strong>{{ review.ats.coverage_percent }}%</strong> of the offer's keywords are
-    present in the CV. Treat it as an indicator, not a guarantee.
-  </p>
-  {% if review.ats.missing %}
-  <ul class="keywords">
-    {% for keyword in review.ats.missing %}
-    <li>
-      <strong>{{ keyword.term }}</strong>{% if keyword.variants %} ({{ keyword.variants | join(', ') }}){% endif %}
-      <div class="hint">{{ keyword.hint }}</div>
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="hint">Every keyword the offer insists on is already in the CV.</p>
-  {% endif %}
-  {% if review.ats.format_issues %}
-  <h3>Layout warnings</h3>
-  <ul class="banner banner-warning">
-    {% for issue in review.ats.format_issues %}<li>{{ issue }}</li>{% endfor %}
-  </ul>
-  {% endif %}
-  {% else %}
-  <p class="hint">No ATS report stored for this application.</p>
-  {% endif %}
+<section class="card" id="checks">
+  <details class="collapse">
+    <summary>
+      <span class="collapse-title">Checks</span>
+      <span class="hint">
+        {% if review.ats %}
+        {{ review.ats.coverage_percent }}% of the offer's keywords{% if review.ats.missing %} — {{ review.ats.missing | length }} missing{% endif %} ·
+        {% else %}
+        No keyword report ·
+        {% endif %}
+        {% set unverified = (review.cv_grounding.issues | length) + (review.letter_grounding.issues | length) %}
+        {% if unverified %}{{ unverified }} unverified line(s){% else %}every claim is supported{% endif %}
+      </span>
+    </summary>
 
-  <h3>Grounding of the CV</h3>
-  {{ grounding(review.cv_grounding, 'CV') }}
-  <h3>Grounding of the letter</h3>
-  {{ grounding(review.letter_grounding, 'Letter') }}
-</div>
+    {% if review.ats %}
+    <p>
+      <strong>{{ review.ats.coverage_percent }}%</strong> of the offer's keywords are
+      present in the CV. Treat it as an indicator, not a guarantee.
+    </p>
+    {% if review.ats.missing %}
+    <ul class="keywords">
+      {% for keyword in review.ats.missing %}
+      <li>
+        <strong>{{ keyword.term }}</strong>{% if keyword.variants %} ({{ keyword.variants | join(', ') }}){% endif %}
+        <div class="hint">{{ keyword.hint }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="hint">Every keyword the offer insists on is already in the CV.</p>
+    {% endif %}
+    {% if review.ats.format_issues %}
+    <h3>Layout warnings</h3>
+    <ul class="banner banner-warning">
+      {% for issue in review.ats.format_issues %}<li>{{ issue }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% else %}
+    <p class="hint">No ATS report stored for this application.</p>
+    {% endif %}
 
-<section class="card">
+    <h3>Grounding of the CV</h3>
+    {{ grounding(review.cv_grounding, 'CV') }}
+    <h3>Grounding of the letter</h3>
+    {{ grounding(review.letter_grounding, 'Letter') }}
+  </details>
+</section>
+
+<section class="card" id="cv">
   <div class="doc-head">
     <h2>CV</h2>
     <div class="doc-meta">
@@ -80,18 +101,31 @@
   </p>
   <div class="review">
     <form method="post" action="/applications/{{ record.id }}/save">
-      <textarea name="cv" class="doc-source" spellcheck="false"
+      <div class="insert-bar">
+        <span class="hint">Add a line at the caret:</span>
+        {% for role in cv_roles %}
+        <button type="button" data-insert-role="{{ role }}" {% if busy %}disabled{% endif %}>{{ role_labels.get(role, role) }}</button>
+        {% endfor %}
+      </div>
+      <textarea id="cv-source" name="cv" class="doc-source" spellcheck="false"
                 {% if busy %}readonly{% endif %}>{{ review.cv_text }}</textarea>
       <div class="actions">
         <button type="submit" class="primary" {% if busy %}disabled{% endif %}>Save CV</button>
       </div>
     </form>
+    {% if pdf_preview %}
+    <iframe class="doc-pdf" title="CV preview" hx-preserve="true"
+            id="cv-preview-{{ review.cv_revision }}"
+            src="/applications/{{ record.id }}/preview/cv?v={{ review.cv_revision }}#toolbar=0&amp;navpanes=0&amp;view=FitH"></iframe>
+    {% else %}
     <div class="doc-preview">{{ review.cv_html | safe }}</div>
+    {{ pdf_missing_hint() }}
+    {% endif %}
   </div>
   {{ regeneration('cv', 'CV', 'shorter, more focus on data engineering…') }}
 </section>
 
-<section class="card">
+<section class="card" id="letter">
   <div class="doc-head">
     <h2>Cover letter</h2>
     <div class="doc-meta">
@@ -103,18 +137,31 @@
   </div>
   <div class="review">
     <form method="post" action="/applications/{{ record.id }}/save">
-      <textarea name="letter" class="doc-source" spellcheck="false"
+      <div class="insert-bar">
+        <span class="hint">Add a line at the caret:</span>
+        {% for role in letter_roles %}
+        <button type="button" data-insert-role="{{ role }}" {% if busy %}disabled{% endif %}>{{ role_labels.get(role, role) }}</button>
+        {% endfor %}
+      </div>
+      <textarea id="letter-source" name="letter" class="doc-source" spellcheck="false"
                 {% if busy %}readonly{% endif %}>{{ review.letter_text }}</textarea>
       <div class="actions">
         <button type="submit" class="primary" {% if busy %}disabled{% endif %}>Save letter</button>
       </div>
     </form>
+    {% if pdf_preview %}
+    <iframe class="doc-pdf" title="Cover letter preview" hx-preserve="true"
+            id="letter-preview-{{ review.letter_revision }}"
+            src="/applications/{{ record.id }}/preview/letter?v={{ review.letter_revision }}#toolbar=0&amp;navpanes=0&amp;view=FitH"></iframe>
+    {% else %}
     <div class="doc-preview">{{ review.letter_html | safe }}</div>
+    {{ pdf_missing_hint() }}
+    {% endif %}
   </div>
   {{ regeneration('letter', 'letter', 'shorter, warmer…') }}
 </section>
 
-<section class="card">
+<section class="card" id="answers">
   <div class="doc-head">
     <h2>Form answers</h2>
     <div class="doc-meta">

@@ -108,6 +108,10 @@ class ReviewView:
     letter_grounding: GroundingReport
     ats: AtsReport | None
     files: list[str]
+    # Tokens that change when the DOCX is written again, used to cache-bust the
+    # framed PDF preview below.
+    cv_revision: str = ""
+    letter_revision: str = ""
 
 
 # --- Rendering and the fit check ----------------------------------------------
@@ -434,6 +438,8 @@ def load_review(profile: Profile, record: OfferRecord, folder: str) -> ReviewVie
         letter_grounding=grounding.check(markdown.parse_lines(letter_source), profile),
         ats=store.load_ats(folder),
         files=store.written_files(folder),
+        cv_revision=store.revision(folder, store.CV_DOCX),
+        letter_revision=store.revision(folder, store.LETTER_DOCX),
     )
 
 
