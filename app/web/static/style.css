@@ -220,6 +220,40 @@ ul.banner { padding-left: 2rem; }
 
 input[type="file"] { padding: 0.4rem; }
 
+/* --- Offers ------------------------------------------------------------ */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.table th, .table td { text-align: left; padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--border); }
+.table th { color: var(--muted); font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.04em; }
+.table tr:last-child td { border-bottom: 0; }
+.table td.muted, .muted { color: var(--muted); }
+
+.source {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 32rem;
+  overflow: auto;
+  font-size: 0.82em;
+  line-height: 1.45;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin: 0;
+}
+
+.keywords, .questions, .options { padding-left: 1.15rem; }
+.keywords li, .questions li { margin-bottom: 0.4rem; }
+.options { color: var(--muted); font-size: 0.92em; margin: 0.2rem 0 0; }
+
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
 @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
 

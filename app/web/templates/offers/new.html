@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Analyze an offer{% endblock %}
+
+{% block content %}
+<h1>Analyze an offer</h1>
+<p class="lede">
+  Paste the offer's <strong>HTML fragment</strong> (recommended), its plain text,
+  or both. Several fragments for the same offer are fine: the description and the
+  application form often live on different pages.
+</p>
+
+<p class="hint">
+  To get the fragment: open the offer, right-click the block you want,
+  <em>Inspect</em>, right-click the element, <em>Copy outerHTML</em>, and paste it
+  below. Content loaded in another frame, or behind another click, has to be
+  pasted separately.
+</p>
+
+{% if not settings.model %}
+<p class="banner banner-warning" role="status">
+  No model is configured, and analyzing an offer needs one. Set a model in
+  <a href="/settings">Settings</a> first.
+</p>
+{% endif %}
+
+{% if error %}
+<p class="banner banner-error" role="alert">{{ error }}</p>
+{% endif %}
+
+<form method="post" action="/offers/new" class="card">
+  <input type="hidden" name="fragment_count" value="{{ fragments | length }}">
+  {% for fragment in fragments %}
+  <label for="fragment.{{ loop.index0 }}">Fragment {{ loop.index }}</label>
+  <textarea id="fragment.{{ loop.index0 }}" name="fragment.{{ loop.index0 }}" rows="8"
+            placeholder="Paste HTML or text…" spellcheck="false">{{ fragment }}</textarea>
+  {% endfor %}
+  <p class="hint">
+    HTML is cleaned for you: scripts, styles, images and tracking are dropped, and
+    the application form is read from the markup.
+  </p>
+
+  <div class="actions">
+    <button type="submit" class="primary">Analyze</button>
+    <a class="button" href="/offers">Cancel</a>
+  </div>
+</form>
+{% endblock %}

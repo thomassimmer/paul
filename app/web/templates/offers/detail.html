@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}{{ offer.title or 'Offer' }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>{{ offer.title or 'Untitled offer' }}</h1>
+  <div class="actions">
+    <a class="button primary" href="/offers/{{ record.id }}/edit">Complete / edit</a>
+    <form method="post" action="/offers/{{ record.id }}/reanalyze" class="inline-form">
+      <button type="submit">Analyze again</button>
+    </form>
+    <a class="button" href="/offers/{{ record.id }}/source">Source</a>
+    <form method="post" action="/offers/{{ record.id }}/delete" class="inline-form"
+          onsubmit="return confirm('Delete this offer?');">
+      <button type="submit">Delete</button>
+    </form>
+  </div>
+</div>
+
+<p class="lede">
+  {{ offer.company }}{% if offer.company and offer.location %} · {% endif %}{{ offer.location }}
+  {% if record.analyzed_at %}<span class="muted">· analyzed {{ record.analyzed_at }} ({{ record.source }})</span>{% endif %}
+</p>
+
+{% if missing %}
+<p class="banner banner-warning" role="status">
+  The offer did not state {{ missing | join(', ') }}.
+  <a href="/offers/{{ record.id }}/edit">Complete it by hand</a> if you know the answer:
+  guessing is worse than leaving a field empty.
+</p>
+{% endif %}
+
+<div class="card">
+  <h2>Overview</h2>
+  <dl class="kv">
+    <dt>Seniority</dt><dd>{{ offer.seniority or '—' }}</dd>
+    <dt>Contract</dt><dd>{{ offer.contract_type or '—' }}</dd>
+    <dt>Remote</dt><dd>{{ offer.remote_policy or '—' }}</dd>
+    <dt>Salary</dt><dd>{{ offer.salary or 'not stated' }}</dd>
+    <dt>Language</dt><dd>{{ offer.language or '—' }}</dd>
+  </dl>
+</div>
+
+<div class="card">
+  <h2>Responsibilities</h2>
+  {% if offer.responsibilities %}
+  <ul>{% for item in offer.responsibilities %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% else %}<p class="missing">Not stated in the pasted content.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Requirements</h2>
+  <h4>Must have</h4>
+  {% if offer.requirements.must_have %}
+  <ul>{% for item in offer.requirements.must_have %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% else %}<p class="missing">None extracted.</p>{% endif %}
+  <h4>Nice to have</h4>
+  {% if offer.requirements.nice_to_have %}
+  <ul>{% for item in offer.requirements.nice_to_have %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% else %}<p class="missing">None extracted.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Keywords <span class="tag">{{ offer.keywords | length }}</span></h2>
+  {% if offer.keywords %}
+  <ul class="keywords">
+    {% for keyword in offer.keywords %}
+    <li>
+      <strong>{{ keyword.term }}</strong>
+      {% for variant in keyword.variants %}<span class="metric">{{ variant }}</span>{% endfor %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="missing">None extracted.</p>{% endif %}
+</div>
+
+{% set constraints = [offer.constraints.work_authorization, offer.constraints.citizenship,
+                      offer.constraints.on_site, offer.constraints.language_level,
+                      offer.constraints.clearance] %}
+{% if constraints | select | list %}
+<div class="card">
+  <h2>Constraints</h2>
+  <dl class="kv">
+    <dt>Work authorization</dt><dd>{{ offer.constraints.work_authorization or '—' }}</dd>
+    <dt>Citizenship</dt><dd>{{ offer.constraints.citizenship or '—' }}</dd>
+    <dt>On site</dt><dd>{{ offer.constraints.on_site or '—' }}</dd>
+    <dt>Language level</dt><dd>{{ offer.constraints.language_level or '—' }}</dd>
+    <dt>Clearance</dt><dd>{{ offer.constraints.clearance or '—' }}</dd>
+  </dl>
+</div>
+{% endif %}
+
+{% set company = [offer.company_info.size, offer.company_info.funding,
+                  offer.company_info.domain, offer.company_info.mission] %}
+{% if company | select | list %}
+<div class="card">
+  <h2>Company <span class="tag">from the offer text</span></h2>
+  <dl class="kv">
+    <dt>Size</dt><dd>{{ offer.company_info.size or '—' }}</dd>
+    <dt>Funding</dt><dd>{{ offer.company_info.funding or '—' }}</dd>
+    <dt>Domain</dt><dd>{{ offer.company_info.domain or '—' }}</dd>
+    <dt>Mission</dt><dd>{{ offer.company_info.mission or '—' }}</dd>
+  </dl>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Application form <span class="tag">{{ offer.form | length }} question(s)</span></h2>
+  {% if offer.form %}
+  <ol class="questions">
+    {% for question in offer.form %}
+    <li>
+      {{ question.label or question.name }}
+      <span class="id">{{ question.type }}{% if question.name %} · name={{ question.name }}{% endif %}{% if question.required %} · required{% endif %}{% if question.max_length %} · max {{ question.max_length }}{% endif %}</span>
+      {% if question.options %}
+      <ul class="options">{% for option in question.options %}<li>{{ option }}</li>{% endfor %}</ul>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="hint">Read from the pasted markup, not guessed by the model.</p>
+  {% else %}
+  <p class="missing">
+    No form field was found. Paste the fragment that contains the application
+    form (and keep its <code>&lt;label&gt;</code>, <code>name</code> and
+    <code>&lt;option&gt;</code> markup).
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

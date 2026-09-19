@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from app.config import load_settings
+from app.offers import store as offers_store
 from app.profiler import service, store
 from app.web.templating import render
 
@@ -31,4 +32,5 @@ async def dashboard(request: Request) -> HTMLResponse:
         settings=settings,
         configured=bool(settings.model),
         summary=service.summary(profile),
+        offers_count=offers_store.count_offers(),
     )

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Offer source{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Source</h1>
+  <div class="actions">
+    <a class="button" href="/offers/{{ record.id }}">Back to the offer</a>
+  </div>
+</div>
+<p class="lede">
+  The raw fragment is kept so the analysis can be re-run later with a better
+  model or a tighter prompt, without pasting the page again.
+</p>
+
+<div class="card">
+  <h2>As pasted</h2>
+  <pre class="source">{{ raw }}</pre>
+</div>
+
+<div class="card">
+  <h2>As cleaned <span class="tag">sent to the model</span></h2>
+  <pre class="source">{{ cleaned }}</pre>
+</div>
+{% endblock %}

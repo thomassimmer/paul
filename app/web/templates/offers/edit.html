@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Complete the offer{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Complete the offer</h1>
+  <div class="actions">
+    <a class="button" href="/offers/{{ record_id or '' }}">Cancel</a>
+  </div>
+</div>
+<p class="lede">
+  Everything the model could not read is left empty on purpose: fill it from the
+  offer text, never from memory. Lists are one item per line.
+</p>
+
+{% if missing %}
+<p class="banner banner-warning" role="status">
+  Missing: {{ missing | join(', ') }}.
+</p>
+{% endif %}
+
+<form method="post" action="/offers/{{ record_id }}/edit">
+  <section class="card">
+    <h2>Overview</h2>
+    <div class="grid-2">
+      <div><label for="title">Title</label>
+        <input id="title" name="title" value="{{ offer.title }}"></div>
+      <div><label for="company">Company</label>
+        <input id="company" name="company" value="{{ offer.company }}"></div>
+      <div><label for="location">Location</label>
+        <input id="location" name="location" value="{{ offer.location }}"></div>
+      <div><label for="remote_policy">Remote policy</label>
+        <input id="remote_policy" name="remote_policy" value="{{ offer.remote_policy }}"></div>
+      <div><label for="contract_type">Contract type</label>
+        <input id="contract_type" name="contract_type" value="{{ offer.contract_type }}"></div>
+      <div><label for="seniority">Seniority</label>
+        <input id="seniority" name="seniority" value="{{ offer.seniority }}"></div>
+      <div><label for="salary">Salary</label>
+        <input id="salary" name="salary" value="{{ offer.salary }}"></div>
+      <div><label for="language">Language</label>
+        <input id="language" name="language" value="{{ offer.language }}" placeholder="en, fr, …"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Content</h2>
+    <label for="responsibilities">Responsibilities</label>
+    <textarea id="responsibilities" name="responsibilities" rows="5">{{ offer.responsibilities | join('\n') }}</textarea>
+
+    <div class="grid-2">
+      <div>
+        <label for="must_have">Must have</label>
+        <textarea id="must_have" name="must_have" rows="6">{{ offer.requirements.must_have | join('\n') }}</textarea>
+      </div>
+      <div>
+        <label for="nice_to_have">Nice to have</label>
+        <textarea id="nice_to_have" name="nice_to_have" rows="6">{{ offer.requirements.nice_to_have | join('\n') }}</textarea>
+      </div>
+    </div>
+
+    <label for="keywords">Keywords</label>
+    <textarea id="keywords" name="keywords" rows="5"
+              placeholder="Kubernetes: K8s, kube&#10;Rust">{{ keywords_text }}</textarea>
+    <p class="hint">One <code>term: variant, variant</code> line per keyword. Variants come from the offer text.</p>
+  </section>
+
+  <section class="card">
+    <h2>Constraints</h2>
+    <div class="grid-2">
+      <div><label for="constraints.work_authorization">Work authorization</label>
+        <input id="constraints.work_authorization" name="constraints.work_authorization"
+               value="{{ offer.constraints.work_authorization }}"></div>
+      <div><label for="constraints.citizenship">Citizenship</label>
+        <input id="constraints.citizenship" name="constraints.citizenship"
+               value="{{ offer.constraints.citizenship }}"></div>
+      <div><label for="constraints.on_site">On site</label>
+        <input id="constraints.on_site" name="constraints.on_site"
+               value="{{ offer.constraints.on_site }}"></div>
+      <div><label for="constraints.language_level">Language level</label>
+        <input id="constraints.language_level" name="constraints.language_level"
+               value="{{ offer.constraints.language_level }}"></div>
+      <div><label for="constraints.clearance">Clearance</label>
+        <input id="constraints.clearance" name="constraints.clearance"
+               value="{{ offer.constraints.clearance }}"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Company</h2>
+    <div class="grid-2">
+      <div><label for="company.size">Size</label>
+        <input id="company.size" name="company.size" value="{{ offer.company_info.size }}"></div>
+      <div><label for="company.funding">Funding</label>
+        <input id="company.funding" name="company.funding" value="{{ offer.company_info.funding }}"></div>
+      <div><label for="company.domain">Domain</label>
+        <input id="company.domain" name="company.domain" value="{{ offer.company_info.domain }}"></div>
+      <div><label for="company.mission">Mission</label>
+        <input id="company.mission" name="company.mission" value="{{ offer.company_info.mission }}"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Application form</h2>
+    <input type="hidden" name="form_count" value="{{ form_count }}">
+    {% for row in form_rows %}
+    <article class="entry {% if loop.last %}blank{% endif %}">
+      <div class="grid-2">
+        <div><label>Question</label>
+          <input name="form.{{ row.index }}.label" value="{{ row.question.label }}"></div>
+        <div><label>Field name</label>
+          <input name="form.{{ row.index }}.name" value="{{ row.question.name }}"></div>
+        <div><label>Type</label>
+          <input name="form.{{ row.index }}.type" value="{{ row.question.type }}" placeholder="text, textarea, select, radio…"></div>
+        <div><label>Max length</label>
+          <input name="form.{{ row.index }}.max_length" value="{{ row.question.max_length | default('', true) }}"></div>
+      </div>
+      <label>Options</label>
+      <input name="form.{{ row.index }}.options" value="{{ row.question.options | join(', ') }}"
+             placeholder="comma-separated, for a select or a radio group">
+      <label>Placeholder</label>
+      <input name="form.{{ row.index }}.placeholder" value="{{ row.question.placeholder }}">
+      <label class="check"><input type="checkbox" name="form.{{ row.index }}.required" value="1"
+        {% if row.question.required %}checked{% endif %}> Required</label>
+    </article>
+    {% endfor %}
+  </section>
+
+  <div class="actions">
+    <button type="submit" class="primary">Save offer</button>
+    <a class="button" href="/offers/{{ record_id }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

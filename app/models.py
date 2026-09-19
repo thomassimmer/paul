@@ -1,8 +1,8 @@
 """Shared Pydantic domain models.
 
 Every LLM call in the app returns one of these validated objects (README design
-rule). ``Profile`` is owned by the profiler; the offer analyzer and the writer
-will add ``Offer``, ``Score`` and ``Application`` here.
+rule). ``Profile`` is owned by the profiler, ``Offer`` by the offer analyzer;
+``Score`` and ``Application`` arrive with the ranker and the writer.
 """
 
 from __future__ import annotations
@@ -112,3 +112,90 @@ class ProfileDraft(BaseModel):
 
     def to_profile(self) -> Profile:
         return Profile(**self.model_dump())
+
+
+# --- Offers -------------------------------------------------------------------
+
+
+class Keyword(BaseModel):
+    """A term the offer insists on, with accepted variants (K8s / Kubernetes)."""
+
+    term: str = ""
+    variants: list[str] = Field(default_factory=list)
+
+
+class Requirements(BaseModel):
+    must_have: list[str] = Field(default_factory=list)
+    nice_to_have: list[str] = Field(default_factory=list)
+
+
+class Constraints(BaseModel):
+    """Conditions that can eliminate an offer outright."""
+
+    work_authorization: str = ""
+    citizenship: str = ""
+    on_site: str = ""
+    language_level: str = ""
+    clearance: str = ""
+
+
+class CompanyInfo(BaseModel):
+    """Only what the pasted content states. Never guessed."""
+
+    size: str = ""
+    funding: str = ""
+    domain: str = ""
+    mission: str = ""
+
+
+class FormQuestion(BaseModel):
+    """One application-form field, parsed from the HTML by code, not by the LLM."""
+
+    label: str = ""
+    name: str = ""
+    type: str = ""
+    options: list[str] = Field(default_factory=list)
+    required: bool = False
+    max_length: int | None = None
+    placeholder: str = ""
+
+
+class OfferDraft(BaseModel):
+    """What the LLM extracts from the cleaned offer text.
+
+    Deliberately has no ``form`` field: the application form is parsed from the
+    HTML by code, which is both more faithful (labels, ``required``,
+    ``maxlength``, options) and cheaper.
+    """
+
+    title: str = ""
+    company: str = ""
+    location: str = ""
+    remote_policy: str = ""
+    contract_type: str = ""
+    seniority: str = ""
+    salary: str = ""
+    language: str = ""
+    responsibilities: list[str] = Field(default_factory=list)
+    requirements: Requirements = Field(default_factory=Requirements)
+    keywords: list[Keyword] = Field(default_factory=list)
+    constraints: Constraints = Field(default_factory=Constraints)
+    company_info: CompanyInfo = Field(default_factory=CompanyInfo)
+
+    def to_offer(self, form: list[FormQuestion]) -> Offer:
+        return Offer(**self.model_dump(), form=form)
+
+
+class Offer(OfferDraft):
+    """A draft plus the application form we parsed ourselves."""
+
+    form: list[FormQuestion] = Field(default_factory=list)
+
+
+class OfferRecord(BaseModel):
+    """An offer as stored: the row's metadata plus the extracted offer."""
+
+    id: int
+    analyzed_at: str = ""
+    source: str = ""
+    offer: Offer

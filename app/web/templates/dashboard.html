@@ -30,9 +30,21 @@
         {% endif %}
       </p>
     </li>
-    <li>
+    <li class="{% if offers_count %}done{% endif %}">
       <strong>Paste a job offer</strong>
-      <p>Analyzed, filtered and scored against your profile and your wishes.
+      <p>
+        {% if offers_count %}
+          {{ offers_count }} offer(s) analyzed. <a href="/offers">See them</a>, or
+          <a href="/offers/new">analyze another</a>.
+        {% else %}
+          The analyzer reads the description and the application form from the
+          pasted HTML. <a href="/offers/new">Analyze an offer</a>.
+        {% endif %}
+      </p>
+    </li>
+    <li>
+      <strong>Filter and rank</strong>
+      <p>Elimination rules and explainable scores against your profile.
         <span class="soon">next milestone</span></p>
     </li>
   </ol>

@@ -150,14 +150,14 @@ Every experience and achievement has a stable `id` (`exp-acme-2022`, `exp-acme-2
 
 - the **HTML fragment** of the offer page: description *and* application form (recommended, this is the main path),
 - plain text pasted from the page,
-- several fragments for the same offer (e.g. description and form on different pages).
+- several fragments for the same offer (e.g. description and form on different pages). Duplicated lines across fragments are collapsed.
 
-**How to get the fragment:** open the offer, right-click the relevant block, *Inspect*, right-click the element, *Copy outerHTML*, paste it into Paul.
+**How to get the fragment:** open the offer, right-click the relevant block, *Inspect*, right-click the element, *Copy outerHTML*, paste it into Paul. Content loaded in another frame, or behind another click, has to be pasted separately.
 
 **Processing:**
 
-1. **Cleaning (deterministic).** `BeautifulSoup` removes scripts, styles, SVG, tracking and layout noise, and keeps only what matters: text, headings, lists, links, and form elements with their `label`, `name`, `type`, `required`, `maxlength`, `placeholder` and `<option>` values. This keeps token usage low and makes extraction reliable.
-2. **Extraction (LLM, structured output).** The cleaned content is turned into a validated Pydantic object:
+1. **Cleaning (deterministic).** `BeautifulSoup` drops scripts, styles, SVG, images, hidden elements and tracking parameters, and keeps what matters: headings, lists, paragraphs and links (rendered as Markdown). Form controls are parsed here too, into `label`, `name`, `type`, `required`, `maxlength`, `placeholder` and `<option>` values, with radio and checkbox groups merged by `name` and named by their `<legend>`. This keeps token usage low and makes extraction reliable.
+2. **Extraction (LLM, structured output).** The cleaned **description** is turned into a validated Pydantic object:
 
 ```text
 Offer
@@ -165,16 +165,17 @@ Offer
 ├── salary (if present), language of the offer
 ├── responsibilities
 ├── requirements: must-have / nice-to-have
-├── stack and keywords (with common variants)
+├── keywords (with the variants the text itself uses)
 ├── constraints: work authorization, citizenship, on-site, language level, clearance
 ├── company info found in the text (size, funding, domain, mission)
-└── application form
+└── application form          <- parsed from the markup by code, not by the LLM
     └── questions: label, type, options, required, max length
 ```
 
-3. **Storage.** The offer is saved in SQLite, with the raw fragment kept for traceability, so you can re-run the analysis later with a better model or updated rules.
+The application form is deliberately *not* asked for from the model: labels, `required`, `maxlength` and option values are facts sitting in the markup, so they are read by code (cheaper, and never approximated). Form controls are therefore left out of the text sent to the model.
+3. **Storage.** The offer is saved in SQLite as JSON, next to the raw fragment and the cleaned text, so you can re-run the analysis later with a better model or a tighter prompt without pasting the page again.
 
-The fragment must contain what you want extracted. Content loaded in another frame, or behind another click, has to be pasted separately. If extraction fails validation, it is retried once with the error message; otherwise the fields that could not be extracted are shown for manual completion.
+Nothing is invented: a field the offer does not state stays empty. Company facts are only recorded when the pasted text mentions them. If the extraction fails validation it is retried once with the error message, and whatever could not be read is listed on the offer page and can be completed by hand.
 
 ### 3. Filter and ranker
 
@@ -322,6 +323,7 @@ paul-emploi/
 │   ├── llm.py                 # LiteLLM wrapper, structured output + retry
 │   ├── models.py              # Pydantic models: Profile, Offer, Score, Application
 │   ├── prompts/               # prompts as plain text files
+│   │   ├── offers/
 │   │   └── profiler/
 │   ├── profiler/              # CV import, interview, editable profile
 │   │   ├── cv.py              # PDF/DOCX text extraction
@@ -333,7 +335,13 @@ paul-emploi/
 │   │   ├── service.py         # import orchestration
 │   │   ├── store.py           # profile.yaml, cv.txt, interview state
 │   │   └── text.py            # list, metric and text helpers
-│   ├── offers/                # HTML cleaning, extraction
+│   ├── offers/                # offer analyzer
+│   │   ├── clean.py           # deterministic HTML cleaning + form parsing
+│   │   ├── editor.py          # structured offer form <-> Offer
+│   │   ├── extract.py         # LLM: cleaned text -> OfferDraft
+│   │   ├── router.py          # HTTP routes
+│   │   ├── service.py         # analysis orchestration
+│   │   └── store.py           # offers in SQLite (raw + cleaned kept)
 │   ├── ranking/               # elimination rules, scoring grid
 │   ├── writer/                # tailoring, grounding check, form answers
 │   ├── ats.py                 # keyword coverage and format checks
@@ -370,7 +378,7 @@ Conventions: each feature package owns its HTTP routes (`app/profiler/router.py`
 
 - [x] Docker Compose install, settings page
 - [x] Profiler: CV import, interview, editable profile
-- [ ] Offer analyzer: HTML fragment and text, form question extraction
+- [x] Offer analyzer: HTML fragment and text, form question extraction
 - [ ] Filter and ranker with explainable scores
 - [ ] DOCX template import and rendering (CV and letter)
 - [ ] Writer with grounding check, form answers, ATS coverage

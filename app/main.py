@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import db
 from app.config import DATA_DIR
+from app.offers import router as offers_router
 from app.profiler import router as profiler_router
 from app.web import WEB_DIR
 from app.web.routes import dashboard, settings
@@ -22,6 +23,7 @@ ROUTERS = (
     dashboard.router,
     settings.router,
     profiler_router.router,
+    offers_router.router,
 )
 
 

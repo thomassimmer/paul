@@ -13,7 +13,7 @@ from app.config import DATA_DIR
 
 DB_PATH = DATA_DIR / "paul.sqlite3"
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -26,6 +26,17 @@ CREATE TABLE IF NOT EXISTS meta (
 CREATE TABLE IF NOT EXISTS interview_skipped (
     key        TEXT PRIMARY KEY,
     skipped_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Analyzed offers. The raw fragment and the cleaned text are kept so the
+-- analysis can be re-run later with a better model or updated rules.
+CREATE TABLE IF NOT EXISTS offers (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    analyzed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    source      TEXT NOT NULL DEFAULT '',
+    raw         TEXT NOT NULL DEFAULT '',
+    cleaned     TEXT NOT NULL DEFAULT '',
+    offer_json  TEXT NOT NULL
 );
 """
 
