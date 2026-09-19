@@ -45,6 +45,25 @@ class WriterError(RuntimeError):
     """The application cannot be prepared, for a reason we can explain."""
 
 
+# How a background job is told what is happening: ``on_step(key, status, detail)``.
+# ``service`` only emits the keys; the labels and the job itself live in ``jobs.py``.
+OnStep = Callable[[str, str, str], None]
+
+
+def _report(on_step: OnStep | None, key: str, status: str, detail: str = "") -> None:
+    if on_step is not None:
+        on_step(key, status, detail)
+
+
+def _document_detail(document: Document) -> str:
+    parts = [f"{document.pages} page(s)"]
+    if not document.exact:
+        parts.append("estimated")
+    if document.grounding.issues:
+        parts.append(f"{len(document.grounding.issues)} unverified line(s)")
+    return " · ".join(parts)
+
+
 @dataclass
 class Document:
     """One generated document, its layout and its verification."""
@@ -173,15 +192,20 @@ async def prepare(
     record: OfferRecord,
     *,
     today: date | None = None,
+    on_step: OnStep | None = None,
 ) -> Prepared:
     """Build the whole application folder for one offer.
 
     Raises ``LLMError`` when the model cannot produce the documents at all; the
-    folder is only written once both documents exist.
+    folder is only written once both documents exist. ``on_step`` is how the
+    background job follows along; it is optional, so the tests can call this
+    directly.
     """
+    _report(on_step, "offer", "running")
     when = today or tracker_service.today_utc()
     folder = store.resolve_folder(record, when)
     source = _offer_source(record)
+    _report(on_step, "offer", "done", folder)
 
     warnings: list[str] = []
     cv_blueprint = templates_store.load_blueprint("cv")
@@ -207,6 +231,7 @@ async def prepare(
             instruction=instruction,
         )
 
+    _report(on_step, "cv", "running")
     cv_lines = await redraft_cv("")
     cv = await _fit(
         kind="cv",
@@ -217,7 +242,9 @@ async def prepare(
     )
     cv.grounding = grounding.check(cv.lines, profile)
     _grounding_warning(cv, warnings)
+    _report(on_step, "cv", "done", _document_detail(cv))
 
+    _report(on_step, "letter", "running")
     letter_lines = await redraft_letter("")
     letter = await _fit(
         kind="letter",
@@ -228,15 +255,22 @@ async def prepare(
     )
     letter.grounding = grounding.check(letter.lines, profile)
     _grounding_warning(letter, warnings)
+    _report(on_step, "letter", "done", _document_detail(letter))
 
+    _report(on_step, "answers", "running")
     form_answers = await _draft_answers(
         settings, record, profile, instruction="", warnings=warnings
     )
+    _report(on_step, "answers", "done", _answers_detail(form_answers))
 
+    _report(on_step, "ats", "running")
     report = await _ats_report(settings, record, profile, cv, source)
+    _report(on_step, "ats", "done", f"{report.coverage_percent}% coverage")
 
+    _report(on_step, "save", "running")
     _write_application(folder, record, source, cv, letter, form_answers, report)
     tracker_store.set_folder(record.id, folder)
+    _report(on_step, "save", "done", folder)
 
     return Prepared(
         folder=folder,
@@ -246,6 +280,15 @@ async def prepare(
         ats=report,
         warnings=warnings,
     )
+
+
+def _answers_detail(form_answers: list[FormAnswer]) -> str:
+    from_facts = sum(1 for item in form_answers if item.source == "fact")
+    missing = sum(1 for item in form_answers if item.source == "missing")
+    parts = [f"{len(form_answers)} question(s)", f"{from_facts} from your profile"]
+    if missing:
+        parts.append(f"{missing} missing")
+    return " · ".join(parts)
 
 
 def _grounding_warning(document: Document, warnings: list[str]) -> None:
@@ -473,6 +516,7 @@ async def regenerate(
     section: str,
     instruction: str,
     warnings: list[str],
+    on_step: OnStep | None = None,
 ) -> None:
     """Redraft one section with an instruction, leaving the others untouched."""
     if section not in SECTIONS:
@@ -480,19 +524,35 @@ async def regenerate(
     if not store.folder_exists(folder):
         raise WriterError("This application folder no longer exists.")
 
+    _report(on_step, "draft", "running")
+    detail = ""
     if section == "cv":
-        await _regenerate_document(settings, profile, record, folder, "cv", instruction, warnings)
+        document = await _regenerate_document(
+            settings, profile, record, folder, "cv", instruction, warnings
+        )
+        detail = _document_detail(document)
     elif section == "letter":
-        await _regenerate_document(
+        document = await _regenerate_document(
             settings, profile, record, folder, "letter", instruction, warnings
         )
+        detail = _document_detail(document)
     else:
         merged = await _draft_answers(
             settings, record, profile, instruction=instruction, warnings=warnings
         )
         store.write_text(folder, store.ANSWERS_MD, markdown.render_answers(merged))
+        detail = _answers_detail(merged)
+    _report(on_step, "draft", "done", detail)
 
+    _report(on_step, "ats", "running")
     _rewrite_ats(profile, record, folder)
+    report = store.load_ats(folder)
+    _report(
+        on_step,
+        "ats",
+        "done",
+        f"{report.coverage_percent}% coverage" if report is not None else "",
+    )
 
 
 async def _regenerate_document(
@@ -503,7 +563,7 @@ async def _regenerate_document(
     kind: str,
     instruction: str,
     warnings: list[str],
-) -> None:
+) -> Document:
     blueprint = templates_store.load_blueprint(kind)
     target = settings.target_pages.cv if kind == "cv" else settings.target_pages.letter
 
@@ -539,6 +599,7 @@ async def _regenerate_document(
     else:
         store.write_text(folder, store.LETTER_MD, markdown.render_lines(document.lines))
         store.write_bytes(folder, store.LETTER_DOCX, document.docx)
+    return document
 
 
 # --- The list page -------------------------------------------------------------

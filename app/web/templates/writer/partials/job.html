@@ -1,0 +1,53 @@
+{# The job panel. It polls itself while a job is running, and stops polling when it
+   is done, because the returned element then carries no trigger. #}
+<div id="job"{% if job and job.running %} hx-get="{{ poll_url }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  {% if job %}
+  <div class="card">
+    <div class="page-head">
+      <h2>{{ job.heading }}</h2>
+      {% if job.running %}
+      <form method="post" action="/applications/cancel" class="inline-form">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <button type="submit">Stop</button>
+      </form>
+      {% else %}
+      <form method="post" action="/applications/dismiss" class="inline-form">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <button type="submit">Dismiss</button>
+      </form>
+      {% endif %}
+    </div>
+
+    <div class="progress"><div class="progress-bar" style="width: {{ job.percent }}%"></div></div>
+    <p class="hint">
+      {{ job.done }}/{{ job.total }} steps · {{ job.subject }} ·
+      {{ job.elapsed | round | int }} s
+    </p>
+
+    {% if job.error %}
+    <p class="banner banner-error" role="alert">{{ job.error }}</p>
+    {% endif %}
+
+    <ul class="job-list">
+      {% for step in job.steps %}
+      <li>
+        <span class="job-status job-{{ step.status }}">{{ status_labels.get(step.status, step.status) }}</span>
+        {{ step.label }}{% if step.detail %} <span class="hint">{{ step.detail }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+
+    {% if job.warnings %}
+    <ul class="banner banner-warning">
+      {% for warning in job.warnings %}<li>{{ warning }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if job.status == 'done' %}
+    <p class="actions">
+      <a class="button primary" href="/applications/{{ job.offer_id }}">Open the review</a>
+    </p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

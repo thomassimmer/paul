@@ -1,9 +1,9 @@
 """Applications routes: pick an offer, prepare its documents, review, download.
 
-Routes stay thin: they read the request, call ``service``, and redirect. Preparing
-is the one slow request of the app — three or four model calls, plus LibreOffice
-for the page count — which is acceptable for a single offer chosen on purpose,
-unlike a run over twenty of them.
+Routes stay thin: they read the request, start a background job or call the
+service, and redirect. Preparing and regenerating are background tasks (see
+``jobs.py``) because they are several model calls plus a page measurement: the page
+shows their progress and polls it every two seconds, exactly like the ranker.
 """
 
 from __future__ import annotations
@@ -12,16 +12,14 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
 from app.config import load_settings
-from app.llm import LLMError
 from app.models import Profile
 from app.offers import store as offers_store
 from app.profiler import store as profile_store
 from app.ranking import store as ranking_store
 from app.templates_engine import pdf
-from app.templates_engine.extract import TemplateError
 from app.tracker import store as tracker_store
 from app.web.templating import redirect, render
-from app.writer import service, store
+from app.writer import jobs, service, store
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -36,7 +34,12 @@ MEDIA_TYPES = {
     store.NOTES_MD: "text/markdown; charset=utf-8",
 }
 PDF_SOURCES = {"cv.pdf": store.CV_DOCX, "letter.pdf": store.LETTER_DOCX}
-MAX_FLASH = 500
+
+BUSY_MESSAGE = "A preparation is already running. Wait for it, or stop it first."
+
+# How a section is named inside a sentence, unlike ``service.SECTION_LABELS`` which
+# is a title.
+SECTION_PHRASES = {"cv": "CV", "letter": "cover letter", "answers": "form answers"}
 
 
 def _profile() -> tuple[Profile | None, str | None]:
@@ -46,55 +49,84 @@ def _profile() -> tuple[Profile | None, str | None]:
         return None, str(exc)
 
 
-def _summarize(base: str, warnings: list[str]) -> tuple[str, str]:
-    """One flash message, shortened: a warning list can be long."""
-    if not warnings:
-        return base, "ok"
-    joined = " ".join(warnings)
-    if len(joined) > MAX_FLASH:
-        joined = joined[: MAX_FLASH - 1].rstrip() + "…"
-    return f"{base} {joined}", "warning"
+def _next(form, default: str) -> str:
+    """Where a cancel or a dismiss should land. Only inside this section."""
+    value = str(form.get("next") or "")
+    return value if value.startswith("/applications") else default
+
+
+def _busy() -> bool:
+    job = jobs.current()
+    return job is not None and job.running
+
+
+def _index_context() -> dict:
+    settings = load_settings()
+    profile, profile_error = _profile()
+    return {
+        "settings": settings,
+        "has_profile": profile is not None,
+        "profile_error": profile_error,
+        "has_model": bool(settings.model.strip()),
+        "rows": service.application_rows(
+            offers_store.list_offers(),
+            ranking_store.list_rankings(),
+            tracker_store.list_applications(),
+            settings,
+            profile if profile is not None else Profile(),
+        ),
+        "job": jobs.current(),
+        "status_labels": jobs.STATUS_LABELS,
+        "poll_url": "/applications/progress",
+        "next_url": "/applications",
+    }
+
+
+def _review_context(profile: Profile, record, folder: str) -> dict:
+    return {
+        "record": record,
+        "offer": record.offer,
+        "folder": folder,
+        "target": load_settings().target_pages,
+        "review": service.load_review(profile, record, folder),
+        "job": jobs.current(),
+        "status_labels": jobs.STATUS_LABELS,
+        "poll_url": f"/applications/{record.id}/progress",
+        "next_url": f"/applications/{record.id}",
+    }
+
+
+# --- The list page -------------------------------------------------------------
 
 
 @router.get("", response_class=HTMLResponse)
 async def applications_page(request: Request):
-    settings = load_settings()
-    profile, profile_error = _profile()
-    rows = service.application_rows(
-        offers_store.list_offers(),
-        ranking_store.list_rankings(),
-        tracker_store.list_applications(),
-        settings,
-        profile if profile is not None else Profile(),
-    )
-    return render(
-        request,
-        "writer/index.html",
-        active="applications",
-        settings=settings,
-        has_profile=profile is not None,
-        profile_error=profile_error,
-        has_model=bool(settings.model.strip()),
-        rows=rows,
-    )
+    return render(request, "writer/index.html", active="applications", **_index_context())
 
 
-def _prepared(offer_id: int):
-    """``(record, folder, error_response)`` for the routes that need both."""
-    record = offers_store.load_offer(offer_id)
-    if record is None:
-        return None, "", redirect(
-            "/applications", message="This offer no longer exists.", level="error"
-        )
-    application = tracker_store.load_application(offer_id)
-    folder = application.folder if application else ""
-    if not folder or not store.folder_exists(folder):
-        return record, "", redirect(
-            "/applications",
-            message="This application is not prepared yet.",
-            level="warning",
-        )
-    return record, folder, None
+@router.get("/progress", response_class=HTMLResponse)
+async def applications_progress(request: Request):
+    """The job panel, plus the refreshed list via an out-of-band swap."""
+    return render(request, "writer/partials/list_progress.html", **_index_context())
+
+
+@router.post("/cancel")
+async def applications_cancel(request: Request):
+    form = await request.form()
+    back = _next(form, "/applications")
+    if jobs.cancel():
+        return redirect(back, message="Stopping: the folder is only written at the end.")
+    return redirect(back, message="Nothing is running.", level="warning")
+
+
+@router.post("/dismiss")
+async def applications_dismiss(request: Request):
+    form = await request.form()
+    jobs.reset()
+    return redirect(_next(form, "/applications"))
+
+
+# --- Preparing -----------------------------------------------------------------
 
 
 @router.post("/{offer_id}/prepare")
@@ -117,14 +149,52 @@ async def application_prepare(offer_id: int):
             message="No model configured. Set one in Settings to prepare an application.",
             level="error",
         )
+    if _busy():
+        return redirect("/applications", message=BUSY_MESSAGE, level="warning")
 
-    try:
-        prepared = await service.prepare(settings, profile, record)
-    except (LLMError, TemplateError) as exc:
-        return redirect("/applications", message=str(exc), level="error")
+    await jobs.start_job(settings, profile, record, kind="prepare")
+    return redirect(
+        "/applications",
+        message="Preparing in the background. This page updates itself every 2 seconds.",
+    )
 
-    message, level = _summarize(f"Application prepared in {prepared.folder}.", prepared.warnings)
-    return redirect(f"/applications/{offer_id}", message=message, level=level)
+
+def _prepared(offer_id: int):
+    """``(record, folder, error_response)`` for the routes that need both."""
+    record = offers_store.load_offer(offer_id)
+    if record is None:
+        return None, "", redirect(
+            "/applications", message="This offer no longer exists.", level="error"
+        )
+    application = tracker_store.load_application(offer_id)
+    folder = application.folder if application else ""
+    if not folder or not store.folder_exists(folder):
+        return record, "", redirect(
+            "/applications",
+            message="This application is not prepared yet.",
+            level="warning",
+        )
+    return record, folder, None
+
+
+# --- Reviewing -----------------------------------------------------------------
+
+
+@router.get("/{offer_id}/progress", response_class=HTMLResponse)
+async def application_progress(request: Request, offer_id: int):
+    """The job panel, plus the refreshed review body via an out-of-band swap."""
+    record, folder, response = _prepared(offer_id)
+    if response is not None:
+        return response
+    assert record is not None
+    profile, error = _profile()
+    if profile is None:
+        return redirect("/applications", message=error or "No profile.", level="warning")
+    return render(
+        request,
+        "writer/partials/review_progress.html",
+        **_review_context(profile, record, folder),
+    )
 
 
 @router.get("/{offer_id}", response_class=HTMLResponse)
@@ -140,16 +210,11 @@ async def application_review(request: Request, offer_id: int):
             message=error or "Import your CV first: the review screen checks against your profile.",
             level="warning",
         )
-
     return render(
         request,
         "writer/review.html",
         active="applications",
-        record=record,
-        offer=record.offer,
-        folder=folder,
-        target=load_settings().target_pages,
-        review=service.load_review(profile, record, folder),
+        **_review_context(profile, record, folder),
     )
 
 
@@ -162,6 +227,8 @@ async def application_save(request: Request, offer_id: int):
     profile, error = _profile()
     if profile is None:
         return redirect("/applications", message=error or "No profile.", level="warning")
+    if _busy():
+        return redirect(f"/applications/{offer_id}", message=BUSY_MESSAGE, level="warning")
 
     form = await request.form()
 
@@ -196,10 +263,6 @@ async def application_regenerate(request: Request, offer_id: int):
     profile, error = _profile()
     if profile is None:
         return redirect("/applications", message=error or "No profile.", level="warning")
-
-    form = await request.form()
-    section = str(form.get("section") or "")
-    instruction = str(form.get("instruction") or "").strip()
     settings = load_settings()
     if not settings.model.strip():
         return redirect(
@@ -208,23 +271,32 @@ async def application_regenerate(request: Request, offer_id: int):
             level="error",
         )
 
-    warnings: list[str] = []
-    try:
-        await service.regenerate(
-            settings,
-            profile,
-            record,
-            folder=folder,
-            section=section,
-            instruction=instruction,
-            warnings=warnings,
+    form = await request.form()
+    section = str(form.get("section") or "")
+    if section not in service.SECTIONS:
+        return redirect(
+            f"/applications/{offer_id}", message=f"Unknown section: {section}.", level="error"
         )
-    except (LLMError, service.WriterError, store.FolderError) as exc:
-        return redirect(f"/applications/{offer_id}", message=str(exc), level="error")
+    if _busy():
+        return redirect(f"/applications/{offer_id}", message=BUSY_MESSAGE, level="warning")
 
-    label = service.SECTION_LABELS.get(section, section)
-    message, level = _summarize(f"{label} regenerated.", warnings)
-    return redirect(f"/applications/{offer_id}", message=message, level=level)
+    await jobs.start_job(
+        settings,
+        profile,
+        record,
+        kind="regenerate",
+        section=section,
+        instruction=str(form.get("instruction") or "").strip(),
+        folder=folder,
+    )
+    phrase = SECTION_PHRASES.get(section, section)
+    return redirect(
+        f"/applications/{offer_id}",
+        message=f"Regenerating the {phrase} in the background. This page updates itself.",
+    )
+
+
+# --- Downloading ---------------------------------------------------------------
 
 
 @router.get("/{offer_id}/download/{filename}")

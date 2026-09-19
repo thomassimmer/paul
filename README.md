@@ -251,12 +251,14 @@ data/applications/2026-09-acme-senior-backend/
 ```
 
 The **Applications** page lists the offers with their score and status, says which
-ones already have a folder, and is where *Prepare* is clicked. Preparing takes a
-minute — it is three or four model calls plus a page measurement — and writing
-into an existing folder updates it in place rather than creating a second one. The
-folder is remembered on the application, so the tracker links straight back to it,
-and the same button sits on the offer page so you do not have to guess where the
-writing starts. Either way it needs an imported profile and a configured model.
+ones already have a folder, and is where *Prepare* is clicked. Preparing is a
+background task with a step-by-step report — the page refreshes itself every 2
+seconds and can stop it — because it is three or four model calls plus a page
+measurement, and a slow provider should not leave you staring at a spinner. It
+needs an imported profile and a configured model. Writing into an existing folder
+updates it in place rather than creating a second one; the folder is remembered on
+the application, so the tracker links straight back to it, and the same button sits
+on the offer page so you do not have to guess where the writing starts.
 
 **Tailoring.** The writer selects and orders the most relevant experiences and achievements from your profile, rephrases them with the offer's vocabulary, and writes a letter grounded in the company and the role. Documents are generated in the **language of the offer** (or the one you force in settings).
 
@@ -268,7 +270,8 @@ writing starts. Either way it needs an imported profile and a configured model.
 
 **Form answers.** Open questions ("Why do you want to join us?") get a draft that respects the max length, using your profile and the offer.
 
-**Review screen.** Side-by-side preview and editor for CV, letter and answers; regenerate a section with an instruction ("shorter", "more focus on data engineering"). Then export.
+**Review screen.** Side-by-side preview and editor for CV, letter and answers; regenerate a section with an instruction ("shorter", "more focus on data engineering"). Regenerating runs in the background too, with the same progress panel, and
+the review refreshes itself when it lands. Then export.
 
 **ATS score.** There is no universal ATS score: ATS (*Applicant Tracking System*, e.g. Workday, Greenhouse, Lever) is the software companies use to receive and sort applications, and vendors' "scores" are in practice keyword coverage. Paul does the same, transparently:
 
@@ -415,6 +418,7 @@ paul-emploi/
 │   │   ├── answers.py         # factual questions, read from the profile's facts
 │   │   ├── draft.py           # LLM steps, and the role repair around them
 │   │   ├── grounding.py       # every claim checked against the profile, in code
+│   │   ├── jobs.py            # background job: steps, progress, stopping
 │   │   ├── markdown.py        # the editable `[role] text {ids}` form
 │   │   ├── router.py          # HTTP routes
 │   │   ├── service.py         # prepare, save, regenerate: the whole orchestration

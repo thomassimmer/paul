@@ -437,3 +437,68 @@ def test_application_rows_mark_an_unprepared_offer():
 
     assert rows[0]["prepared"] is False
     assert rows[0]["folder"] == ""
+
+
+# --- progress ------------------------------------------------------------------
+
+
+def test_prepare_reports_each_step(monkeypatch):
+    record = _seed()
+    _patch(monkeypatch)
+    events: list[tuple[str, str]] = []
+
+    asyncio.run(
+        service.prepare(
+            _settings(),
+            _profile(),
+            record,
+            on_step=lambda key, status, detail="": events.append((key, status)),
+        )
+    )
+
+    running = [key for key, status in events if status == "running"]
+    done = [key for key, status in events if status == "done"]
+    assert running == ["offer", "cv", "letter", "answers", "ats", "save"]
+    assert done == running
+
+
+def test_the_steps_carry_a_detail(monkeypatch):
+    record = _seed()
+    _patch(monkeypatch)
+    details: dict[str, str] = {}
+
+    asyncio.run(
+        service.prepare(
+            _settings(),
+            _profile(),
+            record,
+            on_step=lambda key, status, detail="": details.update(
+                {key: detail} if status == "done" else {}
+            ),
+        )
+    )
+
+    assert details["cv"] == "1 page(s)"
+    assert details["answers"] == "2 question(s) · 1 from your profile"
+    assert details["ats"].endswith("% coverage")
+
+
+def test_regenerate_reports_its_steps(monkeypatch):
+    record, prepared = _prepared(monkeypatch)
+    events: list[tuple[str, str]] = []
+
+    asyncio.run(
+        service.regenerate(
+            _settings(),
+            _profile(),
+            record,
+            folder=prepared.folder,
+            section="cv",
+            instruction="shorter",
+            warnings=[],
+            on_step=lambda key, status, detail="": events.append((key, status)),
+        )
+    )
+
+    running = [key for key, status in events if status == "running"]
+    assert running == ["draft", "ats"]

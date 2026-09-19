@@ -2,34 +2,6 @@
 {% block title %}Review · {{ offer.title or 'Application' }}{% endblock %}
 {% block main_class %}wide{% endblock %}
 
-{% macro regeneration(section, label, placeholder) %}
-<form class="regenerate" method="post" action="/applications/{{ record.id }}/regenerate">
-  <input type="hidden" name="section" value="{{ section }}">
-  <label for="instruction-{{ section }}">Regenerate the {{ label }} with an instruction
-    <span class="optional">optional</span></label>
-  <div class="regenerate-row">
-    <input id="instruction-{{ section }}" name="instruction" type="text"
-           placeholder="{{ placeholder }}">
-    <button type="submit" onclick="this.disabled=true; this.form.submit();">Regenerate</button>
-  </div>
-</form>
-{% endmacro %}
-
-{% macro grounding(report, label) %}
-  {% if report.issues %}
-  <ul class="issues">
-    {% for issue in report.issues %}
-    <li>
-      <code>[{{ issue.role }}]</code> {{ issue.text | truncate(140, true, '…') }}
-      <div class="hint">{{ issue.reason }}</div>
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="hint">{{ label }}: every claim is supported by your profile.</p>
-  {% endif %}
-{% endmacro %}
-
 {% block content %}
 <div class="page-head">
   <h1>{{ offer.title or 'Application' }}</h1>
@@ -44,124 +16,9 @@
   <a href="/applications/{{ record.id }}/download/notes.md">notes.md</a>
 </p>
 
-<div class="card">
-  <h2>Checks</h2>
-  {% if review.ats %}
-  <p>
-    <strong>{{ review.ats.coverage_percent }}%</strong> of the offer's keywords are
-    present in the CV. Treat it as an indicator, not a guarantee.
-  </p>
-  {% if review.ats.missing %}
-  <ul class="keywords">
-    {% for keyword in review.ats.missing %}
-    <li>
-      <strong>{{ keyword.term }}</strong>{% if keyword.variants %} ({{ keyword.variants | join(', ') }}){% endif %}
-      <div class="hint">{{ keyword.hint }}</div>
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="hint">Every keyword the offer insists on is already in the CV.</p>
-  {% endif %}
-  {% if review.ats.format_issues %}
-  <h3>Layout warnings</h3>
-  <ul class="banner banner-warning">
-    {% for issue in review.ats.format_issues %}<li>{{ issue }}</li>{% endfor %}
-  </ul>
-  {% endif %}
-  {% else %}
-  <p class="hint">No ATS report stored for this application.</p>
-  {% endif %}
+{% include "writer/partials/job.html" %}
 
-  <h3>Grounding of the CV</h3>
-  {{ grounding(review.cv_grounding, 'CV') }}
-  <h3>Grounding of the letter</h3>
-  {{ grounding(review.letter_grounding, 'Letter') }}
+<div id="review-body">
+  {% include "writer/partials/review_body.html" %}
 </div>
-
-<section class="card">
-  <div class="doc-head">
-    <h2>CV</h2>
-    <div class="doc-meta">
-      <span class="hint">target {{ target.cv }} page(s)</span>
-      <a href="/applications/{{ record.id }}/download/cv.docx">DOCX</a>
-      <a href="/applications/{{ record.id }}/download/cv.md">Markdown</a>
-      <a href="/applications/{{ record.id }}/download/cv.pdf">PDF</a>
-    </div>
-  </div>
-  <p class="hint">
-    One line per block: <code>[role] text {achievement-ids}</code>. Keep the roles;
-    the citation in braces is what the grounding check verifies.
-  </p>
-  <div class="review">
-    <form method="post" action="/applications/{{ record.id }}/save">
-      <textarea name="cv" class="doc-source" spellcheck="false">{{ review.cv_text }}</textarea>
-      <div class="actions"><button type="submit" class="primary">Save CV</button></div>
-    </form>
-    <div class="doc-preview">{{ review.cv_html | safe }}</div>
-  </div>
-  {{ regeneration('cv', 'CV', 'shorter, more focus on data engineering…') }}
-</section>
-
-<section class="card">
-  <div class="doc-head">
-    <h2>Cover letter</h2>
-    <div class="doc-meta">
-      <span class="hint">target {{ target.letter }} page(s)</span>
-      <a href="/applications/{{ record.id }}/download/letter.docx">DOCX</a>
-      <a href="/applications/{{ record.id }}/download/letter.md">Markdown</a>
-      <a href="/applications/{{ record.id }}/download/letter.pdf">PDF</a>
-    </div>
-  </div>
-  <div class="review">
-    <form method="post" action="/applications/{{ record.id }}/save">
-      <textarea name="letter" class="doc-source" spellcheck="false">{{ review.letter_text }}</textarea>
-      <div class="actions"><button type="submit" class="primary">Save letter</button></div>
-    </form>
-    <div class="doc-preview">{{ review.letter_html | safe }}</div>
-  </div>
-  {{ regeneration('letter', 'letter', 'shorter, warmer…') }}
-</section>
-
-<section class="card">
-  <div class="doc-head">
-    <h2>Form answers</h2>
-    <div class="doc-meta">
-      <a href="/applications/{{ record.id }}/download/answers.md">Markdown</a>
-      <a href="/applications/{{ record.id }}/download/ats.json">ats.json</a>
-    </div>
-  </div>
-  {% if review.answers %}
-  <p class="hint">
-    Questions about work authorization, notice period, salary, relocation and
-    languages are answered from your profile and never generated.
-  </p>
-  <div class="review">
-    <form method="post" action="/applications/{{ record.id }}/save">
-      <textarea name="answers" class="doc-source" spellcheck="false">{{ review.answers_text }}</textarea>
-      <div class="actions"><button type="submit" class="primary">Save answers</button></div>
-    </form>
-    <div class="doc-preview">
-      {% for answer in review.answers %}
-      <div class="answer">
-        <p class="answer-question">
-          {{ answer.question }}
-          {% if answer.source == 'fact' %}<span class="tag">from your profile</span>
-          {% elif answer.source == 'missing' %}<span class="tag tag-warn">missing fact</span>
-          {% else %}<span class="tag">drafted</span>{% endif %}
-        </p>
-        <p class="doc-answer">{{ answer.answer or '—' }}</p>
-        {% if answer.note %}<p class="hint">{{ answer.note }}</p>{% endif %}
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-  {{ regeneration('answers', 'answers', 'shorter, more specific…') }}
-  {% else %}
-  <p class="hint">
-    No application form was found in this offer. If it has one, paste its HTML
-    fragment on the offer page and analyze it again.
-  </p>
-  {% endif %}
-</section>
 {% endblock %}

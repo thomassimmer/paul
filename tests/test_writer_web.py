@@ -1,8 +1,13 @@
-"""Tests for the applications pages: list, prepare, review, save, download."""
+"""Tests for the applications pages: list, prepare, review, save, download.
+
+Preparing and regenerating run in the background, so most tests replace the
+scheduling with an inline run, exactly like the ranker's tests do.
+"""
 
 from __future__ import annotations
 
 from app.config import Settings, save_settings
+from app.llm import LLMError
 from app.models import (
     Achievement,
     DraftAnswer,
@@ -17,9 +22,15 @@ from app.models import (
 )
 from app.offers import store as offers_store
 from app.profiler import store as profile_store
-from app.writer import store
+from app.writer import jobs, store
 
 MODEL = "openai/gpt-4o"
+
+
+def _record(offer_id: int):
+    record = offers_store.load_offer(offer_id)
+    assert record is not None
+    return record
 
 
 def _profile() -> Profile:
@@ -50,7 +61,11 @@ def _cv_lines() -> list[DraftLine]:
         DraftLine(role="contact", text="camille@example.com"),
         DraftLine(role="section_title", text="Experience"),
         DraftLine(role="entry_title", text="Lead Backend Engineer — Acme"),
-        DraftLine(role="bullet", text="Cut ingestion latency by 60%", achievement_ids=["exp-acme-2022-a1"]),
+        DraftLine(
+            role="bullet",
+            text="Cut ingestion latency by 60%",
+            achievement_ids=["exp-acme-2022-a1"],
+        ),
         DraftLine(role="section_title", text="Skills"),
         DraftLine(role="skill_line", text="Rust"),
     ]
@@ -60,7 +75,11 @@ def _letter_lines() -> list[DraftLine]:
     return [
         DraftLine(role="name", text="Camille Moreau"),
         DraftLine(role="salutation", text="Dear hiring team,"),
-        DraftLine(role="body_text", text="I cut ingestion latency by 60%.", achievement_ids=["exp-acme-2022-a1"]),
+        DraftLine(
+            role="body_text",
+            text="I cut ingestion latency by 60%.",
+            achievement_ids=["exp-acme-2022-a1"],
+        ),
         DraftLine(role="closing", text="Sincerely,"),
     ]
 
@@ -88,7 +107,7 @@ def _configure() -> None:
     save_settings(Settings(model=MODEL))
 
 
-def _patch(monkeypatch) -> None:
+def _patch_drafts(monkeypatch) -> None:
     async def tailor_cv(settings, *, offer, profile, blueprint, target_pages, instruction=""):
         return _cv_lines()
 
@@ -96,12 +115,38 @@ def _patch(monkeypatch) -> None:
         return _letter_lines()
 
     async def answer_questions(settings, *, offer, profile, questions, instruction=""):
-        return [DraftAnswer(question=question, answer="Because of the mission.") for question, _ in questions]
+        return [
+            DraftAnswer(question=question, answer="Because of the mission.")
+            for question, _ in questions
+        ]
 
     monkeypatch.setattr("app.writer.draft.tailor_cv", tailor_cv)
     monkeypatch.setattr("app.writer.draft.write_letter", write_letter)
     monkeypatch.setattr("app.writer.draft.answer_questions", answer_questions)
     monkeypatch.setattr("app.templates_engine.pdf.count_pages", lambda *args, **kwargs: 1)
+
+
+def _run_inline(monkeypatch) -> None:
+    """Replace the background scheduling with an inline run, so tests are deterministic."""
+
+    async def inline(settings, profile, record, *, kind, section="", instruction="", folder=""):
+        job = jobs.remember(
+            jobs.build_job(
+                record, kind=kind, section=section, instruction=instruction, folder=folder
+            )
+        )
+        assert job is not None
+        await jobs.run(job, settings, profile, record)
+        return job
+
+    monkeypatch.setattr("app.writer.jobs.start_job", inline)
+
+
+def _setup(monkeypatch) -> int:
+    _seed_profile()
+    _configure()
+    _patch_drafts(monkeypatch)
+    return _seed_offer()
 
 
 def _prepare(client, offer_id: int) -> None:
@@ -129,6 +174,12 @@ def test_the_nav_links_to_the_applications(client):
     assert 'href="/applications"' in client.get("/").text
 
 
+def test_no_job_panel_before_anything_has_run(client):
+    _seed_offer()
+    assert 'id="job"' in client.get("/applications").text
+    assert 'hx-trigger="every 2s"' not in client.get("/applications").text
+
+
 # --- preparing -----------------------------------------------------------------
 
 
@@ -138,6 +189,7 @@ def test_preparing_needs_a_profile(client):
     response = client.post(f"/applications/{offer_id}/prepare", follow_redirects=True)
     assert "Import your CV first" in response.text
     assert store.list_folders() == []
+    assert jobs.current() is None
 
 
 def test_preparing_needs_a_model(client):
@@ -146,6 +198,7 @@ def test_preparing_needs_a_model(client):
     save_settings(Settings())
     response = client.post(f"/applications/{offer_id}/prepare", follow_redirects=True)
     assert "No model configured" in response.text
+    assert jobs.current() is None
 
 
 def test_a_missing_offer_is_reported(client):
@@ -153,45 +206,117 @@ def test_a_missing_offer_is_reported(client):
     assert "no longer exists" in response.text
 
 
-def test_prepare_then_review(client, monkeypatch):
-    _seed_profile()
-    _configure()
-    _patch(monkeypatch)
-    offer_id = _seed_offer()
+def test_prepare_starts_a_background_job(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+
+    response = client.post(f"/applications/{offer_id}/prepare", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/applications"
+    job = jobs.current()
+    assert job is not None and job.kind == "prepare"
+
+
+def test_the_page_polls_while_a_job_runs(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    job = jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+
+    page = client.get("/applications")
+
+    assert 'hx-get="/applications/progress"' in page.text
+    assert 'hx-trigger="every 2s"' in page.text
+    assert "Preparation in progress" in page.text
+    assert "disabled" in page.text  # preparing twice is not offered while one runs
+    assert job is not None
+
+
+def test_the_progress_endpoint_returns_the_panel_and_the_table(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+
+    response = client.get("/applications/progress")
+
+    assert response.status_code == 200
+    assert 'id="job"' in response.text
+    assert 'id="applications-table" hx-swap-oob="outerHTML"' in response.text
+
+
+def test_a_second_preparation_is_refused_while_one_runs(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+
+    response = client.post(f"/applications/{offer_id}/prepare", follow_redirects=True)
+
+    assert "already running" in response.text
+
+
+def test_prepare_writes_the_folder_and_the_review_reads_it(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
 
     response = client.post(f"/applications/{offer_id}/prepare", follow_redirects=True)
 
     assert response.status_code == 200
-    assert "Application prepared in" in response.text
-    assert "Grounding of the CV" in response.text
-    assert "100%" in response.text
-    assert 'name="cv"' in response.text
-    assert 'name="letter"' in response.text
-    assert 'name="answers"' in response.text
-    # The fact came from the profile; the open question was drafted.
-    assert "from your profile" in response.text
-    assert "Because of the mission." in response.text
-    assert "supported by your profile" in response.text
+    assert "Last preparation" in response.text
+    assert "Open the review" in response.text
+    assert store.list_folders() != []
+
+    page = client.get(f"/applications/{offer_id}")
+    assert page.status_code == 200
+    assert "Grounding of the CV" in page.text
+    assert "100%" in page.text
+    assert 'name="cv"' in page.text
+    assert 'name="letter"' in page.text
+    assert 'name="answers"' in page.text
+    assert "from your profile" in page.text
+    assert "Because of the mission." in page.text
+    assert "supported by your profile" in page.text
 
 
 def test_preparing_again_reuses_the_folder(client, monkeypatch):
-    _seed_profile()
-    _configure()
-    _patch(monkeypatch)
-    offer_id = _seed_offer()
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
     _prepare(client, offer_id)
     first = store.list_folders()
 
-    response = client.post(f"/applications/{offer_id}/prepare", follow_redirects=True)
+    client.post(f"/applications/{offer_id}/prepare", follow_redirects=True)
 
-    assert "Application prepared in" in response.text
     assert store.list_folders() == first
 
 
-def test_the_review_page_needs_a_prepared_offer(client):
-    _seed_profile()
-    _configure()
-    offer_id = _seed_offer()
+def test_a_failing_preparation_is_reported_in_the_panel(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+
+    async def failing(settings, *, offer, profile, blueprint, target_pages, instruction=""):
+        raise LLMError("provider is down")
+
+    monkeypatch.setattr("app.writer.draft.tailor_cv", failing)
+
+    response = client.post(f"/applications/{offer_id}/prepare", follow_redirects=True)
+
+    assert "provider is down" in response.text
+    assert "Last preparation" in response.text
+    assert "failed" in response.text
+
+
+def test_stopping_and_dismissing_a_job(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+
+    response = client.post("/applications/cancel", follow_redirects=True)
+    assert "Stopping" in response.text
+
+    response = client.post("/applications/dismiss", follow_redirects=True)
+    assert jobs.current() is None
+    assert "Preparation in progress" not in response.text
+
+    response = client.post("/applications/cancel", follow_redirects=True)
+    assert "Nothing is running" in response.text
+
+
+def test_the_review_page_needs_a_prepared_offer(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
     response = client.get(f"/applications/{offer_id}", follow_redirects=True)
     assert "not prepared yet" in response.text
 
@@ -200,15 +325,15 @@ def test_the_review_page_needs_a_prepared_offer(client):
 
 
 def test_saving_the_cv(client, monkeypatch):
-    _seed_profile()
-    _configure()
-    _patch(monkeypatch)
-    offer_id = _seed_offer()
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
     _prepare(client, offer_id)
 
     response = client.post(
         f"/applications/{offer_id}/save",
-        data={"cv": "[name] Camille Moreau\n[bullet] Cut ingestion latency by 60% {exp-acme-2022-a1}\n"},
+        data={
+            "cv": "[name] Camille Moreau\n[bullet] Cut ingestion latency by 60% {exp-acme-2022-a1}\n"
+        },
         follow_redirects=True,
     )
 
@@ -222,10 +347,8 @@ def test_saving_the_cv(client, monkeypatch):
 
 
 def test_saving_nothing_is_reported(client, monkeypatch):
-    _seed_profile()
-    _configure()
-    _patch(monkeypatch)
-    offer_id = _seed_offer()
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
     _prepare(client, offer_id)
 
     response = client.post(f"/applications/{offer_id}/save", data={}, follow_redirects=True)
@@ -233,11 +356,24 @@ def test_saving_nothing_is_reported(client, monkeypatch):
     assert "Nothing to save" in response.text
 
 
-def test_regenerating_a_section(client, monkeypatch):
-    _seed_profile()
-    _configure()
-    _patch(monkeypatch)
-    offer_id = _seed_offer()
+def test_saving_is_refused_while_a_job_runs(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+    jobs.remember(
+        jobs.build_job(_record(offer_id), kind="regenerate", section="cv")
+    )
+
+    response = client.post(
+        f"/applications/{offer_id}/save", data={"cv": "[name] X"}, follow_redirects=True
+    )
+
+    assert "already running" in response.text
+
+
+def test_regenerating_a_section_starts_a_job(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
     _prepare(client, offer_id)
 
     response = client.post(
@@ -246,14 +382,15 @@ def test_regenerating_a_section(client, monkeypatch):
         follow_redirects=True,
     )
 
-    assert "CV regenerated" in response.text
+    assert "Regenerating the CV in the background" in response.text
+    job = jobs.current()
+    assert job is not None and job.kind == "regenerate"
+    assert job.section == "cv" and job.instruction == "shorter"
 
 
 def test_regenerating_needs_a_model(client, monkeypatch):
-    _seed_profile()
-    _configure()
-    _patch(monkeypatch)
-    offer_id = _seed_offer()
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
     _prepare(client, offer_id)
     save_settings(Settings())
 
@@ -266,14 +403,43 @@ def test_regenerating_needs_a_model(client, monkeypatch):
     assert "No model configured" in response.text
 
 
+def test_regenerating_an_unknown_section_is_refused(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    response = client.post(
+        f"/applications/{offer_id}/regenerate",
+        data={"section": "poster"},
+        follow_redirects=True,
+    )
+
+    assert "Unknown section" in response.text
+
+
+def test_the_review_poll_refreshes_the_body(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+    jobs.remember(
+        jobs.build_job(_record(offer_id), kind="regenerate", section="cv")
+    )
+
+    page = client.get(f"/applications/{offer_id}")
+    assert f'hx-get="/applications/{offer_id}/progress"' in page.text
+    assert "Regeneration in progress" in page.text
+
+    response = client.get(f"/applications/{offer_id}/progress")
+    assert response.status_code == 200
+    assert 'id="review-body" hx-swap-oob="outerHTML"' in response.text
+
+
 # --- downloads -----------------------------------------------------------------
 
 
 def test_downloading_a_markdown_document(client, monkeypatch):
-    _seed_profile()
-    _configure()
-    _patch(monkeypatch)
-    offer_id = _seed_offer()
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
     _prepare(client, offer_id)
 
     response = client.get(f"/applications/{offer_id}/download/cv.md")
@@ -283,10 +449,8 @@ def test_downloading_a_markdown_document(client, monkeypatch):
 
 
 def test_downloading_an_unknown_file_is_refused(client, monkeypatch):
-    _seed_profile()
-    _configure()
-    _patch(monkeypatch)
-    offer_id = _seed_offer()
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
     _prepare(client, offer_id)
 
     response = client.get(f"/applications/{offer_id}/download/secrets.txt", follow_redirects=True)
@@ -295,10 +459,8 @@ def test_downloading_an_unknown_file_is_refused(client, monkeypatch):
 
 
 def test_a_pdf_export_without_libreoffice_says_so(client, monkeypatch):
-    _seed_profile()
-    _configure()
-    _patch(monkeypatch)
-    offer_id = _seed_offer()
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
     _prepare(client, offer_id)
     monkeypatch.setattr("app.writer.router.pdf.to_pdf", lambda data: None)
 

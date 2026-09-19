@@ -296,10 +296,14 @@ input[type="file"] { padding: 0.4rem; }
   letter-spacing: 0.03em;
   color: var(--muted);
 }
-.job-scored .job-status { color: var(--ok-text); }
-.job-eliminated .job-status { color: var(--warn-text); }
-.job-error .job-status { color: var(--error-text); }
-.job-running .job-status { color: var(--accent); }
+/* The status span carries both classes, so these are same-element selectors. */
+.job-status.job-scored { color: var(--ok-text); }
+.job-status.job-eliminated { color: var(--warn-text); }
+.job-status.job-error { color: var(--error-text); }
+.job-status.job-running { color: var(--accent); }
+.job-status.job-done { color: var(--ok-text); }
+.job-status.job-pending, .job-status.job-skipped { color: var(--muted); }
+.job-status.job-cancelled { color: var(--warn-text); }
 
 /* --- Tracker ----------------------------------------------------------- */
 

@@ -1,0 +1,5 @@
+{# Answer to the poll: the job panel, and the refreshed list swapped out of band. #}
+{% include "writer/partials/job.html" %}
+<div id="applications-table" hx-swap-oob="outerHTML">
+  {% include "writer/partials/table.html" %}
+</div>
