@@ -11,7 +11,7 @@ from app.config import Settings
 from app.llm import complete_structured
 from app.models import Elimination, Offer, Profile
 from app.prompts import load_prompt
-from app.ranking.context import offer_text, profile_text
+from app.prompt_context import offer_text, profile_text
 
 
 def build_elimination(decision: Elimination) -> Elimination:

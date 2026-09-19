@@ -21,6 +21,7 @@ from app.templates_engine import router as templates_router
 from app.tracker import router as tracker_router
 from app.web import WEB_DIR
 from app.web.routes import dashboard, settings
+from app.writer import router as writer_router
 
 ROUTERS = (
     dashboard.router,
@@ -30,6 +31,7 @@ ROUTERS = (
     ranking_router.router,
     tracker_router.router,
     templates_router.router,
+    writer_router.router,
 )
 
 

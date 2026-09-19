@@ -68,6 +68,37 @@ def estimate_pages(lines: list[DraftLine]) -> int:
     return max(1, -(-len(lines) // LINES_PER_PAGE))
 
 
+def to_pdf(docx_bytes: bytes, *, timeout: float = 120.0) -> bytes | None:
+    """The document as a PDF, or ``None`` when no converter is available."""
+    binary = converter()
+    if binary is None:
+        return None
+
+    with tempfile.TemporaryDirectory() as folder:
+        source = Path(folder) / "document.docx"
+        source.write_bytes(docx_bytes)
+        try:
+            subprocess.run(
+                [
+                    binary,
+                    "--headless",
+                    "--norestore",
+                    "--convert-to",
+                    "pdf",
+                    "--outdir",
+                    folder,
+                    str(source),
+                ],
+                capture_output=True,
+                timeout=timeout,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        pdf = Path(folder) / "document.pdf"
+        return pdf.read_bytes() if pdf.exists() else None
+
+
 def page_count(docx_bytes: bytes, lines: list[DraftLine]) -> tuple[int, bool]:
     """``(pages, exact)`` — ``exact`` is False when this is only an estimate."""
     measured = count_pages(docx_bytes)

@@ -16,13 +16,14 @@
       <a href="/profiler" {% if active == 'profiler' %}class="active"{% endif %}>Profile</a>
       <a href="/offers" {% if active == 'offers' %}class="active"{% endif %}>Offers</a>
       <a href="/ranking" {% if active == 'ranking' %}class="active"{% endif %}>Ranking</a>
+      <a href="/applications" {% if active == 'applications' %}class="active"{% endif %}>Applications</a>
       <a href="/tracker" {% if active == 'tracker' %}class="active"{% endif %}>Tracker</a>
       <a href="/templates" {% if active == 'templates' %}class="active"{% endif %}>Templates</a>
       <a href="/settings" {% if active == 'settings' %}class="active"{% endif %}>Settings</a>
     </nav>
   </header>
 
-  <main>
+  <main class="{% block main_class %}{% endblock %}">
     {% include "partials/flash.html" %}
     {% block content %}{% endblock %}
   </main>

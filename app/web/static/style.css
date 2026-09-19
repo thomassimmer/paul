@@ -348,3 +348,73 @@ footer {
   color: var(--muted);
   font-size: 0.85em;
 }
+
+/* --- Writer ------------------------------------------------------------ */
+
+main.wide { max-width: 1180px; }
+
+.doc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.doc-head h2 { margin-bottom: 0; }
+.doc-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.9em; }
+
+.review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  margin-top: 0.75rem;
+}
+@media (max-width: 900px) { .review { grid-template-columns: 1fr; } }
+
+.doc-source {
+  width: 100%;
+  min-height: 28rem;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+.doc-preview {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  min-height: 28rem;
+  overflow-x: auto;
+}
+.doc-preview p { margin: 0 0 0.35rem; }
+.doc-name { font-size: 1.35rem; font-weight: 700; margin-top: 0.2rem !important; }
+.doc-headline { color: var(--accent); font-weight: 600; }
+.doc-section { font-size: 1rem; margin: 0.9rem 0 0.35rem; text-transform: none; letter-spacing: 0; }
+.doc-entry { font-weight: 600; margin-bottom: 0 !important; }
+.doc-subtitle { font-style: italic; }
+.doc-dates { color: var(--muted); font-size: 0.85em; }
+.doc-bullet { padding-left: 0.9rem; text-indent: -0.9rem; }
+.doc-answer { white-space: pre-wrap; }
+.cite {
+  margin-left: 0.4rem;
+  font-size: 0.72em;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  border-radius: 999px;
+  padding: 0.02rem 0.4rem;
+  white-space: nowrap;
+}
+
+.issues { padding-left: 1.15rem; margin: 0.4rem 0 1rem; }
+.issues li { margin-bottom: 0.5rem; }
+
+.answer { border-top: 1px solid var(--border); padding-top: 0.7rem; margin-top: 0.7rem; }
+.answer:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+.answer-question { font-weight: 600; margin: 0 0 0.2rem; }
+
+.regenerate { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.75rem; }
+.regenerate label { margin-top: 0; }
+.regenerate-row { display: flex; gap: 0.6rem; align-items: center; }
+.regenerate-row input { flex: 1; }

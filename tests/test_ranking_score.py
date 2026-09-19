@@ -85,20 +85,20 @@ def test_offer_text_leaves_the_application_form_out():
     from app.models import FormQuestion
 
     offer = OfferDraft(title="Backend").to_offer([FormQuestion(label="Why us?", name="why")])
-    from app.ranking.context import offer_text
+    from app.prompt_context import offer_text
 
     assert "Why us?" not in offer_text(offer)
     assert "Backend" in offer_text(offer)
 
 
 def test_wishes_text_handles_none():
-    from app.ranking.context import wishes_text
+    from app.prompt_context import wishes_text
 
     assert wishes_text([]) == "(none given)"
 
 
 def test_profile_text_omits_empty_fields():
-    from app.ranking.context import profile_text
+    from app.prompt_context import profile_text
 
     text = profile_text(Profile(experiences=[]))
     assert "facts" not in text

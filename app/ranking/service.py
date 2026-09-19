@@ -17,7 +17,7 @@ from app.config import Settings
 from app.llm import LLMError
 from app.models import Offer, OfferRecord, Profile, RankingRecord, effective_eliminated
 from app.ranking import eliminate, score, store
-from app.ranking.context import profile_text
+from app.prompt_context import profile_text
 
 
 class RankingError(RuntimeError):

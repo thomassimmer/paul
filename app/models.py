@@ -7,8 +7,6 @@ rule). ``Profile`` is owned by the profiler, ``Offer`` by the offer analyzer;
 
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -299,8 +297,9 @@ class Application(BaseModel):
 # --- Templates ----------------------------------------------------------------
 
 # The roles a template block can play. The two tuples are the contract between
-# the blueprint, the prompts and the renderer; a draft line whose role is not one
-# of these is rejected by validation, and the model is asked to answer again.
+# the blueprint, the prompts and the renderer. A role is checked when a model
+# answer is read (``writer/draft.py``) and again when the renderer looks for its
+# prototype, so an unknown role can never reach a document.
 CV_ROLES = (
     "name",
     "headline",
@@ -327,31 +326,6 @@ LETTER_ROLES = (
 )
 # Roles that state a fact about the candidate, and therefore need a citation.
 FACTUAL_ROLES = ("bullet", "body_text", "entry_subtitle")
-
-CvRole = Literal[
-    "name",
-    "headline",
-    "contact",
-    "section_title",
-    "entry_title",
-    "entry_subtitle",
-    "entry_dates",
-    "bullet",
-    "body_text",
-    "skill_line",
-    "fixed",
-]
-LetterRole = Literal[
-    "name",
-    "contact",
-    "date",
-    "recipient",
-    "salutation",
-    "body_text",
-    "closing",
-    "signature",
-    "fixed",
-]
 
 
 class TemplateBlock(BaseModel):
@@ -383,7 +357,12 @@ class TemplateBlueprint(BaseModel):
 
 
 class DraftLine(BaseModel):
-    """One line of a generated document, and where it comes from."""
+    """One line of a generated document, and where it comes from.
+
+    ``role`` stays a plain string here: this is what the model answers, and a
+    misspelled role must not cost a whole retry. ``writer/draft.py`` maps it back
+    to the roles the renderer knows before anything is stored.
+    """
 
     role: str = "body_text"
     text: str = ""
@@ -391,31 +370,15 @@ class DraftLine(BaseModel):
 
 
 class CvDraft(BaseModel):
-    """What the model returns for a CV."""
+    """What the model returns for a CV, roles unchecked."""
 
     lines: list[DraftLine] = Field(default_factory=list)
 
 
 class LetterDraft(BaseModel):
-    """What the model returns for a cover letter."""
+    """What the model returns for a cover letter, roles unchecked."""
 
     lines: list[DraftLine] = Field(default_factory=list)
-
-
-class CvLine(DraftLine):
-    role: CvRole = "body_text"
-
-
-class LetterLine(DraftLine):
-    role: LetterRole = "body_text"
-
-
-class CvContent(BaseModel):
-    lines: list[CvLine] = Field(default_factory=list)
-
-
-class LetterContent(BaseModel):
-    lines: list[LetterLine] = Field(default_factory=list)
 
 
 class GroundingIssue(BaseModel):
@@ -432,6 +395,19 @@ class GroundingReport(BaseModel):
     @property
     def ok(self) -> bool:
         return not self.issues
+
+
+class DraftAnswer(BaseModel):
+    """One drafted answer to an open form question, before the facts are merged in."""
+
+    question: str = ""
+    answer: str = ""
+
+
+class AnswersDraft(BaseModel):
+    """What the model returns for the application form's open questions."""
+
+    answers: list[DraftAnswer] = Field(default_factory=list)
 
 
 class FormAnswer(BaseModel):

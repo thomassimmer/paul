@@ -93,7 +93,7 @@ Typical session:
 
 1. **Once:** import your CV, answer the profiler's questions, import your CV and letter templates, write your filter rules and wishes.
 2. **Per offer:** paste the HTML fragment. The offer is analyzed, filtered and scored in seconds.
-3. **For the best matches:** click *Prepare application*. Review the generated CV, letter and answers, fix what you want, export, apply on the company site.
+3. **For the best matches:** open **Applications** and click *Prepare*. Review the generated CV, letter and answers, fix what you want, regenerate a section if needed, export, apply on the company site.
 4. **Afterwards:** update the status in the tracker; get reminded when a follow-up is due.
 
 ## Modules in detail
@@ -239,7 +239,7 @@ For an offer you pick, Paul builds an **application folder** containing:
 
 ```text
 data/applications/2026-09-acme-senior-backend/
-├── offer.json          # structured offer
+├── offer.json          # structured offer, as stored, with the id it was analyzed under
 ├── offer.html          # raw fragment as pasted
 ├── cv.md               # editable source of the CV
 ├── cv.docx             # rendered in your template
@@ -249,6 +249,12 @@ data/applications/2026-09-acme-senior-backend/
 ├── ats.json            # keyword coverage report
 └── notes.md            # your notes, interview prep
 ```
+
+The **Applications** page lists the offers with their score and status, says which
+ones already have a folder, and is where *Prepare* is clicked. Preparing takes a
+minute — it is three or four model calls plus a page measurement — and writing
+into an existing folder updates it in place rather than creating a second one. The
+folder is remembered on the application, so the tracker links straight back to it.
 
 **Tailoring.** The writer selects and orders the most relevant experiences and achievements from your profile, rephrases them with the offer's vocabulary, and writes a letter grounded in the company and the role. Documents are generated in the **language of the offer** (or the one you force in settings).
 
@@ -264,7 +270,7 @@ data/applications/2026-09-acme-senior-backend/
 
 **ATS score.** There is no universal ATS score: ATS (*Applicant Tracking System*, e.g. Workday, Greenhouse, Lever) is the software companies use to receive and sort applications, and vendors' "scores" are in practice keyword coverage. Paul does the same, transparently:
 
-1. The LLM extracts the important keywords from the offer, with accepted variants (`K8s` / `Kubernetes`).
+1. The LLM extracts the important keywords from the offer, with accepted variants (`K8s` / `Kubernetes`) — or reuses the ones the offer analysis already found, which is the usual case.
 2. Plain code checks their presence in the final CV text (normalized, accent- and case-insensitive).
 3. You get a **coverage percentage and the list of missing keywords**, each with a hint on whether your profile supports adding it truthfully.
 4. **Format checks** on the DOCX: text boxes, images holding text, multi-column layouts and tables used for layout are flagged, since some parsers handle them poorly.
@@ -373,10 +379,12 @@ paul-emploi/
 │   ├── db.py                  # SQLite access
 │   ├── llm.py                 # LiteLLM wrapper, structured output + retry
 │   ├── models.py              # Pydantic models: Profile, Offer, Score, Application
+│   ├── prompt_context.py      # profile/offer/wishes/language as the prompts see them
 │   ├── prompts/               # prompts as plain text files
 │   │   ├── offers/
 │   │   ├── profiler/
-│   │   └── ranking/
+│   │   ├── ranking/
+│   │   └── writer/
 │   ├── profiler/              # CV import, interview, editable profile
 │   │   ├── cv.py              # PDF/DOCX text extraction
 │   │   ├── draft.py           # LLM: CV text -> ProfileDraft
@@ -395,7 +403,6 @@ paul-emploi/
 │   │   ├── service.py         # analysis orchestration
 │   │   └── store.py           # offers in SQLite (raw + cleaned kept)
 │   ├── ranking/               # filter and ranker
-│   │   ├── context.py         # profile/offer/wishes as the prompts see them
 │   │   ├── eliminate.py       # stage 1, with the quote-it-or-drop-it guard
 │   │   ├── jobs.py            # background run: progress, stop, bounded calls
 │   │   ├── router.py          # HTTP routes
@@ -403,6 +410,13 @@ paul-emploi/
 │   │   ├── service.py         # scope, staleness, and one offer at a time
 │   │   └── store.py           # rankings in SQLite (verdict, override, score)
 │   ├── writer/                # tailoring, grounding check, form answers
+│   │   ├── answers.py         # factual questions, read from the profile's facts
+│   │   ├── draft.py           # LLM steps, and the role repair around them
+│   │   ├── grounding.py       # every claim checked against the profile, in code
+│   │   ├── markdown.py        # the editable `[role] text {ids}` form
+│   │   ├── router.py          # HTTP routes
+│   │   ├── service.py         # prepare, save, regenerate: the whole orchestration
+│   │   └── store.py           # application folders on disk
 │   ├── ats.py                 # keyword coverage and format checks
 │   ├── templates_engine/      # DOCX analysis, blueprint, rendering
 │   ├── tracker/               # statuses, follow-ups, (later) IMAP
@@ -442,8 +456,8 @@ Conventions: each feature package owns its HTTP routes (`app/profiler/router.py`
 - [x] Profiler: CV import, interview, editable profile
 - [x] Offer analyzer: HTML fragment and text, form question extraction
 - [x] Filter and ranker with explainable scores
-- [ ] DOCX template import and rendering (CV and letter)
-- [ ] Writer with grounding check, form answers, ATS coverage
+- [x] DOCX template import and rendering (CV and letter)
+- [x] Writer with grounding check, form answers, ATS coverage
 - [x] Tracker with manual statuses and follow-up reminders
 - [x] Ranker scope "not applied yet", fed by the tracker's statuses
 
