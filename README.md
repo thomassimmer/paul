@@ -113,10 +113,15 @@ Typical session:
 ```yaml
 identity:
   name: ...
+  first_name: ...
+  last_name: ...
   location: ...
+  email: ...
+  phone: ...
   links: [...]
 facts:                     # answered by you, never by the LLM
   work_authorization: ...
+  work_permit_expiry: ...  # only if you hold a permit or visa
   notice_period: ...
   salary_expectation: ...
   languages: [...]
@@ -266,7 +271,7 @@ on the offer page so you do not have to guess where the writing starts.
 
 - The prompt only allows content from the profile and requires each statement to cite an achievement `id`.
 - A second pass (*grounding check*) compares every line of the output to the profile and flags unsupported claims, which are highlighted in the review screen.
-- Factual form questions (work authorization, salary expectation, notice period, relocation, ...) are answered **from the `facts` section of your profile**, never generated. If the fact is missing, the field is left empty for you.
+- Factual form questions (your name, first name, last name, email and phone, then work authorization, salary expectation, notice period, relocation, languages, ...) are answered **from your profile** (``identity`` and ``facts``), never generated. If a fact is missing, the field is left empty for you.
 
 **Form answers.** Open questions ("Why do you want to join us?") get a draft that respects the max length, using your profile and the offer.
 
@@ -415,7 +420,7 @@ paul-emploi/
 │   │   ├── service.py         # scope, staleness, and one offer at a time
 │   │   └── store.py           # rankings in SQLite (verdict, override, score)
 │   ├── writer/                # tailoring, grounding check, form answers
-│   │   ├── answers.py         # factual questions, read from the profile's facts
+│   │   ├── answers.py         # factual questions, read from the profile (identity and facts)
 │   │   ├── draft.py           # LLM steps, and the role repair around them
 │   │   ├── grounding.py       # every claim checked against the profile, in code
 │   │   ├── jobs.py            # background job: steps, progress, stopping

@@ -2,6 +2,8 @@
 # It contains no real personal data: copy it, replace it, or ignore it.
 identity:
   name: Camille Moreau
+  first_name: Camille
+  last_name: Moreau
   headline: Senior Backend Engineer
   location: Lyon, France
   email: camille.moreau@example.com
@@ -10,6 +12,8 @@ identity:
     - https://github.com/example-camille
 facts:
   work_authorization: EU citizen, no sponsorship needed
+  # Only if you hold a work permit or a visa; leave empty otherwise.
+  work_permit_expiry: ""
   notice_period: 2 months
   salary_expectation: "75 000 € gross / year"
   relocation: Open to relocation within the EU

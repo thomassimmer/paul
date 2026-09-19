@@ -1,9 +1,9 @@
-"""Factual form questions, answered from the profile's ``facts`` and nowhere else.
+"""Factual form questions, answered from the profile and nowhere else.
 
-The rule from the README is blunt: a question about your work authorization, your
-notice period, your salary expectation, your willingness to relocate or the
-languages you speak is **never** generated. It is read from the ``facts`` section of
-the profile — your own words, or nothing. A model asked "are you allowed to work
+The rule from the README is blunt: a question about your name, your email, your
+work authorization, your notice period, your salary expectation, your willingness
+to relocate or the languages you speak is **never** generated. It is read from the
+profile — your own words, or nothing. A model asked "are you allowed to work
 here?" would answer something confident and wrong.
 
 Which questions are factual is decided here, by pattern, not by asking a model: the
@@ -18,11 +18,21 @@ import re
 from dataclasses import dataclass
 
 from app.ats import normalize
-from app.models import DraftAnswer, Facts, FormAnswer, FormQuestion
+from app.models import DraftAnswer, FormAnswer, FormQuestion, Profile
 from app.writer.draft import fit_length
 
+# Identity fields are read from ``profile.identity``; every other fact from
+# ``profile.facts``. Keeping them apart here is what lets both be "your words".
+IDENTITY_FIELDS = ("name", "first_name", "last_name", "email", "phone")
+
 FACT_LABELS: dict[str, str] = {
+    "name": "name",
+    "first_name": "first name",
+    "last_name": "last name",
+    "email": "email address",
+    "phone": "phone number",
     "work_authorization": "work authorization",
+    "work_permit_expiry": "work permit expiry date",
     "notice_period": "notice period",
     "salary_expectation": "salary expectation",
     "relocation": "relocation",
@@ -56,9 +66,65 @@ def _patterns(*expressions: str) -> tuple[re.Pattern[str], ...]:
     return tuple(re.compile(expression) for expression in expressions)
 
 
-# The order decides ties: a question about sponsorship is about work authorization
-# even when it also mentions relocation.
+# The order decides ties: identity first (a "first name" is not an open question),
+# then the facts. A question about sponsorship is about work authorization even
+# when it also mentions relocation.
 FACT_RULES: tuple[FactRule, ...] = (
+    FactRule(
+        "first_name",
+        _patterns(
+            r"\bfirst\s*name\b",
+            r"\bgiven\s*name\b",
+            r"\bpr[eé]nom\b",
+            r"\bvorname\b",
+        ),
+    ),
+    FactRule(
+        "last_name",
+        _patterns(
+            r"\blast\s*name\b",
+            r"\bsur\s*name\b",
+            r"\bfamily\s*name\b",
+            r"\bnom\s+de\s+famille\b",
+            r"^nom$",  # the bare French field; "nom de ..." is not a surname
+            r"\bnachname\b",
+        ),
+    ),
+    FactRule(
+        "name",
+        _patterns(
+            r"^(?:your\s+|full\s+|legal\s+)*name\s*[*?:]?$",
+            r"\b(?:full|legal)\s+name\b",
+            r"\bnom\s+complet\b",
+        ),
+    ),
+    FactRule(
+        "email",
+        _patterns(
+            r"\be-?mail\b",
+            r"\bcourriel\b",
+            r"\badresse\s+[eé]lectronique\b",
+        ),
+    ),
+    FactRule(
+        "phone",
+        _patterns(
+            r"\bphone\b",
+            r"\btelephone\b",
+            r"\bt[eé]l[eé]phone\b",
+            r"\bmobile\b",
+            r"\bportable\b",
+        ),
+    ),
+    FactRule(
+        "work_permit_expiry",
+        # Needs both a permit/visa and an expiry word, in any order: "expiry date of
+        # your current work permit" is a date, not a yes/no on work authorization.
+        _patterns(
+            r"(?=.*\b(?:work\s+permit|residence\s+permit|visa)\b)"
+            r"(?=.*\b(?:expir\w*|validit\w*|end\s+date|valid\s+(?:until|through|till))\b)",
+        ),
+    ),
     FactRule(
         "work_authorization",
         _patterns(
@@ -159,15 +225,40 @@ def question_title(question: FormQuestion) -> str:
     return (question.label or question.name or "Question").strip()
 
 
-def fact_text(facts: Facts, field_name: str) -> str:
+def _split_name(name: str) -> tuple[str, str]:
+    """A full name split on whitespace: first word, then the rest.
+
+    Only a fallback for a profile that has not filled ``first_name`` /
+    ``last_name`` yet; the user can always override the split by setting them.
+    """
+    parts = name.split()
+    if not parts:
+        return "", ""
+    return parts[0], " ".join(parts[1:])
+
+
+def _identity_text(profile: Profile, field_name: str) -> str:
+    if field_name == "first_name":
+        first, _ = _split_name(profile.identity.name)
+        return (profile.identity.first_name or first).strip()
+    if field_name == "last_name":
+        _, last = _split_name(profile.identity.name)
+        return (profile.identity.last_name or last).strip()
+    value = getattr(profile.identity, field_name, "")
+    return str(value or "").strip()
+
+
+def fact_text(profile: Profile, field_name: str) -> str:
     """A fact as one answer string. A list (languages) becomes a comma list."""
-    value = getattr(facts, field_name, "")
+    if field_name in IDENTITY_FIELDS:
+        return _identity_text(profile, field_name)
+    value = getattr(profile.facts, field_name, "")
     if isinstance(value, list):
         return ", ".join(str(item).strip() for item in value if str(item).strip())
     return str(value or "").strip()
 
 
-def fact_answer(question: FormQuestion, facts: Facts) -> FormAnswer | None:
+def fact_answer(question: FormQuestion, profile: Profile) -> FormAnswer | None:
     """The answer to a factual question, or ``None`` when the model should draft it.
 
     A factual question with an empty fact is still answered here, with an empty
@@ -180,7 +271,7 @@ def fact_answer(question: FormQuestion, facts: Facts) -> FormAnswer | None:
         return None
 
     label = FACT_LABELS.get(field_name, field_name.replace("_", " "))
-    value = fact_text(facts, field_name)
+    value = fact_text(profile, field_name)
     if not value:
         return FormAnswer(
             question=title,
@@ -204,9 +295,9 @@ def fact_answer(question: FormQuestion, facts: Facts) -> FormAnswer | None:
     )
 
 
-def resolve(questions: list[FormQuestion], facts: Facts) -> list[FormAnswer | None]:
+def resolve(questions: list[FormQuestion], profile: Profile) -> list[FormAnswer | None]:
     """One slot per question, in order: a fact answer, or ``None`` to draft."""
-    return [fact_answer(question, facts) for question in questions]
+    return [fact_answer(question, profile) for question in questions]
 
 
 def open_questions(slots: list[FormAnswer | None]) -> list[int]:
@@ -307,7 +398,9 @@ def merge(
     ]
 
 
-def apply(questions: list[FormQuestion], facts: Facts, stored: list[FormAnswer]) -> list[FormAnswer]:
+def apply(
+    questions: list[FormQuestion], profile: Profile, stored: list[FormAnswer]
+) -> list[FormAnswer]:
     """Rebuild the answers for display: the source is recomputed, the text is yours.
 
     ``answers.md`` carries only the question and the answer, because that is what a
@@ -319,7 +412,7 @@ def apply(questions: list[FormQuestion], facts: Facts, stored: list[FormAnswer])
     for index, question in enumerate(questions):
         pasted = stored[index] if index < len(stored) else None
         text = (pasted.answer if pasted else "").strip()
-        slot = fact_answer(question, facts)
+        slot = fact_answer(question, profile)
         if slot is None:
             result.append(
                 FormAnswer(

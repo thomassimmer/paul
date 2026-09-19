@@ -20,6 +20,12 @@
     <div class="grid-2">
       <div><label for="identity.name">Name</label>
         <input id="identity.name" name="identity.name" value="{{ profile.identity.name }}"></div>
+      <div><label for="identity.first_name">First name</label>
+        <input id="identity.first_name" name="identity.first_name" value="{{ profile.identity.first_name }}"
+               placeholder="split from Name if empty"></div>
+      <div><label for="identity.last_name">Last name</label>
+        <input id="identity.last_name" name="identity.last_name" value="{{ profile.identity.last_name }}"
+               placeholder="split from Name if empty"></div>
       <div><label for="identity.headline">Headline</label>
         <input id="identity.headline" name="identity.headline" value="{{ profile.identity.headline }}"></div>
       <div><label for="identity.location">Location</label>
@@ -39,6 +45,9 @@
     <div class="grid-2">
       <div><label for="facts.work_authorization">Work authorization</label>
         <input id="facts.work_authorization" name="facts.work_authorization" value="{{ profile.facts.work_authorization }}"></div>
+      <div><label for="facts.work_permit_expiry">Work permit expiry date</label>
+        <input id="facts.work_permit_expiry" name="facts.work_permit_expiry" value="{{ profile.facts.work_permit_expiry }}"
+               placeholder="only if you hold a permit or visa"></div>
       <div><label for="facts.notice_period">Notice period</label>
         <input id="facts.notice_period" name="facts.notice_period" value="{{ profile.facts.notice_period }}"></div>
       <div><label for="facts.salary_expectation">Salary expectation</label>

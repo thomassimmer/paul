@@ -11,7 +11,15 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class Identity(BaseModel):
+    """Who you are. A fact like any other: never drafted for an application form.
+
+    ``first_name`` / ``last_name`` exist because forms ask for them separately;
+    when they are empty the writer falls back to splitting ``name``.
+    """
+
     name: str = ""
+    first_name: str = ""
+    last_name: str = ""
     headline: str = ""
     location: str = ""
     email: str = ""
@@ -29,6 +37,8 @@ class Facts(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     work_authorization: str = ""
+    # Only meaningful when you hold a permit or a visa; left empty otherwise.
+    work_permit_expiry: str = ""
     notice_period: str = ""
     salary_expectation: str = ""
     relocation: str = ""

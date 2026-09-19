@@ -117,6 +117,8 @@ def profile_from_form(form: Mapping[str, object], current: Profile | None = None
 
     profile.identity = Identity(
         name=_text(form, "identity.name"),
+        first_name=_text(form, "identity.first_name"),
+        last_name=_text(form, "identity.last_name"),
         headline=_text(form, "identity.headline"),
         location=_text(form, "identity.location"),
         email=_text(form, "identity.email"),
@@ -125,7 +127,13 @@ def profile_from_form(form: Mapping[str, object], current: Profile | None = None
     )
 
     facts = profile.facts.model_copy(deep=True)
-    for field in ("work_authorization", "notice_period", "salary_expectation", "relocation"):
+    for field in (
+        "work_authorization",
+        "work_permit_expiry",
+        "notice_period",
+        "salary_expectation",
+        "relocation",
+    ):
         setattr(facts, field, _text(form, f"facts.{field}"))
     facts.languages = split_list(_text(form, "facts.languages"))
     profile.facts = facts

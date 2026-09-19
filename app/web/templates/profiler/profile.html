@@ -34,6 +34,8 @@
   <h2>Identity</h2>
   <dl class="kv">
     {{ field('Name', profile.identity.name) }}
+    {{ field('First name', profile.identity.first_name) }}
+    {{ field('Last name', profile.identity.last_name) }}
     {{ field('Headline', profile.identity.headline) }}
     {{ field('Location', profile.identity.location) }}
     {{ field('Email', profile.identity.email) }}
@@ -46,6 +48,7 @@
   <h2>Facts <span class="tag">answered by you</span></h2>
   <dl class="kv">
     {{ field('Work authorization', profile.facts.work_authorization) }}
+    {{ field('Work permit expiry date', profile.facts.work_permit_expiry) }}
     {{ field('Notice period', profile.facts.notice_period) }}
     {{ field('Salary expectation', profile.facts.salary_expectation) }}
     {{ field('Relocation', profile.facts.relocation) }}

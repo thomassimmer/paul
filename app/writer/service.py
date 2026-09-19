@@ -331,7 +331,7 @@ async def _draft_answers(
     warnings: list[str],
 ) -> list[FormAnswer]:
     questions = record.offer.form
-    slots = answers.resolve(questions, profile.facts)
+    slots = answers.resolve(questions, profile)
     open_list = [
         (answers.question_title(question), question.max_length)
         for question, slot in zip(questions, slots, strict=True)
@@ -365,7 +365,7 @@ async def _draft_answers(
 def _load_answers(folder: str, record: OfferRecord, profile: Profile) -> list[FormAnswer]:
     """Rebuild the answers for display, keeping the user's edits."""
     stored = markdown.parse_answers(store.read_text(folder, store.ANSWERS_MD) or "")
-    return answers.apply(record.offer.form, profile.facts, stored)
+    return answers.apply(record.offer.form, profile, stored)
 
 
 # --- ATS -----------------------------------------------------------------------
@@ -493,7 +493,7 @@ def save(
 
     if answers_source is not None:
         form_answers = answers.apply(
-            record.offer.form, profile.facts, markdown.parse_answers(answers_source)
+            record.offer.form, profile, markdown.parse_answers(answers_source)
         )
         store.write_text(folder, store.ANSWERS_MD, markdown.render_answers(form_answers))
         saved.answers, saved.sections = form_answers, [*saved.sections, "form answers"]
