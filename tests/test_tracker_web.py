@@ -113,6 +113,30 @@ def test_the_offer_cards_are_sub_items_of_the_navigation(client):
         assert f'id="{anchor}"' in page
 
 
+def test_the_navigation_groups_the_offer_then_the_application(client):
+    offer_id = _seed_offer()
+    page = client.get(f"/offers/{offer_id}").text
+
+    offer_group = page.index('class="quick-nav-group">Offer<')
+    ranking = page.index('href="#ranking"')
+    application_group = page.index('class="quick-nav-group">Application<')
+
+    # Reading order: what the offer says, its verdict, then our application.
+    assert offer_group < ranking < application_group
+    # Tracking belongs to the application, so it follows its label.
+    assert application_group < page.index('href="#tracking"')
+
+
+def test_the_application_group_holds_tracking_before_a_preparation(client):
+    offer_id = _seed_offer()
+    page = client.get(f"/offers/{offer_id}").text
+
+    group = page.index('class="quick-nav-group">Application<')
+
+    assert group < page.index('href="#tracking"')
+    assert 'href="#checks"' not in page  # nothing is prepared yet
+
+
 def test_the_navigation_skips_the_offer_cards_that_are_not_rendered(client):
     offer_id = _seed_offer()  # nothing said about constraints or the company
     page = client.get(f"/offers/{offer_id}").text

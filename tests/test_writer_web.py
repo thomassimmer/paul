@@ -515,6 +515,18 @@ def test_the_page_links_to_its_sections(client, monkeypatch):
         assert f'id="{anchor}"' in page.text
 
 
+def test_the_documents_and_the_tracking_are_grouped_under_application(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    page = client.get(f"/offers/{offer_id}").text
+    group = page.index('class="quick-nav-group">Application<')
+
+    for anchor in ("checks", "cv", "letter", "answers", "tracking"):
+        assert group < page.index(f'href="#{anchor}"')
+
+
 def test_the_quick_navigation_skips_the_sections_that_do_not_exist_yet(client, monkeypatch):
     offer_id = _setup(monkeypatch)
 

@@ -63,10 +63,11 @@ def _profile() -> Profile | None:
 def _nav_sections(offer: Offer, prepared: bool) -> list[dict]:
     """The offer page's sections, in reading order.
 
-    The offer's own cards are grouped under one label: there are seven of them and
-    they would otherwise bury the four other sections.
+    Two groups rather than a flat list of a dozen entries: what the offer says,
+    and what we made of it. Ranking sits between them, at the top level, because
+    it judges the offer rather than belonging to either.
     """
-    cards = [
+    offer_cards = [
         {"anchor": "overview", "label": "Overview"},
         {"anchor": "responsibilities", "label": "Responsibilities"},
         {"anchor": "requirements", "label": "Requirements"},
@@ -74,22 +75,28 @@ def _nav_sections(offer: Offer, prepared: bool) -> list[dict]:
     ]
     # Only the cards the page actually renders: the other two are conditional.
     if offer.constraints.stated:
-        cards.append({"anchor": "constraints", "label": "Constraints"})
+        offer_cards.append({"anchor": "constraints", "label": "Constraints"})
     if offer.company_info.stated:
-        cards.append({"anchor": "company", "label": "Company"})
-    cards.append({"anchor": "application-form", "label": "Application form"})
+        offer_cards.append({"anchor": "company", "label": "Company"})
+    offer_cards.append({"anchor": "application-form", "label": "Application form"})
 
-    sections: list[dict] = [{"label": "Offer", "children": cards}]
-    sections.append({"anchor": "ranking", "label": "Ranking"})
+    # What the application is: the documents written for this offer, and where
+    # it stands. Before a preparation, only the second part exists.
+    application: list[dict] = []
     if prepared:
-        sections += [
+        application += [
             {"anchor": "checks", "label": "Checks"},
             {"anchor": "cv", "label": "CV"},
             {"anchor": "letter", "label": "Cover letter"},
             {"anchor": "answers", "label": "Form answers"},
         ]
-    sections.append({"anchor": "tracking", "label": "Tracking"})
-    return sections
+    application.append({"anchor": "tracking", "label": "Tracking"})
+
+    return [
+        {"label": "Offer", "children": offer_cards},
+        {"anchor": "ranking", "label": "Ranking"},
+        {"label": "Application", "children": application},
+    ]
 
 
 def _offer_context(record: OfferRecord) -> dict:

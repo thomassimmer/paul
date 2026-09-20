@@ -200,13 +200,14 @@ h3 { font-size: 0.95rem; margin: 1.15rem 0 0.5rem; }
 
   .quick-nav-group {
     display: block;
-    margin-top: 0.6rem;
+    margin-top: 0.9rem;
     color: var(--muted);
     font-size: 0.72em;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
+  .quick-nav-group:first-child { margin-top: 0; }
   /* The sub-links are the only ones that need the extra indent; the group label
      is the column's own left edge. */
   .quick-nav-sub { display: flex; flex-direction: column; gap: 0.1rem; }
