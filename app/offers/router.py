@@ -248,12 +248,26 @@ async def offer_detail(request: Request, offer_id: int):
 
 @router.get("/{offer_id}/progress", response_class=HTMLResponse)
 async def offer_progress(request: Request, offer_id: int):
-    """The job panel, plus the refreshed documents via an out-of-band swap."""
+    """The job panel, plus the documents via an out-of-band swap when they changed.
+
+    The documents are only sent when they actually differ from what the page holds:
+    a preparation or a rewrite starts or ends, or the page just asked for them afresh
+    (the ``X-Push-Documents`` header, set by the panel placeholder). Swapping them on
+    every poll would re-create the framed previews for nothing and drag the scroll.
+    """
     record, response = _load(offer_id)
     if response is not None:
         return response
     assert record is not None
-    return render(request, "offers/partials/progress.html", **_offer_context(record))
+    context = _offer_context(record)
+    job = context["job"]
+    push = not (job and job.running) or request.headers.get("X-Push-Documents") == "true"
+    return render(
+        request,
+        "offers/partials/progress.html",
+        push_documents=push,
+        **context,
+    )
 
 
 @router.get("/{offer_id}/source", response_class=HTMLResponse)

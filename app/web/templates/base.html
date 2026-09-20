@@ -78,6 +78,28 @@
       document.addEventListener("htmx:afterSwap", paint);
       document.addEventListener("htmx:oobAfterSwap", paint);
     })();
+
+    // htmx swaps a region in place, and the reader is usually looking at it. A
+    // browser that re-anchors the scroll when that region changes size would move
+    // them; holding the position across the swap makes every in-place update — a
+    // save, a job starting or landing — leave the page exactly where it was.
+    (function () {
+      var held = null;
+      document.addEventListener("htmx:beforeSwap", function () {
+        held = window.scrollY;
+      });
+      document.addEventListener("htmx:afterSettle", function () {
+        if (held === null) return;
+        var y = held;
+        held = null;
+        var restore = function () {
+          if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+        };
+        restore();
+        // Some browsers move the scroll only on the frame after the swap.
+        requestAnimationFrame(restore);
+      });
+    })();
   </script>
 </body>
 </html>

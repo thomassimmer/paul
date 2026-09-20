@@ -16,13 +16,14 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, Response
 
 from app.config import load_settings
-from app.models import Profile
+from app.models import OfferRecord, Profile
 from app.offers import store as offers_store
 from app.profiler import store as profile_store
 from app.templates_engine import pdf
 from app.tracker import store as tracker_store
-from app.web.templating import local_url, redirect
+from app.web.templating import htmx_redirect, local_url, redirect, render
 from app.writer import jobs, service, store
+from app.writer import view as writer_view
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -63,6 +64,96 @@ def _busy() -> bool:
     return job is not None and job.running
 
 
+def _is_htmx(request: Request) -> bool:
+    """Whether this request comes from an HTMX swap rather than a plain form post."""
+    return request.headers.get("HX-Request") == "true"
+
+
+def _move(request: Request, url: str, *, message: str = "", level: str = "ok") -> Response:
+    """Send the reader to ``url``, whether the request came from HTMX or not.
+
+    A plain form post redirects; an HTMX one is told to navigate the whole page,
+    because a 3xx would be followed silently by the XHR instead of the browser.
+    """
+    if _is_htmx(request):
+        return htmx_redirect(url, message=message, level=level)
+    return redirect(url, message=message, level=level)
+
+
+def _job_started(request: Request, record: OfferRecord) -> Response:
+    """The placeholder swapped into ``#job`` when an HTMX request starts a job.
+
+    It pulls the real panel at once, and that panel then polls itself. Answering
+    this way rather than redirecting is what lets the reader keep their place.
+    """
+    return render(
+        request,
+        "writer/partials/job_pending.html",
+        panel_id="job",
+        poll_url=f"/offers/{record.id}/progress",
+    )
+
+
+# The ids the panel wrapper may have, so a posted ``panel_id`` cannot inject markup.
+PANEL_IDS = {"job", "job-writing"}
+
+
+def _panel_id(form) -> str:
+    """The wrapper a stop or dismiss form targets, kept to the ids we know."""
+    panel_id = str(form.get("panel_id") or "")
+    return panel_id if panel_id in PANEL_IDS else "job"
+
+
+def _refresh_job(request: Request, form, back: str, *, message: str, level: str) -> Response:
+    """Re-point the job panel at its own poll endpoint, after a stop or a dismiss.
+
+    The panel's URL is the caller's — the board's carries the table's sort and
+    filter — so the form hands it back and the panel refreshes through the normal
+    path. Without it, the browser is moved instead.
+    """
+    poll_url = local_url(form.get("poll_url"), "")
+    if not poll_url:
+        return _move(request, back, message=message, level=level)
+    return render(
+        request,
+        "writer/partials/job_pending.html",
+        panel_id=_panel_id(form),
+        poll_url=poll_url,
+    )
+
+
+def _save_landing(
+    request: Request,
+    profile: Profile | None,
+    record: OfferRecord,
+    folder: str,
+    *,
+    message: str,
+    level: str = "ok",
+):
+    """Where a save sends the reader.
+
+    Without JavaScript it is the offer page, from the top. With HTMX the documents
+    are re-rendered where they already are, so saving does not move the page at all:
+    the reader stays on the CV or the letter they were editing.
+    """
+    if not _is_htmx(request) or profile is None:
+        return _move(request, _offer_url(record.id), message=message, level=level)
+    return render(
+        request,
+        "writer/partials/saved.html",
+        prepared=True,
+        notice={"message": message, "level": level},
+        **writer_view.context(
+            profile,
+            record,
+            folder,
+            poll_url=f"/offers/{record.id}/progress",
+            next_url=_offer_url(record.id),
+        ),
+    )
+
+
 def _back(request_form, default: str) -> str:
     return local_url(request_form.get("next"), default)
 
@@ -96,27 +187,32 @@ async def application_prepare(offer_id: int, request: Request):
     back = _back(form, BOARD)
     record = offers_store.load_offer(offer_id)
     if record is None:
-        return redirect(BOARD, message="This offer no longer exists.", level="error")
+        return _move(request, BOARD, message="This offer no longer exists.", level="error")
 
     profile, error = _profile()
     if profile is None:
-        return redirect(
+        return _move(
+            request,
             back,
             message=error or "Import your CV first: the documents are written from your profile.",
             level="warning",
         )
     settings = load_settings()
     if not settings.model.strip():
-        return redirect(
+        return _move(
+            request,
             back,
             message="No model configured. Set one in Settings to prepare an application.",
             level="error",
         )
     if _busy():
-        return redirect(back, message=BUSY_MESSAGE, level="warning")
+        return _move(request, back, message=BUSY_MESSAGE, level="warning")
 
     await jobs.start_job(settings, profile, record, kind="prepare")
-    return redirect(
+    if _is_htmx(request):
+        return _job_started(request, record)
+    return _move(
+        request,
         back,
         message="Preparing in the background. The page updates itself every 2 seconds.",
     )
@@ -129,13 +225,19 @@ async def application_prepare(offer_id: int, request: Request):
 async def application_save(offer_id: int, request: Request):
     record, folder, response = _prepared(offer_id)
     if response is not None:
+        # HTMX would follow a 3xx silently and swap the whole offer page into the
+        # documents region; send the browser there instead.
+        if _is_htmx(request):
+            return htmx_redirect(str(response.headers.get("location") or BOARD))
         return response
     assert record is not None
     profile, error = _profile()
     if profile is None:
-        return redirect(_offer_url(offer_id), message=error or "No profile.", level="warning")
+        return _save_landing(
+            request, profile, record, folder, message=error or "No profile.", level="warning"
+        )
     if _busy():
-        return redirect(_offer_url(offer_id), message=BUSY_MESSAGE, level="warning")
+        return _save_landing(request, profile, record, folder, message=BUSY_MESSAGE, level="warning")
 
     form = await request.form()
 
@@ -154,9 +256,12 @@ async def application_save(offer_id: int, request: Request):
             answers_source=posted("answers"),
         )
     except (service.WriterError, store.FolderError) as exc:
-        return redirect(_offer_url(offer_id), message=str(exc), level="error")
-    return redirect(
-        _offer_url(offer_id),
+        return _save_landing(request, profile, record, folder, message=str(exc), level="error")
+    return _save_landing(
+        request,
+        profile,
+        record,
+        folder,
         message=f"Saved: {', '.join(saved.sections)}. The documents were re-rendered.",
     )
 
@@ -165,14 +270,19 @@ async def application_save(offer_id: int, request: Request):
 async def application_regenerate(offer_id: int, request: Request):
     record, folder, response = _prepared(offer_id)
     if response is not None:
+        # HTMX would follow a 3xx silently and swap the whole offer page into the
+        # target; send the browser there instead.
+        if _is_htmx(request):
+            return htmx_redirect(str(response.headers.get("location") or BOARD))
         return response
     assert record is not None
     profile, error = _profile()
     if profile is None:
-        return redirect(_offer_url(offer_id), message=error or "No profile.", level="warning")
+        return _move(request, _offer_url(offer_id), message=error or "No profile.", level="warning")
     settings = load_settings()
     if not settings.model.strip():
-        return redirect(
+        return _move(
+            request,
             _offer_url(offer_id),
             message="No model configured. Set one in Settings to regenerate.",
             level="error",
@@ -181,11 +291,11 @@ async def application_regenerate(offer_id: int, request: Request):
     form = await request.form()
     section = str(form.get("section") or "")
     if section not in service.SECTIONS:
-        return redirect(
-            _offer_url(offer_id), message=f"Unknown section: {section}.", level="error"
+        return _move(
+            request, _offer_url(offer_id), message=f"Unknown section: {section}.", level="error"
         )
     if _busy():
-        return redirect(_offer_url(offer_id), message=BUSY_MESSAGE, level="warning")
+        return _move(request, _offer_url(offer_id), message=BUSY_MESSAGE, level="warning")
 
     await jobs.start_job(
         settings,
@@ -198,8 +308,11 @@ async def application_regenerate(offer_id: int, request: Request):
         from_current=bool(form.get("from_current")),
         folder=folder,
     )
+    if _is_htmx(request):
+        return _job_started(request, record)
     phrase = SECTION_PHRASES.get(section, section)
-    return redirect(
+    return _move(
+        request,
         _offer_url(offer_id),
         message=f"Regenerating the {phrase} in the background. This page updates itself.",
     )
@@ -210,14 +323,28 @@ async def applications_cancel(request: Request):
     form = await request.form()
     back = _back(form, BOARD)
     if jobs.cancel():
-        return redirect(back, message="Stopping: the folder is only written at the end.")
-    return redirect(back, message="Nothing is running.", level="warning")
+        message, level = "Stopping: the folder is only written at the end.", "ok"
+    else:
+        message, level = "Nothing is running.", "warning"
+    if _is_htmx(request):
+        return _refresh_job(request, form, back, message=message, level=level)
+    return redirect(back, message=message, level=level)
 
 
 @router.post("/dismiss")
 async def applications_dismiss(request: Request):
     form = await request.form()
+    expected = str(form.get("job_id") or "")
+    current = jobs.current()
+    if expected and current is not None and current.id != expected:
+        # The finished job has already been replaced by a newer one — the offer
+        # page's toast closes itself a second after it is done, and the click may
+        # have been followed by another run. A 204 leaves the DOM alone.
+        return Response(status_code=204)
     jobs.reset()
+    if _is_htmx(request):
+        # The panel simply takes itself off the page; there is nothing to fetch back.
+        return render(request, "writer/partials/job_none.html", panel_id=_panel_id(form))
     return redirect(_back(form, BOARD))
 
 

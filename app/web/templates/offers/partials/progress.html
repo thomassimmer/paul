@@ -1,8 +1,13 @@
-{# Answer to the poll: the job panel, plus the quick navigation and the documents
-   swapped out of band (a preparation adds the sections the navigation points at). #}
+{# Answer to the poll: always the job panel. The quick navigation and the documents
+   are swapped out of band only when they changed — when a preparation adds the
+   sections the navigation points at, when a section is locked for a rewrite, and
+   when the rewrite lands. Polling them every two seconds would only redraw the
+   previews for nothing. #}
 {% from "partials/quick_nav.html" import quick_nav %}
 {% include "writer/partials/job.html" %}
+{% if push_documents %}
 {{ quick_nav(nav_label, nav_sections, true) }}
 <div id="documents" hx-swap-oob="outerHTML">
   {% include "offers/partials/documents.html" %}
 </div>
+{% endif %}

@@ -292,6 +292,11 @@ def test_the_preparation_panel_polls_and_refreshes_the_table(client, monkeypatch
     assert 'hx-get="/progress/writing?sort=' in page
     assert "Preparation in progress" in page
     assert "disabled" in page  # preparing twice is not offered while one runs
+    # Stop refreshes the board's own panel, whose poll URL carries the table state.
+    assert 'hx-target="#job-writing"' in page
+    assert 'name="poll_url" value="/progress/writing?sort=' in page
+    # The board keeps its panel inline; only the offer page floats it.
+    assert 'class="job-toast"' not in page
 
     response = client.get("/progress/writing")
     assert response.status_code == 200
@@ -313,6 +318,11 @@ def test_a_finished_job_stops_polling(client, monkeypatch):
     assert "Preparation in progress" not in page
     assert "Last preparation" in page
     assert 'hx-get="/progress/writing' not in page
+    # From the board the finished panel points at the offer, so its documents can be
+    # reviewed.
+    assert "Open the offer" in page
+    # And it stays put: only the offer page's toast closes itself once done.
+    assert 'hx-trigger="load delay:1s"' not in page
 
 
 # --- the onboarding checklist -------------------------------------------------

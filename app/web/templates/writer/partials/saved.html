@@ -1,0 +1,10 @@
+{# The answer to a save posted by HTMX. The documents are re-rendered where they
+   already are, so the reader keeps their place instead of being thrown back to the
+   top of the offer page. The confirmation sits at the top of the region that was
+   just saved, because a flash at the top of the page would be off-screen by then. #}
+<div id="documents">
+  {% if notice %}
+  <p class="banner banner-{{ notice.level }}" role="status">{{ notice.message }}</p>
+  {% endif %}
+  {% include "offers/partials/documents.html" %}
+</div>

@@ -5,13 +5,21 @@
   <div class="page-head">
     <h2>{{ job.heading }}</h2>
     {% if job.running %}
-    <form method="post" action="/applications/cancel" class="inline-form">
+    <form method="post" action="/applications/cancel" class="inline-form"
+          hx-post="/applications/cancel" hx-target="#{{ panel_id }}" hx-swap="outerHTML"
+          hx-disabled-elt="find button">
       <input type="hidden" name="next" value="{{ next_url }}">
+      <input type="hidden" name="panel_id" value="{{ panel_id }}">
+      <input type="hidden" name="poll_url" value="{{ panel_poll_url }}">
       <button type="submit">Stop</button>
     </form>
     {% else %}
-    <form method="post" action="/applications/dismiss" class="inline-form">
+    <form method="post" action="/applications/dismiss" class="inline-form"
+          hx-post="/applications/dismiss" hx-target="#{{ panel_id }}" hx-swap="outerHTML"
+          hx-disabled-elt="find button">
       <input type="hidden" name="next" value="{{ next_url }}">
+      <input type="hidden" name="panel_id" value="{{ panel_id }}">
+      <input type="hidden" name="poll_url" value="{{ panel_poll_url }}">
       <button type="submit">Dismiss</button>
     </form>
     {% endif %}
@@ -42,7 +50,9 @@
   </ul>
   {% endif %}
 
-  {% if job.status == 'done' %}
+  {# On the board this jumps to the offer whose documents were just written. On the
+     offer page the reader is already there, so the link is left out. #}
+  {% if job.status == 'done' and panel_offer_link %}
   <div class="actions">
     <a class="button primary" href="/offers/{{ job.offer_id }}">Open the offer</a>
   </div>

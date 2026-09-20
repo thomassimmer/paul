@@ -11,16 +11,18 @@
   <h1>{{ offer.title or 'Untitled offer' }}</h1>
   <div class="actions">
     {% if prepared %}
-    <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form">
+    <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form"
+          hx-post="/applications/{{ record.id }}/prepare"
+          hx-target="#job" hx-swap="outerHTML" hx-disabled-elt="find button">
       <input type="hidden" name="next" value="/offers/{{ record.id }}">
-      <button type="submit" class="primary"
-              onclick="this.disabled=true; this.form.submit();">Prepare again</button>
+      <button type="submit" class="primary" {% if job and job.running %}disabled{% endif %}>Prepare again</button>
     </form>
     {% else %}
-    <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form">
+    <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form"
+          hx-post="/applications/{{ record.id }}/prepare"
+          hx-target="#job" hx-swap="outerHTML" hx-disabled-elt="find button">
       <input type="hidden" name="next" value="/offers/{{ record.id }}">
-      <button type="submit" class="primary"
-              onclick="this.disabled=true; this.form.submit();">Prepare CV, letter and answers</button>
+      <button type="submit" class="primary" {% if job and job.running %}disabled{% endif %}>Prepare CV, letter and answers</button>
     </form>
     {% endif %}
     <a class="button" href="/offers/{{ record.id }}/edit">Complete / edit</a>

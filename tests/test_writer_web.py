@@ -6,6 +6,8 @@ scheduling with an inline run, exactly like the ranker's tests do.
 
 from __future__ import annotations
 
+import re
+
 from app.config import Settings, save_settings
 from app.llm import LLMError
 from app.models import (
@@ -325,6 +327,44 @@ def test_saving_the_cv(client, monkeypatch):
     assert "[salutation]" in (store.read_text(folder, store.LETTER_MD) or "")
 
 
+def test_saving_with_htmx_swaps_the_documents_in_place(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    response = client.post(
+        f"/applications/{offer_id}/save",
+        data={"letter": "[name] Camille Moreau\n[salutation] Dear hiring team,\n"},
+        headers={"HX-Request": "true"},
+    )
+
+    # No redirect: the documents come back for an in-place swap, so the page keeps
+    # its scroll position instead of jumping back to the top.
+    assert response.status_code == 200
+    assert '<div id="documents">' in response.text
+    assert "Saved: letter" in response.text
+    assert "Cover letter" in response.text
+
+    folder = store.list_folders()[0]
+    assert "[name] Camille Moreau" in (store.read_text(folder, store.LETTER_MD) or "")
+
+
+def test_a_failed_save_with_htmx_stays_on_the_page(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    response = client.post(
+        f"/applications/{offer_id}/save",
+        data={},
+        headers={"HX-Request": "true"},
+    )
+
+    assert response.status_code == 200
+    assert '<div id="documents">' in response.text
+    assert "Nothing to save" in response.text
+
+
 def test_saving_nothing_is_reported(client, monkeypatch):
     offer_id = _setup(monkeypatch)
     _run_inline(monkeypatch)
@@ -412,7 +452,7 @@ def test_regenerating_an_unknown_section_is_refused(client, monkeypatch):
     assert "Unknown section" in response.text
 
 
-def test_the_documents_poll_refreshes_the_sections(client, monkeypatch):
+def test_the_job_poll_only_redraws_the_documents_when_they_changed(client, monkeypatch):
     offer_id = _setup(monkeypatch)
     _run_inline(monkeypatch)
     _prepare(client, offer_id)
@@ -424,13 +464,33 @@ def test_the_documents_poll_refreshes_the_sections(client, monkeypatch):
     assert f'hx-get="/offers/{offer_id}/progress"' in page.text
     assert "Regeneration in progress" in page.text
 
+    # Every two seconds the answer is the panel alone. Redrawing the framed previews
+    # would reload them for nothing, and htmx shuttling the preserved frames through
+    # its pantry is what dragged the page to the bottom.
+    polled = client.get(f"/offers/{offer_id}/progress")
+    assert polled.status_code == 200
+    assert 'id="job"' in polled.text
+    assert "hx-swap-oob" not in polled.text
+
+    # The fetch that follows a job starting asks for the documents, so the section
+    # being rewritten is locked and covered.
+    pushed = client.get(
+        f"/offers/{offer_id}/progress", headers={"X-Push-Documents": "true"}
+    )
+    assert 'id="documents" hx-swap-oob="outerHTML"' in pushed.text
+    assert 'id="quick-nav"' in pushed.text
+    assert 'href="#cv"' in pushed.text
+
+
+def test_a_finished_job_pushes_the_documents_unasked(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)  # leaves a finished job behind
+
     response = client.get(f"/offers/{offer_id}/progress")
-    assert response.status_code == 200
+
+    # The rewrite landed: the documents come back unlocked, without being asked for.
     assert 'id="documents" hx-swap-oob="outerHTML"' in response.text
-    assert 'id="quick-nav"' in response.text
-    assert 'hx-swap-oob="outerHTML"' in response.text
-    # The list grew with the sections a preparation just created.
-    assert 'href="#cv"' in response.text
 
 
 # --- downloads -----------------------------------------------------------------
@@ -635,3 +695,210 @@ def test_the_editors_have_the_ids_the_insert_needs(client, monkeypatch):
 
     assert 'id="cv-source"' in page.text
     assert 'id="letter-source"' in page.text
+
+
+# --- starting a job without leaving the page ------------------------------------
+
+
+def test_starting_a_preparation_with_htmx_swaps_the_job_panel(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+
+    response = client.post(
+        f"/applications/{offer_id}/prepare",
+        data={"next": f"/offers/{offer_id}"},
+        headers={"HX-Request": "true"},
+    )
+
+    # Not a redirect: a placeholder pulls the real panel in place.
+    assert response.status_code == 200
+    assert 'id="job"' in response.text
+    assert f'hx-get="/offers/{offer_id}/progress"' in response.text
+    job = jobs.current()
+    assert job is not None and job.kind == "prepare"
+
+
+def test_starting_a_regeneration_with_htmx_swaps_the_job_panel(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    response = client.post(
+        f"/applications/{offer_id}/regenerate",
+        data={"section": "cv", "instruction": "shorter"},
+        headers={"HX-Request": "true"},
+    )
+
+    assert response.status_code == 200
+    assert f'hx-get="/offers/{offer_id}/progress"' in response.text
+
+
+def _locked(page: str, element_id: str) -> bool:
+    match = re.search(rf'<textarea id="{element_id}"[^>]*>', page)
+    assert match is not None, f"no textarea {element_id}"
+    return "readonly" in match.group(0)
+
+
+def test_a_regeneration_only_locks_the_section_it_rewrites(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+    jobs.remember(jobs.build_job(_record(offer_id), kind="regenerate", section="cv"))
+
+    page = client.get(f"/offers/{offer_id}").text
+
+    # The CV is on the bench: covered by the loader, and its editor is locked.
+    assert "Rewriting the CV…" in page
+    assert 'id="cv-loading"' in page
+    assert _locked(page, "cv-source")
+    # The letter is not being touched, so it stays editable and uncovered.
+    assert "Rewriting the cover letter…" not in page
+    assert 'id="letter-loading"' not in page
+    assert not _locked(page, "letter-source")
+
+
+def test_a_preparation_locks_every_editor(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+    jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+
+    page = client.get(f"/offers/{offer_id}").text
+
+    assert "Writing the CV…" in page
+    assert "Writing the cover letter…" in page
+    assert _locked(page, "cv-source")
+    assert _locked(page, "letter-source")
+
+
+def test_nothing_is_locked_when_no_job_runs(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    page = client.get(f"/offers/{offer_id}").text
+
+    assert not _locked(page, "cv-source")
+    assert not _locked(page, "letter-source")
+    assert "doc-loading" not in page
+
+
+# --- stopping and dismissing without leaving the page ---------------------------
+
+
+def test_the_job_panel_stops_and_dismisses_in_place(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+    jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+
+    page = client.get(f"/offers/{offer_id}").text
+
+    assert 'hx-target="#job"' in page
+    assert f'name="poll_url" value="/offers/{offer_id}/progress"' in page
+
+
+def test_the_job_panel_floats_on_the_offer_page(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+
+    # With no job there is nothing to show, so the page keeps its full height.
+    assert 'class="job-toast"' not in client.get(f"/offers/{offer_id}").text
+
+    # A job makes the panel a fixed toast, out of the page flow: the status stays
+    # readable from the documents, and the page never shifts under the reader.
+    jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+    assert 'class="job-toast"' in client.get(f"/offers/{offer_id}").text
+
+
+def test_the_finished_toast_does_not_link_to_the_page_it_is_on(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)  # the job is done
+
+    page = client.get(f"/offers/{offer_id}").text
+
+    assert "Last preparation" in page
+    # The reader is already on the offer page; the link would only reload it.
+    assert "Open the offer" not in page
+
+
+def test_stopping_with_htmx_refreshes_the_panel(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+
+    response = client.post(
+        "/applications/cancel",
+        data={
+            "next": f"/offers/{offer_id}",
+            "panel_id": "job",
+            "poll_url": f"/offers/{offer_id}/progress",
+        },
+        headers={"HX-Request": "true"},
+    )
+
+    assert response.status_code == 200
+    assert 'id="job"' in response.text
+    assert f'hx-get="/offers/{offer_id}/progress"' in response.text
+
+
+def test_dismissing_with_htmx_empties_the_panel(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+
+    response = client.post(
+        "/applications/dismiss",
+        data={"next": f"/offers/{offer_id}", "panel_id": "job"},
+        headers={"HX-Request": "true"},
+    )
+
+    assert jobs.current() is None
+    assert response.status_code == 200
+    # Nothing to fetch back: the panel just takes itself off the page.
+    assert response.text.strip() == '<div id="job"></div>'
+
+
+def test_dismissing_leaves_a_job_that_was_already_replaced(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    job = jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+
+    # A toast that decides to close itself a second late must not wipe the run that
+    # took its place in the meantime.
+    response = client.post(
+        "/applications/dismiss",
+        data={"next": f"/offers/{offer_id}", "panel_id": "job", "job_id": "not-this-one"},
+        headers={"HX-Request": "true"},
+    )
+
+    assert response.status_code == 204
+    assert jobs.current() is job
+
+
+def test_the_done_toast_closes_itself(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)  # the job is done
+    job = jobs.current()
+    assert job is not None
+
+    page = client.get(f"/offers/{offer_id}").text
+
+    assert 'hx-post="/applications/dismiss"' in page
+    assert 'hx-trigger="load delay:1s"' in page
+    assert f'"job_id": "{job.id}"' in page
+
+
+def test_a_posted_panel_id_cannot_inject_markup(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
+
+    response = client.post(
+        "/applications/cancel",
+        data={
+            "next": f"/offers/{offer_id}",
+            "panel_id": 'job"><script>alert(1)</script>',
+            "poll_url": f"/offers/{offer_id}/progress",
+        },
+        headers={"HX-Request": "true"},
+    )
+
+    assert "<script>" not in response.text
+    assert 'id="job"' in response.text

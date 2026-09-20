@@ -1,0 +1,8 @@
+{# Swapped into the job panel the moment a job is started, stopped or dismissed by
+   HTMX. It pulls the real panel at once, so the page keeps tracking the job without
+   reloading and losing the reader's place. ``panel_id`` is the wrapper the caller
+   targets: "job" on the offer page, "job-writing" on the board. The header asks the
+   offer page's poll to send the documents along, which is how a started or stopped
+   rewrite reaches the panel that shows it. #}
+<div id="{{ panel_id }}" hx-get="{{ poll_url }}" hx-trigger="load" hx-swap="outerHTML"
+     hx-headers='{"X-Push-Documents": "true"}'></div>

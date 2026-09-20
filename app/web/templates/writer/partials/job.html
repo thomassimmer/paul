@@ -1,5 +1,16 @@
-{# The preparation job panel, self-polling: for a page where it is the only job.
-   The board wraps the body in its own element, because it has two jobs to track. #}
-<div id="job"{% if job and job.running %} hx-get="{{ poll_url }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
-  {% include "writer/partials/job_body.html" %}
+{# The preparation job panel, self-polling. On the offer page it floats as a fixed
+   toast, so the status stays readable while the documents are edited below, and so
+   inserting or finishing the panel cannot shift the page. Once every step is done
+   it closes itself a second later — the reader rarely needs the accounting, and it
+   was a click to dismiss. The board wraps the body in its own element instead,
+   because it has two jobs to track and keeps its panel to offer the link. #}
+<div id="job"{% if job %} class="job-toast"{% endif %}
+  {%- if job and job.running %} hx-get="{{ poll_url }}" hx-trigger="every 2s" hx-swap="outerHTML"
+  {%- elif job and job.status == 'done' %} hx-post="/applications/dismiss" hx-swap="outerHTML"
+      hx-vals='{"panel_id": "job", "next": "{{ next_url }}", "job_id": "{{ job.id }}"}'
+      hx-trigger="load delay:1s"
+  {%- endif %}>
+  {% with panel_id="job", panel_poll_url=poll_url, panel_offer_link=false %}
+    {% include "writer/partials/job_body.html" %}
+  {% endwith %}
 </div>

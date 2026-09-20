@@ -556,6 +556,23 @@ ul.banner { padding-left: 2rem; }
 .job-status.job-pending, .job-status.job-skipped { color: var(--muted); }
 .job-status.job-cancelled { color: var(--warn-text); }
 
+/* The job, on the offer page, floats: a fixed toast keeps its status readable from
+   wherever the documents are edited, and keeps it out of the page flow, so starting
+   or finishing a job never shifts the page under the reader. */
+.job-toast {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.job-toast .card { margin: 0; box-shadow: 0 10px 30px rgb(0 0 0 / 22%); }
+/* The step labels are long; a narrower status column buys them the room to stay on
+   one line. */
+.job-toast .job-status { min-width: 5rem; }
+
 /* --- Tracker ----------------------------------------------------------- */
 
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 1rem 0; }
@@ -622,8 +639,36 @@ code {
   gap: 1rem;
   align-items: start;
   margin-top: 0.75rem;
+  position: relative;
 }
 @media (max-width: 900px) { .review { grid-template-columns: 1fr; } }
+
+/* While a document is being written, its editor and its preview are covered, so a
+   click cannot land on text that is about to change under it. */
+.doc-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.doc-loading-spin {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--text) 15%, transparent);
+  border-top-color: var(--accent);
+  animation: doc-spin 0.8s linear infinite;
+}
+@keyframes doc-spin { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) { .doc-loading-spin { animation: none; } }
 
 .doc-source {
   width: 100%;

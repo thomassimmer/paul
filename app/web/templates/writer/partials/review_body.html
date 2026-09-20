@@ -1,13 +1,14 @@
 {% macro regeneration(section, label, placeholder) %}
-<form class="regenerate" method="post" action="/applications/{{ record.id }}/regenerate">
+<form class="regenerate" method="post" action="/applications/{{ record.id }}/regenerate"
+      hx-post="/applications/{{ record.id }}/regenerate"
+      hx-target="#job" hx-swap="outerHTML" hx-disabled-elt="find button">
   <input type="hidden" name="section" value="{{ section }}">
   <label for="instruction-{{ section }}">Regenerate the {{ label }} with an instruction
     <span class="optional">optional</span></label>
   <div class="regenerate-row">
     <input id="instruction-{{ section }}" name="instruction" type="text"
            placeholder="{{ placeholder }}" {% if job and job.running %}disabled{% endif %}>
-    <button type="submit" {% if job and job.running %}disabled{% endif %}
-            onclick="this.disabled=true; this.form.submit();">Regenerate</button>
+    <button type="submit" {% if job and job.running %}disabled{% endif %}>Regenerate</button>
   </div>
   <label class="regenerate-choice" for="from-current-{{ section }}">
     <input id="from-current-{{ section }}" name="from_current" type="checkbox" value="1"
@@ -39,7 +40,20 @@
   {% endif %}
 {% endmacro %}
 
-{% set busy = job and job.running %}
+{% macro doc_loading(id, label) %}
+<div id="{{ id }}" class="doc-loading" role="status" aria-live="polite">
+  <span class="doc-loading-spin" aria-hidden="true"></span>
+  <span>{{ label }}</span>
+</div>
+{% endmacro %}
+
+{# A preparation rewrites every document at once; a regeneration only the one it
+   names, so the other editors stay usable while it runs. #}
+{% set job_running = job and job.running %}
+{% set cv_busy = job_running and (job.kind != 'regenerate' or job.section == 'cv') %}
+{% set letter_busy = job_running and (job.kind != 'regenerate' or job.section == 'letter') %}
+{% set answers_busy = job_running and (job.kind != 'regenerate' or job.section == 'answers') %}
+{% set writing = 'Writing' if job and job.kind != 'regenerate' else 'Rewriting' %}
 
 <section class="card" id="checks">
   <details class="collapse">
@@ -105,27 +119,30 @@
     the citation in braces is what the grounding check verifies.
   </p>
   <div class="review">
-    <form method="post" action="/applications/{{ record.id }}/save">
+    <form method="post" action="/applications/{{ record.id }}/save"
+          hx-post="/applications/{{ record.id }}/save"
+          hx-target="#documents" hx-swap="outerHTML" hx-disabled-elt="find button.primary">
       <div class="insert-bar">
         <span class="hint">Add a line at the caret:</span>
         {% for role in cv_roles %}
-        <button type="button" data-insert-role="{{ role }}" {% if busy %}disabled{% endif %}>{{ role_labels.get(role, role) }}</button>
+        <button type="button" data-insert-role="{{ role }}" {% if cv_busy %}disabled{% endif %}>{{ role_labels.get(role, role) }}</button>
         {% endfor %}
       </div>
       <textarea id="cv-source" name="cv" class="doc-source" spellcheck="false"
-                {% if busy %}readonly{% endif %}>{{ review.cv_text }}</textarea>
+                {% if cv_busy %}readonly{% endif %}>{{ review.cv_text }}</textarea>
       <div class="actions">
-        <button type="submit" class="primary" {% if busy %}disabled{% endif %}>Save CV</button>
+        <button type="submit" class="primary" {% if cv_busy %}disabled{% endif %}>Save CV</button>
       </div>
     </form>
     {% if pdf_preview %}
-    <iframe class="doc-pdf" title="CV preview" hx-preserve="true"
+    <iframe class="doc-pdf" title="CV preview"
             id="cv-preview-{{ review.cv_revision }}"
             src="/applications/{{ record.id }}/preview/cv?v={{ review.cv_revision }}#toolbar=0&amp;navpanes=0&amp;view=FitH"></iframe>
     {% else %}
     <div class="doc-preview">{{ review.cv_html | safe }}</div>
     {{ pdf_missing_hint() }}
     {% endif %}
+    {% if cv_busy %}{{ doc_loading('cv-loading', writing ~ ' the CV…') }}{% endif %}
   </div>
   {{ regeneration('cv', 'CV', 'shorter, more focus on data engineering…') }}
 </section>
@@ -141,27 +158,30 @@
     </div>
   </div>
   <div class="review">
-    <form method="post" action="/applications/{{ record.id }}/save">
+    <form method="post" action="/applications/{{ record.id }}/save"
+          hx-post="/applications/{{ record.id }}/save"
+          hx-target="#documents" hx-swap="outerHTML" hx-disabled-elt="find button.primary">
       <div class="insert-bar">
         <span class="hint">Add a line at the caret:</span>
         {% for role in letter_roles %}
-        <button type="button" data-insert-role="{{ role }}" {% if busy %}disabled{% endif %}>{{ role_labels.get(role, role) }}</button>
+        <button type="button" data-insert-role="{{ role }}" {% if letter_busy %}disabled{% endif %}>{{ role_labels.get(role, role) }}</button>
         {% endfor %}
       </div>
       <textarea id="letter-source" name="letter" class="doc-source" spellcheck="false"
-                {% if busy %}readonly{% endif %}>{{ review.letter_text }}</textarea>
+                {% if letter_busy %}readonly{% endif %}>{{ review.letter_text }}</textarea>
       <div class="actions">
-        <button type="submit" class="primary" {% if busy %}disabled{% endif %}>Save letter</button>
+        <button type="submit" class="primary" {% if letter_busy %}disabled{% endif %}>Save letter</button>
       </div>
     </form>
     {% if pdf_preview %}
-    <iframe class="doc-pdf" title="Cover letter preview" hx-preserve="true"
+    <iframe class="doc-pdf" title="Cover letter preview"
             id="letter-preview-{{ review.letter_revision }}"
             src="/applications/{{ record.id }}/preview/letter?v={{ review.letter_revision }}#toolbar=0&amp;navpanes=0&amp;view=FitH"></iframe>
     {% else %}
     <div class="doc-preview">{{ review.letter_html | safe }}</div>
     {{ pdf_missing_hint() }}
     {% endif %}
+    {% if letter_busy %}{{ doc_loading('letter-loading', writing ~ ' the cover letter…') }}{% endif %}
   </div>
   {{ regeneration('letter', 'letter', 'shorter, warmer…') }}
 </section>
@@ -181,11 +201,13 @@
     and never generated.
   </p>
   <div class="review">
-    <form method="post" action="/applications/{{ record.id }}/save">
+    <form method="post" action="/applications/{{ record.id }}/save"
+          hx-post="/applications/{{ record.id }}/save"
+          hx-target="#documents" hx-swap="outerHTML" hx-disabled-elt="find button.primary">
       <textarea name="answers" class="doc-source" spellcheck="false"
-                {% if busy %}readonly{% endif %}>{{ review.answers_text }}</textarea>
+                {% if answers_busy %}readonly{% endif %}>{{ review.answers_text }}</textarea>
       <div class="actions">
-        <button type="submit" class="primary" {% if busy %}disabled{% endif %}>Save answers</button>
+        <button type="submit" class="primary" {% if answers_busy %}disabled{% endif %}>Save answers</button>
       </div>
     </form>
     <div class="doc-preview">
@@ -202,6 +224,7 @@
       </div>
       {% endfor %}
     </div>
+    {% if answers_busy %}{{ doc_loading('answers-loading', writing ~ ' the form answers…') }}{% endif %}
   </div>
   {{ regeneration('answers', 'answers', 'shorter, more specific…') }}
   {% else %}
