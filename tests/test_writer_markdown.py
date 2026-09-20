@@ -42,10 +42,28 @@ def test_parse_lines_skips_blank_lines_and_keeps_unknown_roles():
     assert parsed == [DraftLine(role="x_unknown", text="Something")]
 
 
-def test_parse_lines_reads_a_citation_at_the_end_only():
-    parsed = markdown.parse_lines("[bullet] Use {braces} carefully")
-    assert parsed[0].text == "Use {braces} carefully"
+def test_braces_that_do_not_hold_an_id_are_plain_text():
+    parsed = markdown.parse_lines("[bullet] Use {braces} carefully {not an id}")
+    assert parsed[0].text == "Use {braces} carefully {not an id}"
     assert parsed[0].achievement_ids == []
+
+
+def test_a_citation_left_inside_the_text_is_lifted_out():
+    parsed = markdown.parse_lines("[entry_subtitle] B2B platform {exp-acme-a1} for Acme")
+    assert parsed[0].text == "B2B platform for Acme"
+    assert parsed[0].achievement_ids == ["exp-acme-a1"]
+
+
+def test_a_citation_written_twice_is_read_once():
+    parsed = markdown.parse_lines("[bullet] Cut latency {exp-acme-a1} {exp-acme-a1}")
+    assert parsed[0].text == "Cut latency"
+    assert parsed[0].achievement_ids == ["exp-acme-a1"]
+
+
+def test_rendering_never_leaves_a_citation_in_the_text():
+    lines = [DraftLine(role="bullet", text="Cut latency {exp-acme-a1}", achievement_ids=[])]
+    rendered = markdown.render_lines(lines)
+    assert markdown.parse_lines(rendered)[0].text == "Cut latency"
 
 
 def test_to_html_escapes_the_text():

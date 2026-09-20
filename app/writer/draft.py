@@ -31,6 +31,7 @@ from app.models import (
 )
 from app.prompt_context import offer_text, output_language_text, profile_text
 from app.prompts import load_prompt
+from app.writer.markdown import split_citations
 
 DEFAULT_ROLE = "body_text"
 
@@ -87,21 +88,25 @@ def clean_ids(ids: Iterable[str]) -> list[str]:
 
 
 def normalize_lines(lines: list[DraftLine], allowed: Sequence[str]) -> list[DraftLine]:
-    """Repair roles and drop the empty lines, nothing else.
+    """Repair roles, lift the citations out of the text, drop the empty lines.
 
-    The text is left exactly as the model wrote it: rewriting it here would make
-    the grounding report point at something the user never saw.
+    A model told to cite by id sometimes writes the citation in the text as well
+    as in the ``achievement_ids`` field. Both cite the same achievement, so the
+    ids are merged and only the prose is kept. Nothing else is rewritten:
+    changing the wording here would make the grounding report point at something
+    the user never saw.
     """
     result: list[DraftLine] = []
     for line in lines:
-        text = line.text.strip()
+        text, inline_ids = split_citations(line.text)
+        text = text.strip()
         if not text:
             continue
         result.append(
             DraftLine(
                 role=normalize_role(line.role, allowed),
                 text=text,
-                achievement_ids=clean_ids(line.achievement_ids),
+                achievement_ids=clean_ids([*line.achievement_ids, *inline_ids]),
             )
         )
     return result

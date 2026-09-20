@@ -56,6 +56,23 @@ def test_normalize_lines_drops_empty_lines_and_keeps_the_text():
     assert normalized == [DraftLine(role="bullet", text="A result", achievement_ids=["x"])]
 
 
+def test_normalize_lines_lifts_a_citation_the_model_left_in_the_text():
+    lines = [
+        DraftLine(role="bullet", text="Cut latency by 60% {exp-a1}", achievement_ids=["exp-a1"])
+    ]
+    assert draft.normalize_lines(lines, CV_ROLES) == [
+        DraftLine(role="bullet", text="Cut latency by 60%", achievement_ids=["exp-a1"])
+    ]
+
+
+def test_normalize_lines_keeps_the_ids_of_a_citation_only_written_in_the_text():
+    lines = [DraftLine(role="bullet", text="Cut latency by 60% {exp-a1}")]
+    normalized = draft.normalize_lines(lines, CV_ROLES)
+    assert normalized == [
+        DraftLine(role="bullet", text="Cut latency by 60%", achievement_ids=["exp-a1"])
+    ]
+
+
 # --- the calls -----------------------------------------------------------------
 
 

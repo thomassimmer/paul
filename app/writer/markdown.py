@@ -10,6 +10,9 @@ One line per block, prefixed by its role, with the profile ids it cites in brace
 That is readable enough to be an export, and explicit enough to be read back, so
 the review screen edits this text and the renderer gets exactly the lines that
 produced it. A cover letter uses the same shape with its own roles.
+
+The citation is metadata, never part of the text: it is lifted out here and at
+normalisation, so no ``{id}`` can reach the rendered document.
 """
 
 from __future__ import annotations
@@ -24,7 +27,40 @@ ANSWERS_HEADER = "<!-- Paul: one '# question' block per form field, answers belo
 _EMPTY_ANSWER = "_To fill in._"
 
 _LINE = re.compile(r"^\[(?P<role>[a-z_]+)\]\s*(?P<text>.*)$")
-_CITATION = re.compile(r"\s*\{(?P<ids>[^}]*)\}\s*$")
+# An id always carries a hyphen (``exp-acme-2022-a1``), which is what tells a
+# citation from a brace the prose legitimately uses, such as ``{braces}``.
+_CITATION = re.compile(r"\{(?P<ids>[^{}]*-[^{}]*)\}")
+_SPACES = re.compile(r"[ \t]{2,}")
+
+
+def split_citations(text: str) -> tuple[str, list[str]]:
+    """Separate the ``{id, id}`` citations from the prose they are glued to.
+
+    The format puts a citation at the end of a line, but a model revising a
+    document sometimes leaves one inside the text, or writes it twice — once in
+    the text and once in the ``achievement_ids`` field. Both mean the same, so
+    every citation is read here and only the prose is handed back.
+    """
+    ids: list[str] = []
+    kept: list[str] = []
+    cursor = 0
+    for match in _CITATION.finditer(text or ""):
+        kept.append(text[cursor : match.start()])
+        ids.extend(item.strip() for item in match.group("ids").split(",") if item.strip())
+        cursor = match.end()
+    kept.append((text or "")[cursor:])
+    return _SPACES.sub(" ", "".join(kept)).strip(), _unique(ids)
+
+
+def _unique(ids: list[str]) -> list[str]:
+    """The ids in the order they were written, each kept once."""
+    seen: set[str] = set()
+    kept: list[str] = []
+    for item in ids:
+        if item not in seen:
+            seen.add(item)
+            kept.append(item)
+    return kept
 
 
 def render_lines(lines: list[DraftLine]) -> str:
@@ -58,12 +94,7 @@ def parse_lines(text: str) -> list[DraftLine]:
         match = _LINE.match(raw)
         role = match.group("role") if match else "body_text"
         body = match.group("text").strip() if match else raw
-
-        ids: list[str] = []
-        citation = _CITATION.search(body)
-        if citation:
-            ids = [item.strip() for item in citation.group("ids").split(",") if item.strip()]
-            body = body[: citation.start()].strip()
+        body, ids = split_citations(body)
         lines.append(DraftLine(role=role, text=body, achievement_ids=ids))
     return lines
 

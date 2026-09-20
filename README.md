@@ -275,6 +275,8 @@ than creating a second one, and the folder is remembered on the application.
 - A second pass (*grounding check*) compares every line of the output to the profile and flags unsupported claims, which are highlighted in the review screen.
 - Factual form questions (your name, first name, last name, email and phone, then work authorization, salary expectation, notice period, relocation, languages, ...) are answered **from your profile** (``identity`` and ``facts``), never generated. If a fact is missing, the field is left empty for you.
 
+Citations are metadata, never content. The `{id}` markers of the editable form are lifted out of the text before rendering, so none of them can reach the DOCX; a citation the model leaves inside a sentence is read as a citation and cited once, rather than printed.
+
 **Form answers.** Open questions ("Why do you want to join us?") get a draft that respects the max length, using your profile and the offer.
 
 **Review screen.** Side-by-side preview and editor for CV, letter and answers,
