@@ -123,7 +123,10 @@ footer {
 h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 0.4rem; }
 h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
 h3 { font-size: 0.95rem; margin: 1.15rem 0 0.5rem; }
-.lede { color: var(--muted); margin: 0 0 1.5rem; max-width: 62ch; }
+/* The line that introduces a page or a section. It takes the width it is given
+   instead of stopping early on its own, and it keeps a gap above so it never
+   sits flush under the title or the action buttons it follows. */
+.lede { color: var(--muted); margin: 0.85rem 0 1.5rem; max-width: none; }
 
 /* A second section inside one card keeps breathing room from the first. */
 .card > h2:not(:first-child) { margin-top: 1.5rem; }
@@ -390,6 +393,9 @@ ul.banner { padding-left: 2rem; }
 
 /* --- Profiler ---------------------------------------------------------- */
 
+/* The title row, with its action buttons on the right when there are any. It
+   keeps a gap from whatever it introduces, so the buttons are not glued to the
+   text below. */
 .page-head {
   display: flex;
   flex-wrap: wrap;
@@ -397,6 +403,7 @@ ul.banner { padding-left: 2rem; }
   justify-content: space-between;
   gap: 0.6rem 1rem;
 }
+.page-head:not(:last-child) { margin-bottom: 0.85rem; }
 
 .tag {
   font-size: 0.68rem;
