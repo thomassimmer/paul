@@ -20,13 +20,64 @@
     </div>
   </header>
 
+  {# The long pages put their quick navigation here; the other pages pass. #}
   <main class="container">
-    {% include "partials/flash.html" %}
-    {% block content %}{% endblock %}
+    {% block quick_nav %}{% endblock %}
+    <div class="content">
+      {% include "partials/flash.html" %}
+      {% block content %}{% endblock %}
+    </div>
   </main>
 
   <footer class="container">
     Local-first · data in <code>./data</code> · bound to <code>127.0.0.1</code>
   </footer>
+
+  <script>
+    // The header is sticky and wraps, so its height is only known once the page is
+    // laid out. Publish it so the quick navigation and the anchors below it leave
+    // the right room; the stylesheet's fallback covers no-JS.
+    (function () {
+      var header = document.querySelector("header");
+      if (!header) return;
+      function place() {
+        document.documentElement.style.setProperty("--nav-top", header.offsetHeight + "px");
+      }
+      place();
+      window.addEventListener("resize", place);
+    })();
+
+    // Which section is being read: the last one whose heading has passed under the
+    // header. Cheaper and more predictable than an observer band, and it survives
+    // the offer page swapping this list when a preparation adds sections.
+    (function () {
+      function paint() {
+        var nav = document.getElementById("quick-nav");
+        if (!nav) return;
+        var links = [];
+        var targets = [];
+        nav.querySelectorAll('a[href^="#"]').forEach(function (link) {
+          var target = document.getElementById(link.hash.slice(1));
+          if (!target) return;
+          links.push(link);
+          targets.push(target);
+        });
+        var header = document.querySelector("header");
+        var offset = (header ? header.offsetHeight : 0) + 24;
+        var current = 0;
+        targets.forEach(function (target, index) {
+          if (target.getBoundingClientRect().top - offset <= 0) current = index;
+        });
+        links.forEach(function (link, index) {
+          link.classList.toggle("active", index === current);
+        });
+      }
+      paint();
+      window.addEventListener("scroll", paint, { passive: true });
+      window.addEventListener("resize", paint);
+      document.addEventListener("htmx:afterSwap", paint);
+      document.addEventListener("htmx:oobAfterSwap", paint);
+    })();
+  </script>
 </body>
 </html>

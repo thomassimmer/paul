@@ -323,8 +323,14 @@ scores arrive.
 
 Opening an offer gives **one page** for everything about it: the structured offer
 and its actions, its verdict with the scoring axes and the elimination evidence,
-the tailored CV, cover letter and form answers, and the tracking form. A quick
-navigation sticks to the top of that page to move between the sections.
+the tailored CV, cover letter and form answers, and the tracking form.
+
+**Quick navigation.** The four long pages — the board, the offer page, the profile
+and the settings — carry a list of their sections. On a wide screen it is a sticky
+column on the left, in the room those pages leave empty, and the section you are
+reading is marked as you scroll; below that width the same list is the horizontal
+bar it started as, so a narrow window loses nothing. The offer page's list grows
+when a preparation adds the document sections.
 
 The onboarding checklist sits above the table and folds itself away once every
 step is done; it can always be reopened.

@@ -1,0 +1,15 @@
+{# The in-page quick navigation: one entry per section of the page it is used on.
+
+   Called by the four long pages. On a wide screen it is a sticky column on the
+   left, in the room those pages otherwise leave empty; below the breakpoint the
+   same list is a horizontal bar, so a narrow window loses nothing.
+
+   ``oob`` is for the offer page's polling endpoint: preparing adds the document
+   sections, so that answer swaps this list along with the documents. #}
+{% macro quick_nav(label, sections, oob=false) %}
+<nav class="quick-nav" id="quick-nav" aria-label="{{ label }}"{% if oob %} hx-swap-oob="outerHTML"{% endif %}>
+  {% for anchor, text in sections %}
+  <a href="#{{ anchor }}">{{ text }}</a>
+  {% endfor %}
+</nav>
+{% endmacro %}

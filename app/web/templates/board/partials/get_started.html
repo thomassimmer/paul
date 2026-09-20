@@ -1,6 +1,6 @@
 {# The onboarding checklist. It folds itself away once every step is done, and can
    always be reopened; nothing is stored, the counts below say what is left. #}
-<details class="collapse card" {% if not get_started.done %}open{% endif %}>
+<details class="collapse card" id="get-started" {% if not get_started.done %}open{% endif %}>
   <summary>
     <span class="collapse-title">Get started</span>
     <span class="hint">

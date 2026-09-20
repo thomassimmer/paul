@@ -1,5 +1,19 @@
 {% extends "base.html" %}
+{% from "partials/quick_nav.html" import quick_nav %}
 {% block title %}Profile{% endblock %}
+
+{% block quick_nav %}
+{% set sections = [('identity', 'Identity'), ('facts', 'Facts'), ('experience', 'Experience')] %}
+{# Only the cards that are actually rendered get an entry: the other two are
+   always there, so a link would go nowhere if they were listed blindly. #}
+{% if profile.education or profile.projects or profile.skills %}
+{% set sections = sections + [('education', 'Education & skills')] %}
+{% endif %}
+{% if profile.preferences %}
+{% set sections = sections + [('preferences', 'Preferences')] %}
+{% endif %}
+{{ quick_nav('Sections of this page', sections) }}
+{% endblock %}
 
 {% macro field(label, value) %}
   <dt>{{ label }}</dt>
@@ -30,7 +44,7 @@
 </p>
 {% endif %}
 
-<div class="card">
+<div class="card" id="identity">
   <h2>Identity</h2>
   <dl class="kv">
     {{ field('Name', profile.identity.name) }}
@@ -44,7 +58,7 @@
   </dl>
 </div>
 
-<div class="card">
+<div class="card" id="facts">
   <h2>Facts <span class="tag">answered by you</span></h2>
   <dl class="kv">
     {{ field('Work authorization', profile.facts.work_authorization) }}
@@ -56,7 +70,7 @@
   </dl>
 </div>
 
-<div class="card">
+<div class="card" id="experience">
   <h2>Experience <span class="tag">{{ summary.experiences }}</span></h2>
   {% for experience in profile.experiences %}
   <article class="entry">
@@ -92,7 +106,7 @@
 </div>
 
 {% if profile.education or profile.projects or profile.skills %}
-<div class="card">
+<div class="card" id="education">
   <h2>Education, projects and skills</h2>
 
   {% for education in profile.education %}
@@ -123,7 +137,7 @@
 {% endif %}
 
 {% if profile.preferences %}
-<div class="card">
+<div class="card" id="preferences">
   <h2>Preferences</h2>
   <dl class="kv">
     {{ field('Target roles', profile.preferences.target_roles | join(', ')) }}

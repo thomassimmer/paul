@@ -39,6 +39,15 @@ def test_settings_page_renders(client):
     assert 'name="wishes"' in response.text
 
 
+def test_the_settings_page_has_a_quick_navigation_over_its_sections(client):
+    page = client.get("/settings").text
+
+    assert 'class="quick-nav"' in page
+    for anchor in ("provider", "output", "criteria", "templates"):
+        assert f'href="#{anchor}"' in page
+        assert f'id="{anchor}"' in page
+
+
 def test_save_settings_redirects_and_persists(client):
     response = client.post("/settings", data=FORM, follow_redirects=False)
     assert response.status_code == 303

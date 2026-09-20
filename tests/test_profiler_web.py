@@ -240,6 +240,30 @@ def test_dashboard_links_to_the_profiler(client):
     assert "/profiler/import" in response.text
 
 
+def test_the_profile_page_has_a_quick_navigation_over_its_sections(client):
+    _seed_profile(client)
+
+    page = client.get("/profiler").text
+
+    assert 'class="quick-nav"' in page
+    for anchor in ("identity", "facts", "experience", "education", "preferences"):
+        assert f'href="#{anchor}"' in page
+        assert f'id="{anchor}"' in page
+
+
+def test_the_quick_navigation_skips_a_card_that_is_not_rendered(client):
+    store.save_profile(Profile(identity=Identity(name="Camille Moreau")))
+
+    page = client.get("/profiler").text
+
+    assert 'href="#identity"' in page
+    assert 'href="#preferences"' in page
+    # No education, project or skill: the card is not rendered, so neither is
+    # the link that would go nowhere.
+    assert 'href="#education"' not in page
+    assert 'id="education"' not in page
+
+
 def test_interview_answer_is_structured_when_a_model_is_configured(client, monkeypatch):
     profile = _seed_profile(client)
     save_settings(Settings(model="openai/gpt-4o"))

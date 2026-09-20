@@ -1,5 +1,15 @@
 {% extends "base.html" %}
+{% from "partials/quick_nav.html" import quick_nav %}
 {% block title %}Settings{% endblock %}
+
+{% block quick_nav %}
+{{ quick_nav('Sections of this page', [
+  ('provider', 'LLM provider'),
+  ('output', 'Output'),
+  ('criteria', 'Filtering and ranking'),
+  ('templates', 'Templates'),
+]) }}
+{% endblock %}
 
 {% block content %}
 <h1>Settings</h1>
@@ -19,7 +29,7 @@
 {% endif %}
 
 <form id="settings-form" method="post" action="/settings">
-  <section class="card">
+  <section class="card" id="provider">
     <h2>LLM provider</h2>
     <p class="hint">
       Any provider supported by
@@ -55,7 +65,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="output">
     <h2>Output</h2>
 
     <label for="output_language">Language</label>
@@ -82,7 +92,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="criteria">
     <h2>Filtering and ranking</h2>
     <p class="hint">Used by the ranker (<span class="soon">next milestone</span>). Stored with the settings and edited here or on the ranker page.</p>
 

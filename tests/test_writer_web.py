@@ -388,7 +388,10 @@ def test_the_documents_poll_refreshes_the_sections(client, monkeypatch):
     response = client.get(f"/offers/{offer_id}/progress")
     assert response.status_code == 200
     assert 'id="documents" hx-swap-oob="outerHTML"' in response.text
-    assert 'id="section-nav" hx-swap-oob="outerHTML"' in response.text
+    assert 'id="quick-nav"' in response.text
+    assert 'hx-swap-oob="outerHTML"' in response.text
+    # The list grew with the sections a preparation just created.
+    assert 'href="#cv"' in response.text
 
 
 # --- downloads -----------------------------------------------------------------
@@ -499,17 +502,28 @@ def test_the_preview_refuses_an_unknown_document(client, monkeypatch):
 # --- navigating a long review page ---------------------------------------------
 
 
-def test_the_review_links_to_its_sections(client, monkeypatch):
+def test_the_page_links_to_its_sections(client, monkeypatch):
     offer_id = _setup(monkeypatch)
     _run_inline(monkeypatch)
     _prepare(client, offer_id)
 
     page = client.get(f"/offers/{offer_id}")
 
-    assert 'class="section-nav"' in page.text
-    for anchor in ("checks", "cv", "letter", "answers"):
+    assert 'class="quick-nav"' in page.text
+    for anchor in ("offer", "ranking", "checks", "cv", "letter", "answers", "tracking"):
         assert f'href="#{anchor}"' in page.text
         assert f'id="{anchor}"' in page.text
+
+
+def test_the_quick_navigation_skips_the_sections_that_do_not_exist_yet(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+
+    page = client.get(f"/offers/{offer_id}").text
+
+    # Nothing is prepared, so there is nothing to point at.
+    assert 'href="#tracking"' in page
+    assert 'href="#cv"' not in page
+    assert 'id="cv"' not in page
 
 
 def test_the_checks_can_be_folded_away(client, monkeypatch):

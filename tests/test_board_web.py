@@ -319,7 +319,7 @@ def test_a_finished_job_stops_polling(client, monkeypatch):
 
 
 def test_the_checklist_is_open_on_a_fresh_install(client):
-    assert 'class="collapse card" open' in client.get("/").text
+    assert 'id="get-started" open' in client.get("/").text
 
 
 def test_the_checklist_folds_away_once_everything_is_done(client):
@@ -332,8 +332,22 @@ def test_the_checklist_folds_away_once_everything_is_done(client):
     tracker_store.set_status(offer_id, "applied", today=tracker_service.today_utc())
 
     page = client.get("/").text
-    assert 'class="collapse card" open' not in page
+    assert 'id="get-started" open' not in page
     assert "everything is set up" in page
+
+
+# --- the quick navigation -----------------------------------------------------
+
+
+def test_the_board_has_a_quick_navigation_over_its_sections(client):
+    page = client.get("/").text
+
+    assert 'class="quick-nav"' in page
+    assert 'href="#get-started"' in page
+    assert 'href="#offers"' in page
+    # Both targets exist, so neither link is dead.
+    assert 'id="get-started"' in page
+    assert 'id="offers"' in page
 
 
 # --- the navigation -----------------------------------------------------------

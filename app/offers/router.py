@@ -60,6 +60,19 @@ def _profile() -> Profile | None:
         return None
 
 
+def _nav_sections(prepared: bool) -> list[tuple[str, str]]:
+    """The offer page's sections, in reading order."""
+    sections = [("offer", "Offer"), ("ranking", "Ranking")]
+    if prepared:
+        sections += [
+            ("checks", "Checks"),
+            ("cv", "CV"),
+            ("letter", "Cover letter"),
+            ("answers", "Form answers"),
+        ]
+    return [*sections, ("tracking", "Tracking")]
+
+
 def _offer_context(record: OfferRecord) -> dict:
     """Everything the offer page shows: the offer, its verdict, its documents, its status.
 
@@ -90,6 +103,11 @@ def _offer_context(record: OfferRecord) -> dict:
         "status_labels": writer_jobs.STATUS_LABELS,
         "poll_url": f"/offers/{offer_id}/progress",
         "next_url": f"/offers/{offer_id}",
+        # The quick navigation. Built here rather than in the template so the page
+        # and its polling endpoint cannot drift: preparing an offer adds the four
+        # document sections, and the poll has to render the longer list.
+        "nav_label": "Sections of this offer",
+        "nav_sections": _nav_sections(prepared),
     }
     if prepared:
         assert profile is not None  # ``prepared`` already required it

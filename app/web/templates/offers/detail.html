@@ -1,5 +1,10 @@
 {% extends "base.html" %}
+{% from "partials/quick_nav.html" import quick_nav %}
 {% block title %}{{ offer.title or 'Offer' }}{% endblock %}
+
+{% block quick_nav %}
+{{ quick_nav(nav_label, nav_sections) }}
+{% endblock %}
 
 {% block content %}
 <div class="page-head">
@@ -46,10 +51,6 @@
 
 {% include "writer/partials/job.html" %}
 
-<div id="section-nav">
-  {% include "offers/partials/nav.html" %}
-</div>
-
 {% include "offers/partials/offer_body.html" %}
 {% include "offers/partials/ranking.html" %}
 
@@ -60,20 +61,6 @@
 {% include "offers/partials/tracking.html" %}
 
 <script>
-  // The header is sticky and wraps, so its height is only known once the page is
-  // laid out. Publish it so the section nav tucks right under it and the anchors
-  // know how much room to leave. Without the script the stylesheet's default is
-  // used: the nav is only a little lower on narrow screens.
-  (function () {
-    var header = document.querySelector("header");
-    if (!header) return;
-    function place() {
-      document.documentElement.style.setProperty("--nav-top", header.offsetHeight + "px");
-    }
-    place();
-    window.addEventListener("resize", place);
-  })();
-
   // Adding a line without knowing the vocabulary: the buttons above each editor
   // drop the "[role] " prefix at the caret. The caret is remembered on blur,
   // because clicking a button has already taken focus away from the textarea by

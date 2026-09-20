@@ -1,9 +1,8 @@
-{# Answer to the poll: the job panel, plus the navigation and the documents swapped
-   out of band (preparing adds the sections the navigation points at). #}
+{# Answer to the poll: the job panel, plus the quick navigation and the documents
+   swapped out of band (a preparation adds the sections the navigation points at). #}
+{% from "partials/quick_nav.html" import quick_nav %}
 {% include "writer/partials/job.html" %}
-<div id="section-nav" hx-swap-oob="outerHTML">
-  {% include "offers/partials/nav.html" %}
-</div>
+{{ quick_nav(nav_label, nav_sections, true) }}
 <div id="documents" hx-swap-oob="outerHTML">
   {% include "offers/partials/documents.html" %}
 </div>
