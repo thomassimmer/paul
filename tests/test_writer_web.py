@@ -510,7 +510,7 @@ def test_the_page_links_to_its_sections(client, monkeypatch):
     page = client.get(f"/offers/{offer_id}")
 
     assert 'class="quick-nav"' in page.text
-    for anchor in ("offer", "ranking", "checks", "cv", "letter", "answers", "tracking"):
+    for anchor in ("overview", "ranking", "checks", "cv", "letter", "answers", "tracking"):
         assert f'href="#{anchor}"' in page.text
         assert f'id="{anchor}"' in page.text
 

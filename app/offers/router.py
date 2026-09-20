@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse
 
 from app.config import load_settings
 from app.llm import LLMError
-from app.models import OfferRecord, Profile
+from app.models import Offer, OfferRecord, Profile
 from app.offers import clean, editor, service, store
 from app.profiler import store as profile_store
 from app.ranking import store as ranking_store
@@ -60,17 +60,36 @@ def _profile() -> Profile | None:
         return None
 
 
-def _nav_sections(prepared: bool) -> list[tuple[str, str]]:
-    """The offer page's sections, in reading order."""
-    sections = [("offer", "Offer"), ("ranking", "Ranking")]
+def _nav_sections(offer: Offer, prepared: bool) -> list[dict]:
+    """The offer page's sections, in reading order.
+
+    The offer's own cards are grouped under one label: there are seven of them and
+    they would otherwise bury the four other sections.
+    """
+    cards = [
+        {"anchor": "overview", "label": "Overview"},
+        {"anchor": "responsibilities", "label": "Responsibilities"},
+        {"anchor": "requirements", "label": "Requirements"},
+        {"anchor": "keywords", "label": "Keywords"},
+    ]
+    # Only the cards the page actually renders: the other two are conditional.
+    if offer.constraints.stated:
+        cards.append({"anchor": "constraints", "label": "Constraints"})
+    if offer.company_info.stated:
+        cards.append({"anchor": "company", "label": "Company"})
+    cards.append({"anchor": "application-form", "label": "Application form"})
+
+    sections: list[dict] = [{"label": "Offer", "children": cards}]
+    sections.append({"anchor": "ranking", "label": "Ranking"})
     if prepared:
         sections += [
-            ("checks", "Checks"),
-            ("cv", "CV"),
-            ("letter", "Cover letter"),
-            ("answers", "Form answers"),
+            {"anchor": "checks", "label": "Checks"},
+            {"anchor": "cv", "label": "CV"},
+            {"anchor": "letter", "label": "Cover letter"},
+            {"anchor": "answers", "label": "Form answers"},
         ]
-    return [*sections, ("tracking", "Tracking")]
+    sections.append({"anchor": "tracking", "label": "Tracking"})
+    return sections
 
 
 def _offer_context(record: OfferRecord) -> dict:
@@ -107,7 +126,7 @@ def _offer_context(record: OfferRecord) -> dict:
         # and its polling endpoint cannot drift: preparing an offer adds the four
         # document sections, and the poll has to render the longer list.
         "nav_label": "Sections of this offer",
-        "nav_sections": _nav_sections(prepared),
+        "nav_sections": _nav_sections(record.offer, prepared),
     }
     if prepared:
         assert profile is not None  # ``prepared`` already required it

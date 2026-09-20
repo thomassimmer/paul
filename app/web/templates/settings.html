@@ -4,10 +4,10 @@
 
 {% block quick_nav %}
 {{ quick_nav('Sections of this page', [
-  ('provider', 'LLM provider'),
-  ('output', 'Output'),
-  ('criteria', 'Filtering and ranking'),
-  ('templates', 'Templates'),
+  {'anchor': 'provider', 'label': 'LLM provider'},
+  {'anchor': 'output', 'label': 'Output'},
+  {'anchor': 'criteria', 'label': 'Filtering and ranking'},
+  {'anchor': 'templates', 'label': 'Templates'},
 ]) }}
 {% endblock %}
 

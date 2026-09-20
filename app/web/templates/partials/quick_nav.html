@@ -2,14 +2,24 @@
 
    Called by the four long pages. On a wide screen it is a sticky column on the
    left, in the room those pages otherwise leave empty; below the breakpoint the
-   same list is a horizontal bar, so a narrow window loses nothing.
+   same list is a horizontal bar, so a narrow window loses nothing. A group folds
+   its sub-sections under a label in the column, and flattens into the bar.
 
    ``oob`` is for the offer page's polling endpoint: preparing adds the document
    sections, so that answer swaps this list along with the documents. #}
 {% macro quick_nav(label, sections, oob=false) %}
 <nav class="quick-nav" id="quick-nav" aria-label="{{ label }}"{% if oob %} hx-swap-oob="outerHTML"{% endif %}>
-  {% for anchor, text in sections %}
-  <a href="#{{ anchor }}">{{ text }}</a>
+  {% for section in sections %}
+  {% if section.children %}
+  <span class="quick-nav-group">{{ section.label }}</span>
+  <div class="quick-nav-sub">
+    {% for child in section.children %}
+    <a href="#{{ child.anchor }}">{{ child.label }}</a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <a href="#{{ section.anchor }}">{{ section.label }}</a>
+  {% endif %}
   {% endfor %}
 </nav>
 {% endmacro %}

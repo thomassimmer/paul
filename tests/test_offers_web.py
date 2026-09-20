@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.config import Settings, save_settings
-from app.models import OfferDraft, Requirements
+from app.models import CompanyInfo, Constraints, OfferDraft, Requirements
 from app.offers import store
 
 FRAGMENT = """
@@ -182,6 +182,24 @@ def test_missing_offer_redirects_to_the_board(client):
     response = client.get("/offers/9999", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"] == "/"
+
+
+def test_the_optional_offer_cards_are_listed_in_the_navigation(client):
+    offer = OfferDraft(
+        title="Backend Engineer",
+        company="Acme",
+        constraints=Constraints(clearance="SC"),
+        company_info=CompanyInfo(size="120"),
+    ).to_offer([])
+    offer_id = store.save_offer(offer, raw="", cleaned="", source="text").id
+
+    page = client.get(f"/offers/{offer_id}").text
+
+    # Both cards are rendered, so both are in the quick navigation.
+    assert 'id="constraints"' in page
+    assert 'href="#constraints"' in page
+    assert 'id="company"' in page
+    assert 'href="#company"' in page
 
 
 def test_the_offer_page_offers_to_prepare_the_documents(client, monkeypatch):

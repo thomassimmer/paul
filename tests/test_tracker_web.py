@@ -98,8 +98,29 @@ def test_the_offer_page_navigates_to_the_tracking(client):
     offer_id = _seed_offer()
     page = client.get(f"/offers/{offer_id}").text
     assert 'href="#tracking"' in page
-    assert 'href="#offer"' in page
+    assert 'href="#overview"' in page
     assert 'href="#ranking"' in page
+
+
+def test_the_offer_cards_are_sub_items_of_the_navigation(client):
+    offer_id = _seed_offer()
+    page = client.get(f"/offers/{offer_id}").text
+
+    assert 'class="quick-nav-group">Offer<' in page
+    assert 'class="quick-nav-sub"' in page
+    for anchor in ("overview", "responsibilities", "requirements", "keywords", "application-form"):
+        assert f'href="#{anchor}"' in page
+        assert f'id="{anchor}"' in page
+
+
+def test_the_navigation_skips_the_offer_cards_that_are_not_rendered(client):
+    offer_id = _seed_offer()  # nothing said about constraints or the company
+    page = client.get(f"/offers/{offer_id}").text
+
+    assert 'id="constraints"' not in page
+    assert 'href="#constraints"' not in page
+    assert 'id="company"' not in page
+    assert 'href="#company"' not in page
 
 
 def test_followup_delay_is_repeated_on_the_tracking_form(client):

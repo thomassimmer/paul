@@ -329,8 +329,9 @@ the tailored CV, cover letter and form answers, and the tracking form.
 and the settings — carry a list of their sections. On a wide screen it is a sticky
 column on the left, in the room those pages leave empty, and the section you are
 reading is marked as you scroll; below that width the same list is the horizontal
-bar it started as, so a narrow window loses nothing. The offer page's list grows
-when a preparation adds the document sections.
+bar it started as, so a narrow window loses nothing. The offer page groups the
+seven cards about the offer itself under one heading, and grows the document
+sections when a preparation adds them.
 
 The onboarding checklist sits above the table and folds itself away once every
 step is done; it can always be reopened.

@@ -148,6 +148,23 @@ class Constraints(BaseModel):
     language_level: str = ""
     clearance: str = ""
 
+    @property
+    def stated(self) -> bool:
+        """True when the offer states at least one constraint.
+
+        One property, so the card and the quick navigation agree on whether the
+        section exists instead of each repeating the same list of fields.
+        """
+        return any(
+            (
+                self.work_authorization,
+                self.citizenship,
+                self.on_site,
+                self.language_level,
+                self.clearance,
+            )
+        )
+
 
 class CompanyInfo(BaseModel):
     """Only what the pasted content states. Never guessed."""
@@ -156,6 +173,11 @@ class CompanyInfo(BaseModel):
     funding: str = ""
     domain: str = ""
     mission: str = ""
+
+    @property
+    def stated(self) -> bool:
+        """True when the offer states at least one company fact."""
+        return any((self.size, self.funding, self.domain, self.mission))
 
 
 class FormQuestion(BaseModel):

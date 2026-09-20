@@ -3,7 +3,10 @@
 {% block title %}Offers{% endblock %}
 
 {% block quick_nav %}
-{{ quick_nav('Sections of this page', [('get-started', 'Get started'), ('offers', 'Offers')]) }}
+{{ quick_nav('Sections of this page', [
+  {'anchor': 'get-started', 'label': 'Get started'},
+  {'anchor': 'offers', 'label': 'Offers'},
+]) }}
 {% endblock %}
 
 {% block content %}

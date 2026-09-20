@@ -1,5 +1,6 @@
-{# What the offer says: the structured record, as read back by the analyzer. #}
-<div class="card" id="offer">
+{# What the offer says: the structured record, as read back by the analyzer.
+   Each card is a target of the page's quick navigation. #}
+<div class="card" id="overview">
   <h2>Overview</h2>
   <dl class="kv">
     <dt>Seniority</dt><dd>{{ offer.seniority or '—' }}</dd>
@@ -10,14 +11,14 @@
   </dl>
 </div>
 
-<div class="card">
+<div class="card" id="responsibilities">
   <h2>Responsibilities</h2>
   {% if offer.responsibilities %}
   <ul>{% for item in offer.responsibilities %}<li>{{ item }}</li>{% endfor %}</ul>
   {% else %}<p class="missing">Not stated in the pasted content.</p>{% endif %}
 </div>
 
-<div class="card">
+<div class="card" id="requirements">
   <h2>Requirements</h2>
   <h4>Must have</h4>
   {% if offer.requirements.must_have %}
@@ -29,7 +30,7 @@
   {% else %}<p class="missing">None extracted.</p>{% endif %}
 </div>
 
-<div class="card">
+<div class="card" id="keywords">
   <h2>Keywords <span class="tag">{{ offer.keywords | length }}</span></h2>
   {% if offer.keywords %}
   <ul class="keywords">
@@ -43,11 +44,8 @@
   {% else %}<p class="missing">None extracted.</p>{% endif %}
 </div>
 
-{% set constraints = [offer.constraints.work_authorization, offer.constraints.citizenship,
-                      offer.constraints.on_site, offer.constraints.language_level,
-                      offer.constraints.clearance] %}
-{% if constraints | select | list %}
-<div class="card">
+{% if offer.constraints.stated %}
+<div class="card" id="constraints">
   <h2>Constraints</h2>
   <dl class="kv">
     <dt>Work authorization</dt><dd>{{ offer.constraints.work_authorization or '—' }}</dd>
@@ -59,10 +57,8 @@
 </div>
 {% endif %}
 
-{% set company = [offer.company_info.size, offer.company_info.funding,
-                  offer.company_info.domain, offer.company_info.mission] %}
-{% if company | select | list %}
-<div class="card">
+{% if offer.company_info.stated %}
+<div class="card" id="company">
   <h2>Company <span class="tag">from the offer text</span></h2>
   <dl class="kv">
     <dt>Size</dt><dd>{{ offer.company_info.size or '—' }}</dd>
@@ -73,7 +69,7 @@
 </div>
 {% endif %}
 
-<div class="card">
+<div class="card" id="application-form">
   <h2>Application form <span class="tag">{{ offer.form | length }} question(s)</span></h2>
   {% if offer.form %}
   <ol class="questions">
