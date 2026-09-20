@@ -23,6 +23,7 @@ FRAGMENT = """
 """
 
 MODEL = Settings(model="openai/gpt-4o")
+URL = "https://example.com/jobs/42"
 
 
 def _draft(**overrides) -> OfferDraft:
@@ -54,7 +55,7 @@ def _patch_extract(monkeypatch, draft: OfferDraft | None = None, error: Exceptio
 
 def test_analyze_stores_the_offer_with_the_parsed_form(monkeypatch):
     calls = _patch_extract(monkeypatch)
-    outcome = asyncio.run(service.analyze(MODEL, [FRAGMENT]))
+    outcome = asyncio.run(service.analyze(MODEL, [FRAGMENT], url=URL))
 
     assert outcome.level == "ok"
     assert outcome.record.id > 0
@@ -62,6 +63,8 @@ def test_analyze_stores_the_offer_with_the_parsed_form(monkeypatch):
     # The form came from the markup, not from the model.
     assert [q.name for q in outcome.record.offer.form] == ["why"]
     assert outcome.record.source == "html"
+    # The link given at import is kept with the offer.
+    assert outcome.record.url == URL
     # The model only ever sees the cleaned text.
     assert calls and "Why do you want to join us?" not in calls[0]
     assert store.load_offer(outcome.record.id) is not None
@@ -69,7 +72,7 @@ def test_analyze_stores_the_offer_with_the_parsed_form(monkeypatch):
 
 def test_analyze_warns_about_what_could_not_be_read(monkeypatch):
     _patch_extract(monkeypatch, _draft(company="", location="", responsibilities=[]))
-    outcome = asyncio.run(service.analyze(MODEL, [FRAGMENT]))
+    outcome = asyncio.run(service.analyze(MODEL, [FRAGMENT], url=URL))
 
     assert outcome.level == "warning"
     assert "could not be read" in outcome.notice
@@ -79,7 +82,9 @@ def test_analyze_warns_about_what_could_not_be_read(monkeypatch):
 
 def test_analyze_warns_when_no_form_was_pasted(monkeypatch):
     _patch_extract(monkeypatch)
-    outcome = asyncio.run(service.analyze(MODEL, ["<div><p>A description with no form in it at all.</p></div>"]))
+    outcome = asyncio.run(
+        service.analyze(MODEL, ["<div><p>A description with no form in it at all.</p></div>"], url=URL)
+    )
     assert "no application form" in outcome.notice
 
 
@@ -88,7 +93,7 @@ def test_analyze_merges_several_fragments(monkeypatch):
     description = "<div><p>Acme is hiring a backend engineer for its ingestion team.</p></div>"
     form = '<form><label for="q">Why us?</label><input id="q" name="q"></form>'
 
-    outcome = asyncio.run(service.analyze(MODEL, [description, form]))
+    outcome = asyncio.run(service.analyze(MODEL, [description, form], url=URL))
 
     assert outcome.record.source == "html"
     assert [q.name for q in outcome.record.offer.form] == ["q"]
@@ -98,24 +103,24 @@ def test_analyze_merges_several_fragments(monkeypatch):
 
 def test_analyze_needs_something_pasted():
     with pytest.raises(clean.CleanError):
-        asyncio.run(service.analyze(MODEL, ["   ", ""]))
+        asyncio.run(service.analyze(MODEL, ["   ", ""], url=URL))
 
 
 def test_analyze_needs_a_model(monkeypatch):
     _patch_extract(monkeypatch)
     with pytest.raises(LLMError, match="No model configured"):
-        asyncio.run(service.analyze(Settings(), [FRAGMENT]))
+        asyncio.run(service.analyze(Settings(), [FRAGMENT], url=URL))
 
 
 def test_analyze_reports_a_provider_failure(monkeypatch):
     _patch_extract(monkeypatch, error=LLMError("provider is down"))
     with pytest.raises(LLMError, match="provider is down"):
-        asyncio.run(service.analyze(MODEL, [FRAGMENT]))
+        asyncio.run(service.analyze(MODEL, [FRAGMENT], url=URL))
 
 
 def test_reanalyze_keeps_the_form_and_updates_the_rest(monkeypatch):
     _patch_extract(monkeypatch)
-    outcome = asyncio.run(service.analyze(MODEL, [FRAGMENT]))
+    outcome = asyncio.run(service.analyze(MODEL, [FRAGMENT], url=URL))
     offer_id = outcome.record.id
 
     _patch_extract(monkeypatch, _draft(title="Backend Engineer (Rust)", company="Acme"))
@@ -129,7 +134,7 @@ def test_reanalyze_keeps_the_form_and_updates_the_rest(monkeypatch):
 
 def test_reanalyze_needs_a_model(monkeypatch):
     _patch_extract(monkeypatch)
-    outcome = asyncio.run(service.analyze(MODEL, [FRAGMENT]))
+    outcome = asyncio.run(service.analyze(MODEL, [FRAGMENT], url=URL))
     with pytest.raises(LLMError, match="No model configured"):
         asyncio.run(service.reanalyze(Settings(), outcome.record))
 

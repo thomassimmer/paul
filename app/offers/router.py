@@ -174,6 +174,7 @@ async def offer_new(request: Request):
         "offers/new.html",
         active="offers",
         fragments=[""],
+        url="",
         settings=load_settings(),
     )
 
@@ -182,7 +183,21 @@ async def offer_new(request: Request):
 async def offer_analyze(request: Request):
     form = await request.form()
     fragments = [str(form.get(f"fragment.{index}") or "") for index in range(_number(form, "fragment_count"))]
+    url = str(form.get("url") or "").strip()
     settings = load_settings()
+
+    # The link is required: without it the offer cannot be found again later.
+    if not url:
+        return render(
+            request,
+            "offers/new.html",
+            active="offers",
+            fragments=_slots(fragments),
+            url=url,
+            settings=settings,
+            error="The offer's link is required: paste the URL of the posting you copied.",
+            status_code=400,
+        )
 
     # The local half runs here, so a fragment that cannot be read is still
     # reported on the page: there is no point starting a run for it.
@@ -196,6 +211,7 @@ async def offer_analyze(request: Request):
             "offers/new.html",
             active="offers",
             fragments=_slots(fragments),
+            url=url,
             settings=settings,
             error=str(exc),
             status_code=400,
@@ -204,22 +220,23 @@ async def offer_analyze(request: Request):
     await background.start(
         ANALYZE,
         "Analyzing the offer…",
-        _analyze_work(settings, parts, cleaned),
+        _analyze_work(settings, parts, cleaned, url),
     )
     return render(
         request,
         "offers/new.html",
         active="offers",
         fragments=_slots(fragments),
+        url=url,
         settings=settings,
         run=background.current(ANALYZE),
         poll_url="/offers/new/status",
     )
 
 
-def _analyze_work(settings, parts, cleaned):
+def _analyze_work(settings, parts, cleaned, url: str):
     async def work(run: background.Run) -> None:
-        outcome = await service.extract_and_store(settings, parts, cleaned)
+        outcome = await service.extract_and_store(settings, parts, cleaned, url=url)
         run.message = outcome.notice
         run.level = outcome.level
         run.return_url = f"/offers/{outcome.record.id}"

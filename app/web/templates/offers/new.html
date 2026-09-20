@@ -10,7 +10,8 @@
 </p>
 
 <p class="hint">
-  To get the fragment: open the offer, right-click the block you want,
+  Give the offer's <strong>link</strong> too: it is what lets you find the posting
+  again later. To get the fragment: open the offer, right-click the block you want,
   <em>Inspect</em>, right-click the element, <em>Copy outerHTML</em>, and paste it
   below. Content loaded in another frame, or behind another click, has to be
   pasted separately.
@@ -30,6 +31,11 @@
 {% include "partials/background.html" %}
 
 <form method="post" action="/offers/new" class="card">
+  <label for="url">Offer link</label>
+  <input id="url" name="url" type="url" value="{{ url }}" required
+         placeholder="https://…">
+  <p class="hint">The page you copied the offer from. Required.</p>
+
   <input type="hidden" name="fragment_count" value="{{ fragments | length }}">
   {% for fragment in fragments %}
   <label for="fragment.{{ loop.index0 }}">Fragment {{ loop.index }}</label>

@@ -22,12 +22,14 @@ def _record(row) -> OfferRecord:
     )
 
 
-def save_offer(offer: Offer, *, raw: str, cleaned: str, source: str) -> OfferRecord:
+def save_offer(
+    offer: Offer, *, raw: str, cleaned: str, source: str, url: str = ""
+) -> OfferRecord:
     db.init_db()
     with db.connect() as conn:
         cursor = conn.execute(
-            "INSERT INTO offers (source, raw, cleaned, offer_json) VALUES (?, ?, ?, ?)",
-            (source, raw, cleaned, offer.model_dump_json()),
+            "INSERT INTO offers (source, url, raw, cleaned, offer_json) VALUES (?, ?, ?, ?, ?)",
+            (source, url, raw, cleaned, offer.model_dump_json()),
         )
         offer_id = int(cursor.lastrowid or 0)
     record = load_offer(offer_id)

@@ -46,7 +46,12 @@ def test_update_replaces_the_extracted_offer():
 
 def test_the_posting_url_is_saved_and_survives_a_re_analysis():
     record = store.save_offer(_offer("Old"), raw="", cleaned="", source="text")
-    assert record.url == ""  # the analyzer never sees the address bar
+    assert record.url == ""  # no link given: nothing is invented
+
+    imported = store.save_offer(
+        _offer("Imported"), raw="", cleaned="", source="text", url="https://example.com/jobs/7"
+    )
+    assert imported.url == "https://example.com/jobs/7"
 
     store.update_offer(record.id, _offer("New"), url="https://example.com/jobs/42")
     saved = store.load_offer(record.id)

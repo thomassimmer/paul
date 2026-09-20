@@ -27,6 +27,8 @@ DRAFT = OfferDraft(
     requirements=Requirements(must_have=["Rust"], nice_to_have=["Kafka"]),
 )
 
+URL = "https://example.com/jobs/42"
+
 
 def _run_inline(monkeypatch) -> None:
     """Run the analysis at once instead of in the background, so tests are deterministic."""
@@ -51,7 +53,7 @@ def _analyze(client) -> int:
     """Analyze FRAGMENT and return the new offer id."""
     response = client.post(
         "/offers/new",
-        data={"fragment_count": "1", "fragment.0": FRAGMENT},
+        data={"url": URL, "fragment_count": "1", "fragment.0": FRAGMENT},
         follow_redirects=False,
     )
     assert response.status_code == 200
@@ -70,6 +72,39 @@ def test_new_offer_page_explains_how_to_copy_a_fragment(client):
     response = client.get("/offers/new")
     assert response.status_code == 200
     assert "Copy outerHTML" in response.text
+    # The link is part of the form, and required.
+    assert 'name="url"' in response.text
+    assert "required" in response.text
+
+
+def test_analyze_requires_the_offer_link(client, monkeypatch):
+    save_settings(Settings(model="openai/gpt-4o"))
+    _patch_extract(monkeypatch)
+
+    response = client.post(
+        "/offers/new",
+        data={"fragment_count": "1", "fragment.0": FRAGMENT},
+    )
+
+    assert response.status_code == 400
+    assert "link is required" in response.text
+    # The pasted fragment is kept so it does not have to be copied again.
+    assert "Senior Backend Engineer" in response.text
+    assert store.count_offers() == 0
+
+
+def test_analyze_stores_the_link_it_was_given(client, monkeypatch):
+    save_settings(Settings(model="openai/gpt-4o"))
+    _patch_extract(monkeypatch)
+
+    offer_id = _analyze(client)
+
+    record = store.load_offer(offer_id)
+    assert record is not None
+    assert record.url == URL
+    page = client.get(f"/offers/{offer_id}").text
+    assert f'href="{URL}"' in page
+    assert "Open posting" in page
 
 
 def test_analyze_redirects_to_the_offer(client, monkeypatch):
@@ -91,7 +126,7 @@ def test_analyze_needs_a_model_and_keeps_the_pasted_fragment(client):
     # reported on the page rather than after a redirect.
     response = client.post(
         "/offers/new",
-        data={"fragment_count": "1", "fragment.0": FRAGMENT},
+        data={"url": URL, "fragment_count": "1", "fragment.0": FRAGMENT},
     )
 
     assert response.status_code == 400
@@ -103,7 +138,9 @@ def test_analyze_needs_a_model_and_keeps_the_pasted_fragment(client):
 
 def test_analyze_with_empty_input_explains_what_to_paste(client):
     save_settings(Settings(model="openai/gpt-4o"))
-    response = client.post("/offers/new", data={"fragment_count": "1", "fragment.0": "  "})
+    response = client.post(
+        "/offers/new", data={"url": URL, "fragment_count": "1", "fragment.0": "  "}
+    )
     assert response.status_code == 400
     assert "Paste the offer" in response.text
 
@@ -170,7 +207,7 @@ def test_the_posting_url_is_saved_and_linked_on_the_offer_page(client, monkeypat
         f"/offers/{offer_id}/edit",
         data={
             "title": "Senior Backend Engineer",
-            "url": "https://example.com/jobs/42",
+            "url": "https://example.com/jobs/43",
             "form_count": "0",
         },
         follow_redirects=False,
@@ -179,27 +216,24 @@ def test_the_posting_url_is_saved_and_linked_on_the_offer_page(client, monkeypat
 
     record = store.load_offer(offer_id)
     assert record is not None
-    assert record.url == "https://example.com/jobs/42"
+    assert record.url == "https://example.com/jobs/43"
 
     page = client.get(f"/offers/{offer_id}").text
-    assert 'href="https://example.com/jobs/42"' in page
+    assert 'href="https://example.com/jobs/43"' in page
     assert "Open posting" in page
 
 
 def test_a_re_analysis_keeps_the_posting_url(client, monkeypatch):
     save_settings(Settings(model="openai/gpt-4o"))
     _patch_extract(monkeypatch)
-    offer_id = _analyze(client)
-    record = store.load_offer(offer_id)
-    assert record is not None
-    store.update_offer(offer_id, record.offer, url="https://example.com/jobs/42")
+    offer_id = _analyze(client)  # stores the link it was imported with
 
     _patch_extract(monkeypatch, OfferDraft(title="Backend Engineer", company="Acme"))
     client.post(f"/offers/{offer_id}/reanalyze", follow_redirects=False)
 
     record = store.load_offer(offer_id)
     assert record is not None
-    assert record.url == "https://example.com/jobs/42"
+    assert record.url == URL
 
 
 def test_offer_can_be_analyzed_again(client, monkeypatch):
@@ -228,7 +262,7 @@ def test_the_analyze_page_shows_the_run_while_it_works(client, monkeypatch):
 
     monkeypatch.setattr("app.background.start", no_wait)
     response = client.post(
-        "/offers/new", data={"fragment_count": "1", "fragment.0": FRAGMENT}
+        "/offers/new", data={"url": URL, "fragment_count": "1", "fragment.0": FRAGMENT}
     )
 
     assert response.status_code == 200

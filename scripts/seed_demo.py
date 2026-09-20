@@ -138,7 +138,9 @@ def seed(*, model: str = "", today: date | None = None) -> dict:
         html = _fragment(entry)
         cleaned = offers_clean.clean_fragments([html])
         offer = Offer(**entry["offer"], form=cleaned.form)
-        record = offers_store.save_offer(offer, raw=html, cleaned=cleaned.text, source="html")
+        record = offers_store.save_offer(
+            offer, raw=html, cleaned=cleaned.text, source="html", url=entry.get("url", "")
+        )
         written.append(f"{offer.company} — {offer.title}")
 
         if "elimination" in entry:

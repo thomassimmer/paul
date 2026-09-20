@@ -48,6 +48,8 @@ def test_seed_writes_a_workspace_the_app_reads_back():
 
     records = offers_store.list_offers()
     assert len(records) == 5
+    # Every offer carries the link it was imported with.
+    assert all(record.url.startswith("https://") for record in records)
     # The board lists by descending id: the best offer is written last, shown first.
     assert records[0].offer.company == "Sentinel Health"
 
