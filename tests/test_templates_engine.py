@@ -149,6 +149,41 @@ def test_rendering_replaces_the_sample_text_and_keeps_the_style():
     assert name.runs[0].font.size == Pt(22)
 
 
+def test_a_skills_line_keeps_its_category_style():
+    document = Document()
+    paragraph = document.add_paragraph()
+    category = paragraph.add_run("Security:")
+    category.bold = True
+    paragraph.add_run(" OSCP · Audits")
+    buffer = BytesIO()
+    document.save(buffer)
+    docx_bytes = buffer.getvalue()
+
+    blueprint = store.blueprint_from_blocks(
+        "cv", extract.extract_blocks(docx_bytes), ["skill_line"]
+    )
+    result = render.render(
+        docx_bytes, blueprint, [DraftLine(role="skill_line", text="Languages: Rust, Python")]
+    )
+
+    rendered = Document(BytesIO(result)).paragraphs[0]
+    assert rendered.text == "Languages: Rust, Python"
+    assert [run.text for run in rendered.runs] == ["Languages:", " Rust, Python"]
+    assert rendered.runs[0].bold is True
+    assert rendered.runs[1].bold is not True
+
+
+def test_a_skills_line_without_a_category_style_stays_one_run():
+    base, blueprint = default.build("cv")
+    rendered = Document(
+        BytesIO(
+            render.render(base, blueprint, [DraftLine(role="skill_line", text="Security: OSCP")])
+        )
+    ).paragraphs[0]
+    assert rendered.text == "Security: OSCP"
+    assert len(rendered.runs) == 1
+
+
 def test_rendering_creates_a_missing_section_from_a_close_prototype():
     base, complete = default.build("cv")
     # A template that styles section titles but has no bullet of its own.

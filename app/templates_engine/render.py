@@ -8,6 +8,7 @@ keeps fonts, colours, numbering and borders without approximating anything.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from io import BytesIO
 
 from docx import Document
@@ -32,7 +33,7 @@ def render(base_docx: bytes, blueprint: TemplateBlueprint, lines: list[DraftLine
             element = paragraph._p
         else:
             element = parse_xml(xml)
-            _fill(element, line.text)
+            _fill(element, line.text, line.role)
         if section_properties is not None:
             section_properties.addprevious(element)
         else:
@@ -51,30 +52,71 @@ def _clear_body(document: DocumentType) -> None:
             body.remove(child)
 
 
-def _fill(paragraph, text: str) -> None:
-    """Put ``text`` in a copied paragraph, re-using the first run's formatting.
+def _fill(paragraph, text: str, role: str) -> None:
+    """Put ``text`` in a copied paragraph, re-using the runs' formatting.
 
-    Everything else goes: the other runs, hyperlink wrappers, tabs and images.
-    The paragraph properties stay, which is what keeps indentation, numbering,
-    borders and shading.
+    A paragraph collapses into a single run wearing the first run's formatting:
+    the other runs, hyperlink wrappers, tabs and images go. The paragraph
+    properties stay, which is what keeps indentation, numbering, borders and
+    shading.
+
+    A skills line is the exception. The template may style its category apart from
+    its values ("Security:" in bold, the rest plain), and that contrast is worth
+    keeping: the text is split where the template splits it, at the colon.
     """
     runs = list(paragraph.iter(qn("w:r")))
-    template_run = runs[0] if runs else None
-    if template_run is not None:
-        template_run.getparent().remove(template_run)
+    plain = _properties(runs[0]) if runs else None
+    category, values = _skill_styles(runs) if role == "skill_line" else (None, None)
+    _clear(paragraph)
 
+    if category is None and values is None:
+        _append_run(paragraph, text, plain)
+        return
+    head, colon, tail = text.partition(":")
+    if not colon:  # no category in the text: it is all values
+        _append_run(paragraph, text, values)
+        return
+    _append_run(paragraph, head + colon, category)
+    _append_run(paragraph, tail, values)
+
+
+def _clear(paragraph) -> None:
+    """Keep the paragraph properties, which carry the layout; drop the content."""
     for child in list(paragraph):
         if child.tag != qn("w:pPr"):
             paragraph.remove(child)
 
-    run = template_run if template_run is not None else OxmlElement("w:r")
-    for child in list(run):
-        if child.tag != qn("w:rPr"):
-            run.remove(child)
-    paragraph.append(run)
 
+def _skill_styles(runs) -> tuple[object, object]:
+    """The (category, values) formatting a skills line shows, when it shows both.
+
+    The template's own text says which run holds the category: the one carrying
+    the colon. The run that follows is the values' style. A line whose category
+    and values share a single run has no contrast to keep, and is rendered plain.
+    """
+    colon = next((index for index, run in enumerate(runs) if ":" in _run_text(run)), None)
+    if colon is None or colon + 1 >= len(runs):
+        return None, None
+    return _properties(runs[colon]), _properties(runs[colon + 1])
+
+
+def _properties(run):
+    """A copy of a run's formatting, ready for a new run; ``None`` if it has none."""
+    properties = run.find(qn("w:rPr"))
+    return deepcopy(properties) if properties is not None else None
+
+
+def _run_text(run) -> str:
+    return "".join(node.text or "" for node in run.iter(qn("w:t")))
+
+
+def _append_run(paragraph, text: str, properties) -> None:
+    run = OxmlElement("w:r")
+    if properties is not None:
+        run.append(properties)
     text_element = OxmlElement("w:t")
     # Without this, Word collapses leading and trailing spaces.
     text_element.set(qn("xml:space"), "preserve")
     text_element.text = text
     run.append(text_element)
+    paragraph.append(run)
