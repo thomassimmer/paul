@@ -28,10 +28,21 @@ class _RoleList(BaseModel):
     blocks: list[_BlockRole] = Field(default_factory=list)
 
 
-async def analyze(settings: Settings, docx_bytes: bytes, kind: str) -> TemplateBlueprint:
-    """Read a template into a blueprint, with or without a model."""
+def prepare(docx_bytes: bytes, kind: str) -> tuple[list[ExtractedBlock], list[str]]:
+    """The local half: read the blocks and guess their roles from the layout.
+
+    Raises ``TemplateError`` when the file is not a readable .docx, which is cheap
+    enough to answer on the page before the model call is dispatched.
+    """
     blocks = extract_blocks(docx_bytes)
     guesses = guess_roles([block.text for block in blocks], [block.hint for block in blocks], kind)
+    return blocks, guesses
+
+
+async def assemble(
+    settings: Settings, blocks: list[ExtractedBlock], guesses: list[str], kind: str
+) -> TemplateBlueprint:
+    """The model half: let the model settle the roles the layout could not."""
     roles = list(guesses)
     notes: list[str] = []
 
@@ -50,6 +61,12 @@ async def analyze(settings: Settings, docx_bytes: bytes, kind: str) -> TemplateB
     blueprint = store.blueprint_from_blocks(kind, blocks, roles)
     blueprint.notes = notes
     return blueprint
+
+
+async def analyze(settings: Settings, docx_bytes: bytes, kind: str) -> TemplateBlueprint:
+    """Read a template into a blueprint, with or without a model."""
+    blocks, guesses = prepare(docx_bytes, kind)
+    return await assemble(settings, blocks, guesses, kind)
 
 
 async def _ask_for_roles(

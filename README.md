@@ -165,7 +165,7 @@ Every experience and achievement has a stable `id` (`exp-acme-2022`, `exp-acme-2
 **Processing:**
 
 1. **Cleaning (deterministic).** `BeautifulSoup` drops scripts, styles, SVG, images, hidden elements and tracking parameters, and keeps what matters: headings, lists, paragraphs and links (rendered as Markdown). Form controls are parsed here too, into `label`, `name`, `type`, `required`, `maxlength`, `placeholder` and `<option>` values, with radio and checkbox groups merged by `name` and named by their `<legend>`. This keeps token usage low and makes extraction reliable.
-2. **Extraction (LLM, structured output).** The cleaned **description** is turned into a validated Pydantic object:
+2. **Extraction (LLM, structured output), in the background.** The cleaned **description** is turned into a validated Pydantic object. A model call takes seconds, so the page does not wait on it: cleaning and the input checks answer at once, the extraction runs as a background run, and the page shows a small card that polls and then moves you to the new offer.
 
 ```text
 Offer
@@ -424,6 +424,7 @@ paul-emploi/
 │   ├── config.py              # settings load/save
 │   ├── db.py                  # SQLite access
 │   ├── llm.py                 # LiteLLM wrapper, structured output + retry
+│   ├── background.py          # single-call background runs, polled by their page
 │   ├── models.py              # Pydantic models: Profile, Offer, Score, Application
 │   ├── prompt_context.py      # profile/offer/wishes/language as the prompts see them
 │   ├── prompts/               # prompts as plain text files
@@ -487,7 +488,7 @@ paul-emploi/
 └── data/                      # git-ignored, mounted as a volume
 ```
 
-Design rules: prompts live in files, not in code; every LLM call returns a validated Pydantic object; anything that can be computed by code (totals, keyword matching, follow-up dates, interview questions) is not left to the LLM.
+Design rules: prompts live in files, not in code; every LLM call returns a validated Pydantic object; no HTTP request waits on a model call (the slow ones run as background runs or jobs their page polls); anything that can be computed by code (totals, keyword matching, follow-up dates, interview questions) is not left to the LLM.
 
 Conventions: each feature package owns its HTTP routes (`app/profiler/router.py`) and keeps them thin, delegating to its own modules; the shell routes live in `app/web/routes/` and `app/main.py` only wires routers together.
 

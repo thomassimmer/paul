@@ -51,9 +51,8 @@ def render(request: Request, template: str, *, status_code: int = 200, **context
     return response
 
 
-def redirect(url: str, *, message: str = "", level: str = "ok") -> RedirectResponse:
-    """303 to ``url``, optionally carrying a one-shot flash message."""
-    response = RedirectResponse(url, status_code=303)
+def _flash(response, message: str, level: str) -> None:
+    """Carry a one-shot message to the page the response sends the user to."""
     if message:
         response.set_cookie(
             FLASH_COOKIE,
@@ -62,6 +61,25 @@ def redirect(url: str, *, message: str = "", level: str = "ok") -> RedirectRespo
             httponly=True,
             samesite="lax",
         )
+
+
+def redirect(url: str, *, message: str = "", level: str = "ok") -> RedirectResponse:
+    """303 to ``url``, optionally carrying a one-shot flash message."""
+    response = RedirectResponse(url, status_code=303)
+    _flash(response, message, level)
+    return response
+
+
+def htmx_redirect(url: str, *, message: str = "", level: str = "ok") -> HTMLResponse:
+    """Tell HTMX to navigate the whole page to ``url``.
+
+    What a background run's poll answers when the work is done: a plain 3xx would
+    be followed silently by the XHR instead of moving the browser, and the flash
+    is set on this response so the page it lands on shows it.
+    """
+    response = HTMLResponse("", status_code=200)
+    response.headers["HX-Redirect"] = url
+    _flash(response, message, level)
     return response
 
 

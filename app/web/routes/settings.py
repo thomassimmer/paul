@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app import background
 from app.config import (
     LANGUAGES,
     Settings,
@@ -21,6 +22,9 @@ from app.templates_engine import view as templates_view
 from app.web.templating import render
 
 router = APIRouter()
+
+# The single-call background run a template import starts, and where it polls.
+TEMPLATE_IMPORT = "template_import"
 
 
 def _form_to_settings(form: Mapping[str, object], current: Settings) -> tuple[Settings, list[str]]:
@@ -95,6 +99,8 @@ def _render_settings(
         wishes_text=format_wishes(settings.wishes),
         has_api_key=bool(settings.api_key),
         templates=templates_view.kinds(),
+        template_run=background.live(TEMPLATE_IMPORT),
+        template_poll_url="/templates/import/status",
         errors=errors or [],
         saved=saved,
         test=test,

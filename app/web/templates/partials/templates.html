@@ -9,6 +9,8 @@
     single-column default is used.
   </p>
 
+  {% with run=template_run, poll_url=template_poll_url %}{% include "partials/background.html" %}{% endwith %}
+
   {% for kind in templates %}
   <div class="card">
     <div class="page-head">

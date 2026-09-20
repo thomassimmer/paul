@@ -51,6 +51,8 @@
 
 {% include "writer/partials/job.html" %}
 
+{% with run=analysis_run, poll_url=analysis_poll_url %}{% include "partials/background.html" %}{% endwith %}
+
 {% include "offers/partials/offer_body.html" %}
 {% include "offers/partials/ranking.html" %}
 

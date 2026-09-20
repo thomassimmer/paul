@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app import background
 from app.config import Settings, save_settings
 from app.models import CompanyInfo, Constraints, OfferDraft, Requirements
 from app.offers import store
@@ -27,11 +28,23 @@ DRAFT = OfferDraft(
 )
 
 
+def _run_inline(monkeypatch) -> None:
+    """Run the analysis at once instead of in the background, so tests are deterministic."""
+
+    async def inline(kind, label, work, *, context=None):
+        run = background.remember(background.build(kind, label, context=context))
+        await background.execute(run, work)
+        return run
+
+    monkeypatch.setattr("app.background.start", inline)
+
+
 def _patch_extract(monkeypatch, draft: OfferDraft | None = None):
     async def fake(settings, cleaned_text):
         return draft if draft is not None else DRAFT
 
     monkeypatch.setattr("app.offers.extract.extract_offer", fake)
+    _run_inline(monkeypatch)
 
 
 def _analyze(client) -> int:
@@ -41,8 +54,10 @@ def _analyze(client) -> int:
         data={"fragment_count": "1", "fragment.0": FRAGMENT},
         follow_redirects=False,
     )
-    assert response.status_code == 303
-    return int(response.headers["location"].rsplit("/", 1)[-1])
+    assert response.status_code == 200
+    run = background.current("offer_analyze")
+    assert run is not None and run.return_url.startswith("/offers/")
+    return int(run.return_url.rsplit("/", 1)[-1])
 
 
 def _stored(offer_id: int):
@@ -154,6 +169,95 @@ def test_offer_can_be_analyzed_again(client, monkeypatch):
     assert _stored(offer_id).title == "Backend Engineer"
     # The form was parsed from the markup, so it is still there.
     assert [q.name for q in _stored(offer_id).form] == ["why"]
+
+
+# --- the analysis runs in the background ---------------------------------------
+
+
+def test_the_analyze_page_shows_the_run_while_it_works(client, monkeypatch):
+    save_settings(Settings(model="openai/gpt-4o"))
+    _patch_extract(monkeypatch)
+
+    async def no_wait(kind, label, work, *, context=None):
+        return background.remember(background.build(kind, label, context=context))
+
+    monkeypatch.setattr("app.background.start", no_wait)
+    response = client.post(
+        "/offers/new", data={"fragment_count": "1", "fragment.0": FRAGMENT}
+    )
+
+    assert response.status_code == 200
+    assert 'hx-get="/offers/new/status"' in response.text
+    assert "Analyzing the offer" in response.text
+
+    status = client.get("/offers/new/status")
+    assert status.status_code == 200
+    assert 'hx-get="/offers/new/status"' in status.text
+
+
+def test_a_finished_analysis_sends_the_page_to_the_new_offer(client):
+    run = background.remember(background.build("offer_analyze", "Analyzing the offer…"))
+    run.status = "done"
+    run.message = "Offer analyzed."
+    run.return_url = "/offers/42"
+
+    response = client.get("/offers/new/status", follow_redirects=False)
+
+    assert response.status_code == 200
+    assert response.headers["HX-Redirect"] == "/offers/42"
+    # Consumed: the next page must not show the card again.
+    assert background.current("offer_analyze") is None
+
+
+def test_a_failed_analysis_is_shown_and_stops_polling(client):
+    run = background.remember(background.build("offer_analyze", "Analyzing the offer…"))
+    run.status = "error"
+    run.error = "provider is down"
+
+    response = client.get("/offers/new/status")
+
+    assert "provider is down" in response.text
+    assert "hx-get" not in response.text
+
+
+def test_the_offer_page_shows_a_running_reanalysis(client):
+    offer_id = store.save_offer(
+        OfferDraft(title="Backend Engineer", company="Acme").to_offer([]),
+        raw="",
+        cleaned="",
+        source="text",
+    ).id
+    background.remember(
+        background.build(
+            "offer_reanalyze", "Analyzing the offer again…", context={"offer_id": offer_id}
+        )
+    )
+
+    page = client.get(f"/offers/{offer_id}")
+
+    assert f'hx-get="/offers/{offer_id}/analysis-status"' in page.text
+
+
+def test_a_finished_reanalysis_moves_back_to_the_offer(client):
+    offer_id = store.save_offer(
+        OfferDraft(title="Backend Engineer", company="Acme").to_offer([]),
+        raw="",
+        cleaned="",
+        source="text",
+    ).id
+    run = background.remember(
+        background.build(
+            "offer_reanalyze", "Analyzing the offer again…", context={"offer_id": offer_id}
+        )
+    )
+    run.status = "done"
+    run.message = "Offer analyzed again."
+    run.return_url = f"/offers/{offer_id}"
+
+    response = client.get(f"/offers/{offer_id}/analysis-status", follow_redirects=False)
+
+    assert response.headers["HX-Redirect"] == f"/offers/{offer_id}"
+    assert background.current("offer_reanalyze") is None
 
 
 def test_offer_source_shows_the_raw_fragment(client, monkeypatch):

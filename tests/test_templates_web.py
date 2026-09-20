@@ -5,11 +5,30 @@ from io import BytesIO
 
 from docx import Document
 
+from app import background
 from app.config import Settings
 from app.models import TemplateBlueprint
 from app.templates_engine import analyze, store
 from app.templates_engine.default import build as build_default
 from app.templates_engine.extract import extract_blocks
+
+
+def _run_inline(monkeypatch) -> None:
+    """Read the template at once instead of in the background, so tests are deterministic."""
+
+    async def inline(kind, label, work, *, context=None):
+        run = background.remember(background.build(kind, label, context=context))
+        await background.execute(run, work)
+        return run
+
+    monkeypatch.setattr("app.background.start", inline)
+
+
+def _landing(client) -> str:
+    """Where the import run sends the page once it is done."""
+    response = client.get("/templates/import/status", follow_redirects=False)
+    assert response.status_code == 200
+    return response.headers.get("HX-Redirect", "")
 
 
 def _uploaded() -> bytes:
@@ -52,22 +71,26 @@ def test_the_old_templates_page_redirects_to_the_settings(client):
 
 
 def test_uploading_a_template_stores_it(client, monkeypatch):
-    async def fake_analyze(settings, docx_bytes, kind):
-        blueprint: TemplateBlueprint = store.blueprint_from_blocks(kind, extract_blocks(docx_bytes))
+    async def fake_assemble(settings, blocks, guesses, kind):
+        blueprint: TemplateBlueprint = store.blueprint_from_blocks(kind, blocks, guesses)
         blueprint.notes = ["The model corrected 1 of the 4 blocks."]
         return blueprint
 
-    monkeypatch.setattr("app.templates_engine.analyze.analyze", fake_analyze)
+    _run_inline(monkeypatch)
+    monkeypatch.setattr("app.templates_engine.analyze.assemble", fake_assemble)
 
     response = client.post(
         "/templates/cv",
         files={"file": ("my-cv.docx", _uploaded(), "application/octet-stream")},
-        follow_redirects=True,
+        follow_redirects=False,
     )
 
-    assert response.status_code == 200
-    assert "template imported" in response.text
-    assert "The model corrected 1 of the 4 blocks." in response.text
+    assert response.status_code == 303
+    # The run finished inline; its poll sends the page to the detected roles.
+    assert _landing(client) == "/templates/cv"
+    page = client.get("/templates/cv")
+    assert "template imported" in page.text
+    assert "The model corrected 1 of the 4 blocks." in page.text
     assert store.has_custom("cv") is True
     assert "blocks read from your file" in client.get("/settings").text
 

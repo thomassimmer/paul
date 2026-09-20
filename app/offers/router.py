@@ -14,6 +14,7 @@ from collections.abc import Sequence
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from app import background
 from app.config import load_settings
 from app.llm import LLMError
 from app.models import Offer, OfferRecord, Profile
@@ -22,12 +23,16 @@ from app.profiler import store as profile_store
 from app.ranking import store as ranking_store
 from app.tracker import service as tracker_service
 from app.tracker import store as tracker_store
-from app.web.templating import redirect, render
+from app.web.templating import htmx_redirect, redirect, render
 from app.writer import jobs as writer_jobs
 from app.writer import store as writer_store
 from app.writer import view as writer_view
 
 router = APIRouter(prefix="/offers", tags=["offers"])
+
+# The single-call background runs this router starts, and where their page polls.
+ANALYZE = "offer_analyze"
+REANALYZE = "offer_reanalyze"
 
 
 def _number(form, key: str) -> int:
@@ -112,6 +117,10 @@ def _offer_context(record: OfferRecord) -> dict:
     profile = _profile()
     prepared = bool(folder) and profile is not None and writer_store.folder_exists(folder)
 
+    observe = background.live(REANALYZE)
+    if observe is not None and observe.context.get("offer_id") != offer_id:
+        observe = None
+
     context = {
         "record": record,
         "offer": record.offer,
@@ -123,6 +132,9 @@ def _offer_context(record: OfferRecord) -> dict:
         "followup_days": load_settings().followup_days,
         "prepared": prepared,
         "folder": folder,
+        # The re-analysis run, while one is in flight for this offer.
+        "analysis_run": observe,
+        "analysis_poll_url": f"/offers/{offer_id}/analysis-status",
         # The preparation job panel polls this page. It is shown whatever the
         # state, because starting a preparation is what creates the folder.
         "job": writer_jobs.current(),
@@ -170,9 +182,12 @@ async def offer_new(request: Request):
 async def offer_analyze(request: Request):
     form = await request.form()
     fragments = [str(form.get(f"fragment.{index}") or "") for index in range(_number(form, "fragment_count"))]
+    settings = load_settings()
 
+    # The local half runs here, so a fragment that cannot be read is still
+    # reported on the page: there is no point starting a run for it.
     try:
-        outcome = await service.analyze(load_settings(), fragments)
+        parts, cleaned = service.prepare_fragments(settings, fragments)
     except (clean.CleanError, LLMError) as exc:
         # Re-render instead of redirecting: a pasted fragment can be long, and
         # losing it to a one-line error message would be infuriating.
@@ -181,14 +196,45 @@ async def offer_analyze(request: Request):
             "offers/new.html",
             active="offers",
             fragments=_slots(fragments),
-            settings=load_settings(),
+            settings=settings,
             error=str(exc),
             status_code=400,
         )
 
-    return redirect(
-        f"/offers/{outcome.record.id}", message=outcome.notice, level=outcome.level
+    await background.start(
+        ANALYZE,
+        "Analyzing the offer…",
+        _analyze_work(settings, parts, cleaned),
     )
+    return render(
+        request,
+        "offers/new.html",
+        active="offers",
+        fragments=_slots(fragments),
+        settings=settings,
+        run=background.current(ANALYZE),
+        poll_url="/offers/new/status",
+    )
+
+
+def _analyze_work(settings, parts, cleaned):
+    async def work(run: background.Run) -> None:
+        outcome = await service.extract_and_store(settings, parts, cleaned)
+        run.message = outcome.notice
+        run.level = outcome.level
+        run.return_url = f"/offers/{outcome.record.id}"
+
+    return work
+
+
+@router.get("/new/status", response_class=HTMLResponse)
+async def offer_analyze_status(request: Request):
+    """Polled by the analyze page: the run card, or a move to the new offer."""
+    run = background.current(ANALYZE)
+    if run is not None and not run.running and not run.error:
+        background.clear(ANALYZE)
+        return htmx_redirect(run.return_url, message=run.message, level=run.level)
+    return render(request, "partials/background.html", run=run, poll_url="/offers/new/status")
 
 
 @router.get("/{offer_id}", response_class=HTMLResponse)
@@ -261,11 +307,50 @@ async def offer_reanalyze(offer_id: int):
     if response is not None:
         return response
     assert record is not None
+    settings = load_settings()
+    # The local half: a missing model or a missing source is answered at once.
     try:
-        outcome = await service.reanalyze(load_settings(), record)
+        cleaned_text = service.prepare_reanalysis(settings, record)
     except LLMError as exc:
         return redirect(f"/offers/{offer_id}", message=str(exc), level="error")
-    return redirect(f"/offers/{offer_id}", message=outcome.notice, level=outcome.level)
+
+    await background.start(
+        REANALYZE,
+        "Analyzing the offer again…",
+        _reanalyze_work(settings, record, cleaned_text),
+        context={"offer_id": offer_id},
+    )
+    return redirect(
+        f"/offers/{offer_id}",
+        message="Analyzing again in the background. The page updates itself.",
+    )
+
+
+def _reanalyze_work(settings, record: OfferRecord, cleaned_text: str):
+    async def work(run: background.Run) -> None:
+        outcome = await service.update_from_model(settings, record, cleaned_text)
+        run.message = outcome.notice
+        run.level = outcome.level
+        run.return_url = f"/offers/{record.id}"
+
+    return work
+
+
+@router.get("/{offer_id}/analysis-status", response_class=HTMLResponse)
+async def offer_analysis_status(request: Request, offer_id: int):
+    """Polled by the offer page while a re-analysis of it is running."""
+    run = background.current(REANALYZE)
+    if run is None or run.context.get("offer_id") != offer_id:
+        return htmx_redirect(f"/offers/{offer_id}")
+    if not run.running and not run.error:
+        background.clear(REANALYZE)
+        return htmx_redirect(run.return_url, message=run.message, level=run.level)
+    return render(
+        request,
+        "partials/background.html",
+        run=run,
+        poll_url=f"/offers/{offer_id}/analysis-status",
+    )
 
 
 @router.post("/{offer_id}/delete")

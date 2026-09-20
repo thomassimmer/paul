@@ -11,17 +11,21 @@ from __future__ import annotations
 from fastapi import APIRouter, File, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
+from app import background
 from app.config import load_settings
 from app.templates_engine import analyze, store
 from app.templates_engine import view
 from app.templates_engine.extract import TemplateError
 from app.templates_engine.roles import ROLES, ROLE_LABELS
-from app.web.templating import redirect, render
+from app.web.templating import htmx_redirect, redirect, render
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 
 # Landing back where the templates are shown: they are a settings section now.
 SETTINGS = "/settings#templates"
+
+# The single-call background run an import starts, and where its page polls.
+IMPORT = "template_import"
 
 
 @router.get("")
@@ -41,17 +45,46 @@ async def template_upload(request: Request, kind: str, file: UploadFile | None =
     if len(data) > view.MAX_UPLOAD_BYTES:
         return redirect(SETTINGS, message="That file is larger than 10 MB.", level="error")
 
+    # Reading the .docx is local, and an unreadable file is worth saying at once:
+    # only letting the model settle the roles needs a call.
     try:
-        blueprint = await analyze.analyze(load_settings(), data, kind)
+        blocks, guesses = analyze.prepare(data, kind)
     except TemplateError as exc:
         return redirect(SETTINGS, message=str(exc), level="error")
 
-    store.save_custom(kind, data, blueprint)
-    found = ", ".join(sorted(set(blueprint.roles())))
-    message = f"{view.KINDS[kind]} template imported: {len(blueprint.blocks)} blocks, roles — {found}."
-    if blueprint.notes:
-        message += " " + " ".join(blueprint.notes)
-    return redirect(f"/templates/{kind}", message=message)
+    await background.start(
+        IMPORT,
+        f"Reading your {view.KINDS[kind].lower()} template…",
+        _import_work(load_settings(), data, blocks, guesses, kind),
+        context={"kind": kind},
+    )
+    return redirect(
+        SETTINGS, message="Reading the template in the background. The page updates itself."
+    )
+
+
+def _import_work(settings, data: bytes, blocks, guesses, kind: str):
+    async def work(run: background.Run) -> None:
+        blueprint = await analyze.assemble(settings, blocks, guesses, kind)
+        store.save_custom(kind, data, blueprint)
+        found = ", ".join(sorted(set(blueprint.roles())))
+        message = f"{view.KINDS[kind]} template imported: {len(blueprint.blocks)} blocks, roles — {found}."
+        if blueprint.notes:
+            message += " " + " ".join(blueprint.notes)
+        run.message = message
+        run.return_url = f"/templates/{kind}"
+
+    return work
+
+
+@router.get("/import/status", response_class=HTMLResponse)
+async def template_status(request: Request):
+    """Polled by the settings page: the run card, or a move to the roles page."""
+    run = background.current(IMPORT)
+    if run is not None and not run.running and not run.error:
+        background.clear(IMPORT)
+        return htmx_redirect(run.return_url, message=run.message, level=run.level)
+    return render(request, "partials/background.html", run=run, poll_url="/templates/import/status")
 
 
 @router.get("/{kind}", response_class=HTMLResponse)

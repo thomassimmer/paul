@@ -30,16 +30,20 @@ class ImportOutcome:
     level: str = "ok"
 
 
-async def import_cv(
-    settings: Settings,
-    *,
-    filename: str = "",
-    data: bytes | None = None,
-    text: str = "",
-) -> ImportOutcome:
-    """Extract a CV, draft a profile from it, and store both.
+@dataclass
+class PreparedImport:
+    """What the local half of an import produced, ready for the model."""
 
-    Raises ``cv.CvError`` when nothing usable can be read.
+    cv_text: str
+    source: str
+    existing: Profile | None
+
+
+def read_cv(*, filename: str = "", data: bytes | None = None, text: str = "") -> PreparedImport:
+    """The local half of an import: extract the CV text and save it.
+
+    Raises ``cv.CvError`` when nothing usable can be read, which is cheap enough
+    to answer on the page before the model call is dispatched.
     """
     if text and text.strip():
         cv_text = tidy_text(text)
@@ -57,15 +61,19 @@ async def import_cv(
         existing = store.load_profile()
     except store.ProfileError:
         existing = None  # a broken file must not block a fresh import
+    return PreparedImport(cv_text=cv_text, source=source, existing=existing)
 
+
+async def draft_profile_into(settings: Settings, prepared: PreparedImport) -> ImportOutcome:
+    """The model half: draft the profile from the CV text and store it."""
     profile = Profile()
     drafted = False
 
     if settings.model.strip():
         try:
-            profile = (await draft_profile(settings, cv_text)).to_profile()
+            profile = (await draft_profile(settings, prepared.cv_text)).to_profile()
             drafted = True
-            notice, level = f"Profile drafted from {source}.", "ok"
+            notice, level = f"Profile drafted from {prepared.source}.", "ok"
         except LLMError as exc:
             notice = (
                 f"The model could not draft the profile ({exc}). The CV text is saved: "
@@ -80,12 +88,26 @@ async def import_cv(
         level = "warning"
 
     # Facts and preferences are answered by you, never by an import: keep them.
-    if existing is not None:
-        profile.facts = existing.facts
-        profile.preferences = existing.preferences
+    if prepared.existing is not None:
+        profile.facts = prepared.existing.facts
+        profile.preferences = prepared.existing.preferences
 
     profile = store.save_profile(profile)
     return ImportOutcome(profile=profile, drafted=drafted, notice=notice, level=level)
+
+
+async def import_cv(
+    settings: Settings,
+    *,
+    filename: str = "",
+    data: bytes | None = None,
+    text: str = "",
+) -> ImportOutcome:
+    """Extract a CV, draft a profile from it, and store both.
+
+    Raises ``cv.CvError`` when nothing usable can be read.
+    """
+    return await draft_profile_into(settings, read_cv(filename=filename, data=data, text=text))
 
 
 async def apply_interview_answer(

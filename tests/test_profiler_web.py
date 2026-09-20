@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app import background
 from app.config import Settings, save_settings
 from app.llm import LLMError
 from app.models import Achievement, Experience, Facts, Identity, Profile, ProfileDraft
@@ -10,6 +11,30 @@ CV_TEXT = (
     "2022 - 2024: Acme Analytics, Lead Backend Engineer.\n"
     "Rust, Kafka, PostgreSQL, Kubernetes.\n"
 )
+
+
+def _run_inline(monkeypatch) -> None:
+    """Draft the profile at once instead of in the background, so tests are deterministic."""
+
+    async def inline(kind, label, work, *, context=None):
+        run = background.remember(background.build(kind, label, context=context))
+        await background.execute(run, work)
+        return run
+
+    monkeypatch.setattr("app.background.start", inline)
+
+
+def _import(client, monkeypatch, *, follow_redirects: bool = False, **data):
+    """Import, running the draft inline, and return the post response."""
+    _run_inline(monkeypatch)
+    return client.post("/profiler/import", data=data, follow_redirects=follow_redirects)
+
+
+def _landing(client) -> str:
+    """Where the import run sends the page once it is done."""
+    response = client.get("/profiler/import/status", follow_redirects=False)
+    assert response.status_code == 200
+    return response.headers.get("HX-Redirect", "")
 
 
 def _edit_form(**overrides: str) -> dict[str, str]:
@@ -81,13 +106,11 @@ def test_without_a_profile_the_profile_page_points_to_import(client):
     assert response.headers["location"] == "/profiler/import"
 
 
-def test_import_pasted_text_without_a_model_creates_an_empty_profile(client):
-    response = client.post(
-        "/profiler/import", data={"text": CV_TEXT}, follow_redirects=False
-    )
-    assert response.status_code == 303
+def test_import_pasted_text_without_a_model_creates_an_empty_profile(client, monkeypatch):
+    response = _import(client, monkeypatch, text=CV_TEXT)
+    assert response.status_code == 200
     # Nothing to interview about yet: go and add experiences.
-    assert response.headers["location"] == "/profiler/edit"
+    assert _landing(client) == "/profiler/edit"
     cv_text = store.load_cv_text()
     assert cv_text is not None
     assert cv_text.startswith("Camille Moreau")
@@ -116,12 +139,10 @@ def test_import_with_a_model_uses_the_draft_and_keeps_facts(client, monkeypatch)
         )
 
     monkeypatch.setattr("app.profiler.service.draft_profile", fake_draft)
-    response = client.post(
-        "/profiler/import", data={"text": CV_TEXT, "replace": "1"}, follow_redirects=False
-    )
+    response = _import(client, monkeypatch, text=CV_TEXT, replace="1")
 
-    assert response.status_code == 303
-    assert response.headers["location"] == "/profiler/interview"
+    assert response.status_code == 200
+    assert _landing(client) == "/profiler/interview"
     profile = _loaded()
     assert profile.experiences[0].id == "exp-acme-2022"
     assert profile.facts.work_authorization == "EU citizen"
@@ -134,12 +155,10 @@ def test_import_reports_a_model_failure_and_keeps_the_cv_text(client, monkeypatc
         raise LLMError("model exploded")
 
     monkeypatch.setattr("app.profiler.service.draft_profile", failing_draft)
-    response = client.post(
-        "/profiler/import", data={"text": CV_TEXT}, follow_redirects=False
-    )
+    response = _import(client, monkeypatch, text=CV_TEXT)
 
-    assert response.status_code == 303
-    assert response.headers["location"] == "/profiler/edit"
+    assert response.status_code == 200
+    assert _landing(client) == "/profiler/edit"
     assert store.load_cv_text() is not None
 
 
@@ -205,8 +224,8 @@ def test_interview_skipping_moves_to_the_next_question(client):
     assert store.skipped_keys() == set()
 
 
-def test_interview_needs_an_experience_first(client):
-    client.post("/profiler/import", data={"text": CV_TEXT}, follow_redirects=False)
+def test_interview_needs_an_experience_first(client, monkeypatch):
+    _import(client, monkeypatch, text=CV_TEXT)
     response = client.get("/profiler/interview", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"] == "/profiler/edit"

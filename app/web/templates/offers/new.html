@@ -27,6 +27,8 @@
 <p class="banner banner-error" role="alert">{{ error }}</p>
 {% endif %}
 
+{% include "partials/background.html" %}
+
 <form method="post" action="/offers/new" class="card">
   <input type="hidden" name="fragment_count" value="{{ fragments | length }}">
   {% for fragment in fragments %}

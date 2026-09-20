@@ -11,14 +11,18 @@ import yaml
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 
+from app import background
 from app.config import load_settings
 from app.models import Profile
 from app.profiler import cv, editor, interview, service, store
-from app.web.templating import redirect, render
+from app.web.templating import htmx_redirect, redirect, render
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 router = APIRouter(prefix="/profiler", tags=["profiler"])
+
+# The single-call background run an import starts, and where its page polls.
+IMPORT = "profile_import"
 
 
 def _load() -> tuple[Profile | None, str | None]:
@@ -95,16 +99,48 @@ async def import_submit(
                 level="error",
             )
 
+    # Extracting the text is local and fast, and a file that cannot be read is
+    # worth saying at once: only drafting the profile needs the model.
     try:
-        outcome = await service.import_cv(
-            load_settings(), filename=filename, data=data, text=text
-        )
+        prepared = service.read_cv(filename=filename, data=data, text=text)
     except cv.CvError as exc:
         return redirect("/profiler/import", message=str(exc), level="error")
 
-    # With no experiences there is nothing to interview about: go and edit.
-    target = "/profiler/interview" if outcome.profile.experiences else "/profiler/edit"
-    return redirect(target, message=outcome.notice, level=outcome.level)
+    await background.start(
+        IMPORT,
+        "Drafting your profile…",
+        _import_work(load_settings(), prepared),
+    )
+    return render(
+        request,
+        "profiler/import.html",
+        active="profiler",
+        has_profile=existing is not None,
+        settings=load_settings(),
+        run=background.current(IMPORT),
+        poll_url="/profiler/import/status",
+    )
+
+
+def _import_work(settings, prepared: service.PreparedImport):
+    async def work(run: background.Run) -> None:
+        outcome = await service.draft_profile_into(settings, prepared)
+        run.message = outcome.notice
+        run.level = outcome.level
+        # With no experiences there is nothing to interview about: go and edit.
+        run.return_url = "/profiler/interview" if outcome.profile.experiences else "/profiler/edit"
+
+    return work
+
+
+@router.get("/import/status", response_class=HTMLResponse)
+async def import_status(request: Request):
+    """Polled by the import page: the run card, or a move to the profile."""
+    run = background.current(IMPORT)
+    if run is not None and not run.running and not run.error:
+        background.clear(IMPORT)
+        return htmx_redirect(run.return_url, message=run.message, level=run.level)
+    return render(request, "partials/background.html", run=run, poll_url="/profiler/import/status")
 
 
 @router.get("/interview", response_class=HTMLResponse)
