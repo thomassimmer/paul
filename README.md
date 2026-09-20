@@ -64,7 +64,7 @@ Then open <http://localhost:8000>, go to **Settings**, choose a model and paste 
 
 The app is bound to `127.0.0.1` only. Your data lives in `./data`, which is mounted as a volume, so it survives updates (`git pull && docker compose up --build`).
 
-Rebuilds are cheap: the Dockerfile installs the dependencies from `pyproject.toml` before copying the source, and keeps the pip and apt caches in BuildKit mounts, so editing a file under `app/` rebuilds in about a second instead of reinstalling every wheel. Only the first build — and any change to the apt package line, which re-runs the LibreOffice install once — is the long one.
+Rebuilds are cheap: the Dockerfile installs the dependencies from `pyproject.toml` before copying the source, with placeholders standing in for the package and its README, and keeps the pip and apt caches in BuildKit mounts. Editing a file under `app/` — or in this README, which is only metadata — therefore rebuilds in about a second instead of reinstalling every wheel. Only a change to `pyproject.toml`, or to the apt package line (which re-runs the LibreOffice install once), invalidates the install layer.
 
 ### Without Docker (development)
 

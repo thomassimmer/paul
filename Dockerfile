@@ -30,15 +30,18 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
             fonts-dejavu-core; \
     fi
 
-# Dependencies first, and from the metadata alone: a stub package stands in for
-# the real one so that editing app/ does not invalidate this layer. That is the
-# difference between a two-second rebuild and reinstalling every wheel. The stub
-# is never imported — PYTHONPATH puts /app first, and the real package is copied
-# over it at the next step.
-COPY pyproject.toml README.md ./
+# Dependencies first, and from the metadata alone: a stub package and a stub
+# README stand in for the real ones so that editing app/ or the README does not
+# invalidate this layer. That is the difference between a two-second rebuild and
+# reinstalling every wheel. The package is never imported — PYTHONPATH puts /app
+# first, and the real one is copied over it at the next step — and nothing reads
+# the README at runtime: setuptools only needs it to build the metadata, which is
+# why a placeholder is enough to keep this layer stable.
+COPY pyproject.toml ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     set -eux; \
     mkdir -p app && touch app/__init__.py; \
+    echo "# Paul (Emploi)" > README.md; \
     pip install --upgrade pip; \
     pip install .
 
