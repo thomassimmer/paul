@@ -4,6 +4,9 @@ from io import BytesIO
 
 import pytest
 from docx import Document
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from docx.shared import Pt
 
 from app.models import DraftLine, TemplateBlock, TemplateBlueprint
@@ -19,6 +22,30 @@ def _docx_bytes(*paragraphs: tuple[str, dict]) -> bytes:
         size = options.get("size")
         if size:
             run.font.size = Pt(size)
+    buffer = BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+def _add_hyperlink(paragraph, text: str, url: str) -> None:
+    """python-docx has no public API for this: build the element by hand."""
+    rid = paragraph.part.relate_to(url, RT.HYPERLINK, is_external=True)
+    link = OxmlElement("w:hyperlink")
+    link.set(qn("r:id"), rid)
+    run = OxmlElement("w:r")
+    text_element = OxmlElement("w:t")
+    text_element.text = text
+    run.append(text_element)
+    link.append(run)
+    paragraph._p.append(link)
+
+
+def _linked_docx() -> bytes:
+    document = Document()
+    paragraph = document.add_paragraph()
+    paragraph.add_run("Reach me: ")
+    _add_hyperlink(paragraph, "camille@example.com", "mailto:camille@example.com")
+    paragraph.add_run(" · github.com/camille")
     buffer = BytesIO()
     document.save(buffer)
     return buffer.getvalue()
@@ -182,6 +209,54 @@ def test_a_skills_line_without_a_category_style_stays_one_run():
     ).paragraphs[0]
     assert rendered.text == "Security: OSCP"
     assert len(rendered.runs) == 1
+
+
+def test_rendering_keeps_a_hyperlink_whose_text_is_still_there():
+    docx_bytes = _linked_docx()
+    blueprint = store.blueprint_from_blocks(
+        "cv", extract.extract_blocks(docx_bytes), ["contact"]
+    )
+    result = render.render(
+        docx_bytes,
+        blueprint,
+        [DraftLine(role="contact", text="camille@example.com · github.com/camille")],
+    )
+
+    paragraph = Document(BytesIO(result)).paragraphs[0]
+    assert paragraph.text == "camille@example.com · github.com/camille"
+    assert [(link.text, link.address) for link in paragraph.hyperlinks] == [
+        ("camille@example.com", "mailto:camille@example.com")
+    ]
+
+
+def test_rendering_writes_a_link_as_text_when_its_text_is_gone():
+    docx_bytes = _linked_docx()
+    blueprint = store.blueprint_from_blocks(
+        "cv", extract.extract_blocks(docx_bytes), ["contact"]
+    )
+    result = render.render(
+        docx_bytes, blueprint, [DraftLine(role="contact", text="Write to me on LinkedIn")]
+    )
+
+    paragraph = Document(BytesIO(result)).paragraphs[0]
+    assert paragraph.text == "Write to me on LinkedIn"
+    assert paragraph.hyperlinks == []
+
+
+def test_rendering_writes_link_text_as_plain_text_around_it():
+    docx_bytes = _linked_docx()
+    blueprint = store.blueprint_from_blocks(
+        "cv", extract.extract_blocks(docx_bytes), ["contact"]
+    )
+    result = render.render(
+        docx_bytes,
+        blueprint,
+        [DraftLine(role="contact", text="camille@example.com · github.com/camille")],
+    )
+
+    paragraph = Document(BytesIO(result)).paragraphs[0]
+    # ``runs`` are the paragraph's own runs; a link is not one of them.
+    assert "".join(run.text for run in paragraph.runs) == " · github.com/camille"
 
 
 def test_rendering_creates_a_missing_section_from_a_close_prototype():

@@ -376,7 +376,7 @@ A CV and a cover letter as `.docx` files, ideally a previous version you are hap
 Structure, colors, fonts, page setup and decorative elements, all read directly from the file:
 
 - page size and margins, headers and footers, column layout (including two-column layouts built with tables)
-- fonts, sizes, colors, spacing, bullet styles, borders and shading, theme colors
+- fonts, sizes, colors, spacing, bullet styles, borders and shading, theme colors, hyperlinks
 - the **order of sections** and how each kind of content is styled
 
 ### How it is reused
@@ -387,7 +387,7 @@ Structure, colors, fonts, page setup and decorative elements, all read directly 
 
    The role comes first from the layout, which already says a lot (a bullet style is a bullet, a short bold line is a title, a line of dates is not a phone number), then one LLM call settles the rest. Without a model, the layout alone decides.
 2. **Blueprint.** The result is stored as JSON next to your file, and shown as a preview where every block's role can be corrected in a select. A wrongly read role would silently produce a wrongly styled document, so it is meant to be checked.
-3. **Rendering.** The original DOCX is used as the base, and its body is rebuilt: for each line, the XML of the block it was modelled on (its **prototype**) is deep-copied and its text replaced. Fonts, sizes, colours, spacing, numbering, borders and shading therefore come from your file rather than being approximated, and page size, margins, styles, theme, headers and footers are untouched because the file itself stays the base. A role your template does not show (e.g. *Projects* when there is no such section) falls back to the closest role it does show.
+3. **Rendering.** The original DOCX is used as the base, and its body is rebuilt: for each line, the XML of the block it was modelled on (its **prototype**) is deep-copied and its text replaced. Fonts, sizes, colours, spacing, numbering, borders and shading therefore come from your file rather than being approximated, and page size, margins, styles, theme, headers and footers are untouched because the file itself stays the base. A **hyperlink** the block carried (an e-mail, a LinkedIn profile) is linked again when its text is still in the new line, so the rendered document stays clickable: the writer never needs to know a URL, and a link whose text the line no longer contains is simply written as text. A role your template does not show (e.g. *Projects* when there is no such section) falls back to the closest role it does show.
 4. **Fit check.** The document is converted to PDF to count pages. If it overflows the target length, the writer condenses the content and re-renders, up to two times. Without LibreOffice (`WITH_PDF=0`), a line-count estimate is used instead and says so.
 
 If you provide no template, a clean, single-column, parser-friendly default is used — built in code, so it needs no analysis and no model call.
