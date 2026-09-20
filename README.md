@@ -1,25 +1,28 @@
-# Paul (Emploi)
+# Paul
 
-> Self-hosted, open-source assistant that helps you **apply to more jobs, and apply better**.
-> Paste an offer, get a ranked shortlist, a tailored CV and cover letter in *your own template*, answers to the application form, and a tracker to follow it all.
+> **Apply more, apply better.** A self-hosted, open-source assistant for job
+> applications: paste an offer, get a ranked shortlist, a tailored CV and cover
+> letter in *your own template*, answers to the application form, and a tracker
+> to follow it all.
 
 ---
 
 ## Table of contents
 
 1. [Why](#why)
-2. [Principles](#principles)
-3. [Features](#features)
-4. [Quick start](#quick-start)
-5. [How it works](#how-it-works)
-6. [Modules in detail](#modules-in-detail)
-7. [Template import](#template-import)
-8. [Data and privacy](#data-and-privacy)
-9. [Tech stack and project layout](#tech-stack-and-project-layout)
-10. [Configuration](#configuration)
-11. [Roadmap](#roadmap)
-12. [Non-goals](#non-goals)
-13. [Contributing](#contributing)
+2. [The name](#the-name)
+3. [Principles](#principles)
+4. [Features](#features)
+5. [Quick start](#quick-start)
+6. [How it works](#how-it-works)
+7. [Modules in detail](#modules-in-detail)
+8. [Template import](#template-import)
+9. [Data and privacy](#data-and-privacy)
+10. [Tech stack and project layout](#tech-stack-and-project-layout)
+11. [Configuration](#configuration)
+12. [Roadmap](#roadmap)
+13. [Non-goals](#non-goals)
+14. [Contributing](#contributing)
 
 ---
 
@@ -28,6 +31,17 @@
 Applying seriously means repeating the same loop dozens of times: read the offer, decide if it is worth it, adapt the CV, write a cover letter, answer the form questions, remember what was sent, follow up. Most of it is mechanical, and each step is a chance to make mistakes or give up.
 
 Paul automates the mechanical parts with an LLM **while keeping you in control**: everything is generated from a profile you own and can edit, every output is reviewed by you, and nothing is ever sent automatically.
+
+## The name
+
+The name is a French pun. *Paul* sounds like *Pôle*, so **Paul Emploi** is a
+near-homophone of **Pôle Emploi**, the French public employment agency (renamed
+*France Travail* in 2024). A job-hunting assistant that winks at the job centre:
+hopefully a little more useful than the institution it borrows its name from.
+
+The joke only lands in French, so it stays here rather than in the product. The
+app signs itself **Paul**, the promise is **apply more, apply better** — the pun
+survives only in this note, for whoever reads the source.
 
 ## Principles
 
@@ -55,8 +69,8 @@ Paul automates the mechanical parts with an LLM **while keeping you in control**
 Requirements: Docker with Compose.
 
 ```bash
-git clone https://github.com/thomassimmer/paul-emploi.git
-cd paul-emploi
+git clone https://github.com/thomassimmer/paul.git
+cd paul
 docker compose up
 ```
 
@@ -421,7 +435,7 @@ If you provide no template, a clean, single-column, parser-friendly default is u
 **Stack:** Python 3.12, FastAPI, Jinja2 + HTMX (no front-end build), SQLite, Pydantic, LiteLLM, BeautifulSoup, `python-docx`, `pypdf`, Docker Compose.
 
 ```text
-paul-emploi/
+paul/
 ├── docker-compose.yml
 ├── Dockerfile
 ├── pyproject.toml

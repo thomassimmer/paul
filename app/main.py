@@ -42,7 +42,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Paul (Emploi)", lifespan=lifespan)
+app = FastAPI(title="Paul — apply more, apply better", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=WEB_DIR / "static"), name="static")
 
 for router in ROUTERS:

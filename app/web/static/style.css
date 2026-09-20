@@ -1,4 +1,4 @@
-/* Paul (Emploi) — single stylesheet, no build step.
+/* Paul — single stylesheet, no build step.
    Layout: header, main and footer share the same centered container whose
    width follows --content, so every page lines up. */
 
@@ -100,6 +100,10 @@ header .container {
 }
 .brand span { color: var(--muted); font-weight: 500; }
 .brand:hover { color: var(--text); }
+
+/* The tagline is branding, not navigation: it steps aside before the nav needs
+   the room on a narrow screen. */
+@media (max-width: 560px) { .brand span { display: none; } }
 
 /* The site navigation, in the header. Scoped to the header on purpose: the
    in-page quick navigation is another <nav> and must not inherit this one's

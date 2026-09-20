@@ -47,7 +47,7 @@ COPY pyproject.toml ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     set -eux; \
     mkdir -p app && touch app/__init__.py; \
-    echo "# Paul (Emploi)" > README.md; \
+    echo "# Paul — apply more, apply better" > README.md; \
     pip install --upgrade pip; \
     pip install .
 

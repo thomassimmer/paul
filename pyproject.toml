@@ -3,9 +3,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "paul-emploi"
+name = "paul"
 version = "0.1.0"
-description = "Self-hosted assistant to apply to more jobs, and apply better."
+description = "Paul — apply more, apply better. Self-hosted assistant for job applications."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

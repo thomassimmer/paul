@@ -5,8 +5,8 @@ services:
       args:
         # WITH_PDF=0 docker compose build   -> smaller image, no LibreOffice
         WITH_PDF: "${WITH_PDF:-1}"
-    image: paul-emploi
-    container_name: paul-emploi
+    image: paul
+    container_name: paul
     ports:
       # The web UI has no authentication, so it is published on localhost only.
       # Do not change to 0.0.0.0 unless you add auth in front of it.
