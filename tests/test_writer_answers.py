@@ -98,17 +98,17 @@ def test_a_programming_language_question_is_not_a_fact():
 def test_the_name_email_and_phone_come_from_the_identity():
     profile = _profile(
         identity=Identity(
-            name="Thomas Simmer",
-            first_name="Thomas",
-            last_name="Simmer",
-            email="thomas.simmer@hotmail.fr",
+            name="Camille Moreau",
+            first_name="Camille",
+            last_name="Moreau",
+            email="camille.moreau@example.com",
             phone="+33 6 00 00 00 00",
         )
     )
     for label, expected in [
-        ("First name", "Thomas"),
-        ("Last name", "Simmer"),
-        ("Email", "thomas.simmer@hotmail.fr"),
+        ("First name", "Camille"),
+        ("Last name", "Moreau"),
+        ("Email", "camille.moreau@example.com"),
         ("Phone", "+33 6 00 00 00 00"),
     ]:
         answer = answers.fact_answer(_question(label), profile)
@@ -118,11 +118,11 @@ def test_the_name_email_and_phone_come_from_the_identity():
 
 
 def test_first_and_last_name_fall_back_to_splitting_the_full_name():
-    profile = _profile(identity=Identity(name="Thomas Simmer"))
+    profile = _profile(identity=Identity(name="Camille Moreau"))
     first = answers.fact_answer(_question("First name"), profile)
     last = answers.fact_answer(_question("Last name"), profile)
-    assert first is not None and first.answer == "Thomas"
-    assert last is not None and last.answer == "Simmer"
+    assert first is not None and first.answer == "Camille"
+    assert last is not None and last.answer == "Moreau"
 
 
 def test_an_explicit_first_name_wins_over_the_split():
@@ -219,7 +219,7 @@ def test_resolve_keeps_the_question_order():
 def test_resolve_never_sends_an_identity_question_to_the_model():
     questions = [_question("First name"), _question("Email"), _question("Why us?")]
     slots = answers.resolve(
-        questions, _profile(identity=Identity(name="Thomas Simmer", email="t@example.com"))
+        questions, _profile(identity=Identity(name="Camille Moreau", email="c@example.com"))
     )
     assert answers.open_questions(slots) == [2]
 
@@ -314,7 +314,7 @@ def test_apply_keeps_the_users_wording_for_an_identity_answer():
     questions = [_question("Email")]
     stored = [FormAnswer(question="Email", answer="other@example.com")]
     merged = answers.apply(
-        questions, _profile(identity=Identity(email="thomas@example.com")), stored
+        questions, _profile(identity=Identity(email="camille@example.com")), stored
     )
     assert merged[0].source == "fact"
     assert merged[0].answer == "other@example.com"
