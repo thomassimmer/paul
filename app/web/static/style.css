@@ -662,7 +662,7 @@ code {
 /* The browser's own PDF viewer, so the pages and the page breaks are real. */
 .doc-pdf {
   width: 100%;
-  height: 70rem;
+  height: 100%;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
