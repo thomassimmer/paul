@@ -13,7 +13,7 @@ from app.config import DATA_DIR
 
 DB_PATH = DATA_DIR / "paul.sqlite3"
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS offers (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     analyzed_at TEXT NOT NULL DEFAULT (datetime('now')),
     source      TEXT NOT NULL DEFAULT '',
+    url         TEXT NOT NULL DEFAULT '',
     raw         TEXT NOT NULL DEFAULT '',
     cleaned     TEXT NOT NULL DEFAULT '',
     offer_json  TEXT NOT NULL
@@ -71,6 +72,7 @@ CREATE TABLE IF NOT EXISTS applications (
 _COLUMN_MIGRATIONS = {
     "rankings": {"fingerprint": "TEXT NOT NULL DEFAULT ''"},
     "applications": {"folder": "TEXT NOT NULL DEFAULT ''"},
+    "offers": {"url": "TEXT NOT NULL DEFAULT ''"},
 }
 
 

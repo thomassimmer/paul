@@ -17,6 +17,7 @@ def _record(row) -> OfferRecord:
         id=row["id"],
         analyzed_at=row["analyzed_at"],
         source=row["source"],
+        url=row["url"],
         offer=Offer.model_validate_json(row["offer_json"]),
     )
 
@@ -65,13 +66,21 @@ def load_source(offer_id: int) -> tuple[str, str] | None:
     return (row["raw"], row["cleaned"]) if row is not None else None
 
 
-def update_offer(offer_id: int, offer: Offer) -> None:
+def update_offer(offer_id: int, offer: Offer, *, url: str | None = None) -> None:
+    """Replace the extracted offer. ``url`` is only touched when it is given.
+
+    A re-analysis replaces the offer but knows nothing about the posting link, so
+    ``None`` means "keep whatever is there" rather than "erase it": losing the
+    link would be invisible and would defeat the point of saving it.
+    """
     db.init_db()
     with db.connect() as conn:
         conn.execute(
             "UPDATE offers SET offer_json = ? WHERE id = ?",
             (offer.model_dump_json(), offer_id),
         )
+        if url is not None:
+            conn.execute("UPDATE offers SET url = ? WHERE id = ?", (url, offer_id))
 
 
 def delete_offer(offer_id: int) -> None:

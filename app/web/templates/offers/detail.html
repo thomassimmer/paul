@@ -24,6 +24,9 @@
     </form>
     {% endif %}
     <a class="button" href="/offers/{{ record.id }}/edit">Complete / edit</a>
+    {% if record.url %}
+    <a class="button" href="{{ record.url }}" target="_blank" rel="noopener noreferrer">Open posting ↗</a>
+    {% endif %}
     <form method="post" action="/offers/{{ record.id }}/reanalyze" class="inline-form">
       <button type="submit">Analyze again</button>
     </form>
@@ -39,6 +42,7 @@
   {{ offer.company }}{% if offer.company and offer.location %} · {% endif %}{{ offer.location }}
   {% if record.analyzed_at %}<span class="muted">· analyzed {{ record.analyzed_at }} ({{ record.source }})</span>{% endif %}
   {% if prepared %}<span class="muted">· documents in <code>{{ folder }}/</code></span>{% endif %}
+  {% if not record.url %}<span class="muted">· <a href="/offers/{{ record.id }}/edit">add the posting link</a></span>{% endif %}
 </p>
 
 {% if missing %}

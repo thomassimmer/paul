@@ -44,6 +44,22 @@ def test_update_replaces_the_extracted_offer():
     assert updated.offer.title == "New"
 
 
+def test_the_posting_url_is_saved_and_survives_a_re_analysis():
+    record = store.save_offer(_offer("Old"), raw="", cleaned="", source="text")
+    assert record.url == ""  # the analyzer never sees the address bar
+
+    store.update_offer(record.id, _offer("New"), url="https://example.com/jobs/42")
+    saved = store.load_offer(record.id)
+    assert saved is not None
+    assert saved.url == "https://example.com/jobs/42"
+
+    # A re-analysis replaces the offer but knows nothing about the link, so it is kept.
+    store.update_offer(record.id, _offer("Newest"))
+    kept = store.load_offer(record.id)
+    assert kept is not None
+    assert kept.url == "https://example.com/jobs/42"
+
+
 def test_delete():
     record = store.save_offer(_offer(), raw="", cleaned="", source="text")
     store.delete_offer(record.id)

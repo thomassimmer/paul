@@ -157,6 +157,51 @@ def test_offer_can_be_completed_by_hand(client, monkeypatch):
     assert len(offer.form) == 1 and offer.form[0].required is True
 
 
+def test_the_posting_url_is_saved_and_linked_on_the_offer_page(client, monkeypatch):
+    save_settings(Settings(model="openai/gpt-4o"))
+    _patch_extract(monkeypatch)
+    offer_id = _analyze(client)
+
+    edit_page = client.get(f"/offers/{offer_id}/edit")
+    assert edit_page.status_code == 200
+    assert 'name="url"' in edit_page.text
+
+    response = client.post(
+        f"/offers/{offer_id}/edit",
+        data={
+            "title": "Senior Backend Engineer",
+            "url": "https://example.com/jobs/42",
+            "form_count": "0",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    record = store.load_offer(offer_id)
+    assert record is not None
+    assert record.url == "https://example.com/jobs/42"
+
+    page = client.get(f"/offers/{offer_id}").text
+    assert 'href="https://example.com/jobs/42"' in page
+    assert "Open posting" in page
+
+
+def test_a_re_analysis_keeps_the_posting_url(client, monkeypatch):
+    save_settings(Settings(model="openai/gpt-4o"))
+    _patch_extract(monkeypatch)
+    offer_id = _analyze(client)
+    record = store.load_offer(offer_id)
+    assert record is not None
+    store.update_offer(offer_id, record.offer, url="https://example.com/jobs/42")
+
+    _patch_extract(monkeypatch, OfferDraft(title="Backend Engineer", company="Acme"))
+    client.post(f"/offers/{offer_id}/reanalyze", follow_redirects=False)
+
+    record = store.load_offer(offer_id)
+    assert record is not None
+    assert record.url == "https://example.com/jobs/42"
+
+
 def test_offer_can_be_analyzed_again(client, monkeypatch):
     save_settings(Settings(model="openai/gpt-4o"))
     _patch_extract(monkeypatch)

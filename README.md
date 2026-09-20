@@ -181,7 +181,7 @@ Offer
 ```
 
 The application form is deliberately *not* asked for from the model: labels, `required`, `maxlength` and option values are facts sitting in the markup, so they are read by code (cheaper, and never approximated). Form controls are therefore left out of the text sent to the model.
-3. **Storage.** The offer is saved in SQLite as JSON, next to the raw fragment and the cleaned text, so you can re-run the analysis later with a better model or a tighter prompt without pasting the page again.
+3. **Storage.** The offer is saved in SQLite as JSON, next to the raw fragment and the cleaned text, so you can re-run the analysis later with a better model or a tighter prompt without pasting the page again. The **posting URL** is the one field filled in by hand, on the offer's *Complete / edit* page: the analyzer only ever sees the text you pasted, never the address bar. It is kept when the offer is analyzed again, and shown on the offer page as an *Open posting* link, so the posting can be found again when an application moves forward.
 
 Nothing is invented: a field the offer does not state stays empty. Company facts are only recorded when the pasted text mentions them. If the extraction fails validation it is retried once with the error message, and whatever could not be read is listed on the offer page and can be completed by hand.
 
@@ -323,7 +323,9 @@ scores arrive.
 
 Opening an offer gives **one page** for everything about it: the structured offer
 and its actions, its verdict with the scoring axes and the elimination evidence,
-the tailored CV, cover letter and form answers, and the tracking form.
+the tailored CV, cover letter and form answers, and the tracking form. Once you
+have saved the posting URL by hand, the same page links straight to the original
+listing.
 
 **Quick navigation.** The four long pages — the board, the offer page, the profile
 and the settings — carry a list of their sections. On a wide screen it is a sticky

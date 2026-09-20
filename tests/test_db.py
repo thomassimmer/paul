@@ -36,6 +36,27 @@ def test_init_db_adds_a_column_a_previous_version_did_not_have():
     assert {"offer_id", "score_json", "fingerprint"} <= columns
 
 
+def test_init_db_adds_the_offers_url_column():
+    # A database created before the posting link existed.
+    with db.connect() as conn:
+        conn.executescript(
+            "CREATE TABLE offers ("
+            "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  analyzed_at TEXT NOT NULL DEFAULT (datetime('now')),"
+            "  source TEXT NOT NULL DEFAULT '',"
+            "  raw TEXT NOT NULL DEFAULT '',"
+            "  cleaned TEXT NOT NULL DEFAULT '',"
+            "  offer_json TEXT NOT NULL"
+            ");"
+        )
+
+    db.init_db()
+
+    with db.connect() as conn:
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(offers)")}
+    assert "url" in columns
+
+
 def test_init_db_is_idempotent():
     db.init_db()
     db.init_db()  # a second start must not fail on the migration

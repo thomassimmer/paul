@@ -285,6 +285,7 @@ async def offer_edit(request: Request, offer_id: int):
         active="offers",
         record_id=record.id,
         offer=record.offer,
+        url=record.url,
         missing=service.missing_fields(record.offer),
         **editor.editor_view(record.offer),
     )
@@ -297,7 +298,11 @@ async def offer_save(request: Request, offer_id: int):
         return response
     assert record is not None
     form = await request.form()
-    store.update_offer(offer_id, editor.offer_from_form(form, record.offer))
+    store.update_offer(
+        offer_id,
+        editor.offer_from_form(form, record.offer),
+        url=str(form.get("url") or "").strip(),
+    )
     return redirect(f"/offers/{offer_id}", message="Offer saved.")
 
 

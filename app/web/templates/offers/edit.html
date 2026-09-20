@@ -29,6 +29,8 @@
         <input id="company" name="company" value="{{ offer.company }}"></div>
       <div><label for="location">Location</label>
         <input id="location" name="location" value="{{ offer.location }}"></div>
+      <div><label for="url">Posting URL</label>
+        <input id="url" name="url" type="url" value="{{ url }}" placeholder="https://…"></div>
       <div><label for="remote_policy">Remote policy</label>
         <input id="remote_policy" name="remote_policy" value="{{ offer.remote_policy }}"></div>
       <div><label for="contract_type">Contract type</label>
@@ -40,6 +42,7 @@
       <div><label for="language">Language</label>
         <input id="language" name="language" value="{{ offer.language }}" placeholder="en, fr, …"></div>
     </div>
+    <p class="hint">The posting URL is the page you copied the offer from, so you can find it again.</p>
   </section>
 
   <section class="card">

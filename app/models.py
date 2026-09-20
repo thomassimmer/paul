@@ -230,6 +230,9 @@ class OfferRecord(BaseModel):
     id: int
     analyzed_at: str = ""
     source: str = ""
+    # Where the posting lives, so it can be found again later. Filled in by hand:
+    # the analyzer only sees the text you pasted, never the address bar.
+    url: str = ""
     offer: Offer
 
 
