@@ -10,11 +10,11 @@ def test_lines_round_trip_with_roles_and_citations():
     lines = [
         DraftLine(role="name", text="Camille Moreau"),
         DraftLine(role="section_title", text="Experience"),
-        DraftLine(role="bullet", text="Cut latency by 60%", achievement_ids=["exp-acme-a1"]),
+        DraftLine(role="bullet", text="Cut latency by 60%", source_ids=["exp-acme-2022"]),
         DraftLine(
             role="bullet",
             text="Migrated the platform",
-            achievement_ids=["exp-acme-a1", "exp-acme-a2"],
+            source_ids=["exp-acme-2022", "exp-northwind-2019"],
         ),
     ]
 
@@ -45,23 +45,23 @@ def test_parse_lines_skips_blank_lines_and_keeps_unknown_roles():
 def test_braces_that_do_not_hold_an_id_are_plain_text():
     parsed = markdown.parse_lines("[bullet] Use {braces} carefully {not an id}")
     assert parsed[0].text == "Use {braces} carefully {not an id}"
-    assert parsed[0].achievement_ids == []
+    assert parsed[0].source_ids == []
 
 
 def test_a_citation_left_inside_the_text_is_lifted_out():
-    parsed = markdown.parse_lines("[entry_subtitle] B2B platform {exp-acme-a1} for Acme")
+    parsed = markdown.parse_lines("[entry_subtitle] B2B platform {exp-acme-2022} for Acme")
     assert parsed[0].text == "B2B platform for Acme"
-    assert parsed[0].achievement_ids == ["exp-acme-a1"]
+    assert parsed[0].source_ids == ["exp-acme-2022"]
 
 
 def test_a_citation_written_twice_is_read_once():
-    parsed = markdown.parse_lines("[bullet] Cut latency {exp-acme-a1} {exp-acme-a1}")
+    parsed = markdown.parse_lines("[bullet] Cut latency {exp-acme-2022} {exp-acme-2022}")
     assert parsed[0].text == "Cut latency"
-    assert parsed[0].achievement_ids == ["exp-acme-a1"]
+    assert parsed[0].source_ids == ["exp-acme-2022"]
 
 
 def test_rendering_never_leaves_a_citation_in_the_text():
-    lines = [DraftLine(role="bullet", text="Cut latency {exp-acme-a1}", achievement_ids=[])]
+    lines = [DraftLine(role="bullet", text="Cut latency {exp-acme-2022}", source_ids=[])]
     rendered = markdown.render_lines(lines)
     assert markdown.parse_lines(rendered)[0].text == "Cut latency"
 
@@ -73,8 +73,8 @@ def test_to_html_escapes_the_text():
 
 
 def test_to_html_shows_the_citation_as_a_marker():
-    html = markdown.to_html("[bullet] A result {exp-acme-a1}")
-    assert "exp-acme-a1" in html
+    html = markdown.to_html("[bullet] A result {exp-acme-2022}")
+    assert "exp-acme-2022" in html
     assert 'class="cite"' in html
 
 

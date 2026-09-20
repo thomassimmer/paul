@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.models import Achievement, Experience, Facts, Profile
+from app.models import Experience, Facts, Profile
 from app.profiler import editor
 
 
@@ -19,7 +19,9 @@ def test_skills_without_a_group_go_to_other():
 
 def test_editor_view_ends_every_list_with_a_blank_row():
     profile = Profile(
-        experiences=[Experience(id="exp-acme-2022", company="Acme", achievements=[Achievement(id="exp-acme-2022-a1", text="x")])],
+        experiences=[
+            Experience(id="exp-acme-2022", company="Acme", highlights=["Cut latency by 60%"])
+        ],
         education=[],
         projects=[],
     )
@@ -27,11 +29,10 @@ def test_editor_view_ends_every_list_with_a_blank_row():
 
     assert [item["blank"] for item in view["experiences"]] == [False, True]
     assert view["experience_count"] == 2
-    # One row for the existing achievement, one blank per experience card.
-    assert view["achievement_count"] == 3
-    assert view["experiences"][0]["achievements"][0]["index"] == 0
-    assert view["experiences"][0]["blank_index"] == 1
-    assert view["experiences"][1]["blank_index"] == 2
+    # The existing experience, then the blank row that adds the next one.
+    assert view["experiences"][0]["index"] == 0
+    assert view["experiences"][0]["experience"].id == "exp-acme-2022"
+    assert view["experiences"][1]["index"] == 1
     assert [row["blank"] for row in view["education_rows"]] == [True]
     assert [row["blank"] for row in view["project_rows"]] == [True]
 
@@ -43,7 +44,6 @@ def _base_form(**overrides: str) -> dict[str, str]:
         "facts.languages": "French, English",
         "skills": "Languages: Rust",
         "exp_count": "0",
-        "ach_count": "0",
         "edu_count": "0",
         "proj_count": "0",
     }
@@ -59,7 +59,7 @@ def test_profile_from_form_sets_scalars_lists_and_skills():
     assert profile.skills == {"Languages": ["Rust"]}
 
 
-def test_profile_from_form_adds_an_experience_and_an_achievement():
+def test_profile_from_form_adds_an_experience_with_highlights():
     form = _base_form(
         exp_count="1",
         **{
@@ -68,10 +68,8 @@ def test_profile_from_form_adds_an_experience_and_an_achievement():
             "exp.0.title": "Lead Backend Engineer",
             "exp.0.period": "2022-03 / 2024-06",
             "exp.0.stack": "Rust, Kafka",
-            "ach_count": "1",
-            "ach.0.exp_index": "0",
-            "ach.0.text": "Cut ingestion latency by 60%",
-            "ach.0.metrics": "",
+            # One highlight per line: a comma inside a sentence is kept.
+            "exp.0.highlights": "Cut latency, from 900ms to 120ms\nLed the migration",
         },
     )
     profile = editor.profile_from_form(form)
@@ -79,30 +77,27 @@ def test_profile_from_form_adds_an_experience_and_an_achievement():
     experience = profile.experiences[0]
     assert experience.id == "exp-acme-2022"
     assert experience.stack == ["Rust", "Kafka"]
-    assert experience.achievements[0].id == "exp-acme-2022-a1"
-    # Metrics are derived from the text when the field is left empty.
-    assert experience.achievements[0].metrics == ["60%"]
+    assert experience.highlights == [
+        "Cut latency, from 900ms to 120ms",
+        "Led the migration",
+    ]
 
 
 def test_profile_from_form_drops_emptied_rows():
     form = _base_form(
         exp_count="2",
-        ach_count="2",
         **{
             "exp.0.id": "exp-acme-2022",
             "exp.0.company": "Acme",
             "exp.0.title": "Engineer",
+            "exp.0.highlights": "Kept",
             # exp.1 is the blank trailing row: left empty, so it disappears.
-            "ach.0.exp_index": "0",
-            "ach.0.text": "Kept",
-            "ach.1.exp_index": "1",
-            "ach.1.text": "Attached to a dropped experience",
         },
     )
     profile = editor.profile_from_form(form)
 
     assert [experience.company for experience in profile.experiences] == ["Acme"]
-    assert [a.text for a in profile.experiences[0].achievements] == ["Kept"]
+    assert profile.experiences[0].highlights == ["Kept"]
 
 
 def test_profile_from_form_keeps_hand_added_facts():
@@ -121,19 +116,14 @@ def test_profile_from_form_keeps_hand_added_facts():
 def test_profile_from_form_preserves_existing_ids():
     form = _base_form(
         exp_count="1",
-        ach_count="1",
         **{
             "exp.0.id": "exp-kept",
             "exp.0.company": "Acme",
             "exp.0.title": "Engineer",
-            "ach.0.id": "exp-kept-a9",
-            "ach.0.exp_index": "0",
-            "ach.0.text": "Kept achievement",
         },
     )
     profile = editor.profile_from_form(form)
     assert profile.experiences[0].id == "exp-kept"
-    assert profile.experiences[0].achievements[0].id == "exp-kept-a9"
 
 
 def test_profile_from_form_handles_missing_counts():

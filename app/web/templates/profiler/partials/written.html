@@ -1,0 +1,23 @@
+{# What the last answer wrote into the profile, shown back before the next
+   question. Reading the change is how the candidate checks that the model
+   understood, and it is the only place the writing is visible. #}
+{% if result %}
+  {% if result.written %}
+  <div class="card">
+    <h2>Written into your profile</h2>
+    <dl class="kv">
+      {% for item in result.written %}
+      <dt>{{ item.label }}{% if item.rewritten %} <span class="tag">rewritten</span>{% endif %}</dt>
+      <dd><ul class="highlights">{% for line in item.lines %}<li>{{ line }}</li>{% endfor %}</ul></dd>
+      {% endfor %}
+    </dl>
+  </div>
+  {% endif %}
+  {% if result.dropped %}
+  <div class="banner banner-warning" role="status">
+    <p>Some of your answer could not be written:</p>
+    <ul>{% for item in result.dropped %}<li>{{ item }}</li>{% endfor %}</ul>
+    <p class="hint">Say it again in another answer, or edit the field on the profile page.</p>
+  </div>
+  {% endif %}
+{% endif %}

@@ -27,7 +27,8 @@
         <input id="identity.last_name" name="identity.last_name" value="{{ profile.identity.last_name }}"
                placeholder="split from Name if empty"></div>
       <div><label for="identity.headline">Headline</label>
-        <input id="identity.headline" name="identity.headline" value="{{ profile.identity.headline }}"></div>
+        <input id="identity.headline" name="identity.headline" value="{{ profile.identity.headline }}"
+               placeholder="how you would describe yourself"></div>
       <div><label for="identity.location">Location</label>
         <input id="identity.location" name="identity.location" value="{{ profile.identity.location }}"></div>
       <div><label for="identity.email">Email</label>
@@ -63,7 +64,6 @@
   <section class="card">
     <h2>Experience</h2>
     <input type="hidden" name="exp_count" value="{{ experience_count }}">
-    <input type="hidden" name="ach_count" value="{{ achievement_count }}">
 
     {% for item in experiences %}
     <article class="entry {% if item.blank %}blank{% endif %}">
@@ -82,30 +82,9 @@
       <textarea name="exp.{{ item.index }}.context" rows="2">{{ item.experience.context }}</textarea>
       <label>Stack</label>
       <input name="exp.{{ item.index }}.stack" value="{{ item.experience.stack | join(', ') }}" placeholder="comma-separated">
-      <label>Hard problems</label>
-      <textarea name="exp.{{ item.index }}.difficulties" rows="2">{{ item.experience.difficulties }}</textarea>
-
-      <h4>Achievements</h4>
-      {% for row in item.achievements %}
-      <div class="achievement-row">
-        <input type="hidden" name="ach.{{ row.index }}.id" value="{{ row.achievement.id }}">
-        <input type="hidden" name="ach.{{ row.index }}.exp_index" value="{{ item.index }}">
-        <textarea name="ach.{{ row.index }}.text" rows="2" placeholder="What you achieved">{{ row.achievement.text }}</textarea>
-        <div class="grid-2">
-          <input name="ach.{{ row.index }}.metrics" value="{{ row.achievement.metrics | join(', ') }}" placeholder="metrics">
-          <input name="ach.{{ row.index }}.skills" value="{{ row.achievement.skills | join(', ') }}" placeholder="skills">
-        </div>
-      </div>
-      {% endfor %}
-      {# one blank achievement row, so this entry can gain one #}
-      <div class="achievement-row blank">
-        <input type="hidden" name="ach.{{ item.blank_index }}.exp_index" value="{{ item.index }}">
-        <textarea name="ach.{{ item.blank_index }}.text" rows="2" placeholder="Add an achievement…"></textarea>
-        <div class="grid-2">
-          <input name="ach.{{ item.blank_index }}.metrics" placeholder="metrics">
-          <input name="ach.{{ item.blank_index }}.skills" placeholder="skills">
-        </div>
-      </div>
+      <label>What you did</label>
+      <textarea name="exp.{{ item.index }}.highlights" rows="4" placeholder="One thing per line">{{ item.experience.highlights | join("\n") }}</textarea>
+      <p class="hint">One thing per line. Numbers and scale help: what it took, how long, how many.</p>
     </article>
     {% endfor %}
   </section>

@@ -10,16 +10,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from app.models import (
-    Achievement,
-    Education,
-    Experience,
-    Identity,
-    Profile,
-    Project,
-)
+from app.models import Education, Experience, Identity, Profile, Project
 from app.profiler.ids import assign_ids
-from app.profiler.text import extract_metrics, split_list
+from app.profiler.text import split_lines, split_list
 
 
 def parse_skills(text: str) -> dict[str, list[str]]:
@@ -61,46 +54,16 @@ def editor_view(profile: Profile) -> dict:
     Blank rows are how entries are added without JavaScript: filling the
     trailing row creates the entry, emptying a row deletes it.
     """
-    achievement_index = 0
-    experiences: list[dict] = []
-    for position, experience in enumerate(profile.experiences):
-        experiences.append(
-            {
-                "index": position,
-                "experience": experience,
-                "blank": False,
-                "achievements": [
-                    {"index": -1, "achievement": achievement}
-                    for achievement in experience.achievements
-                ],
-            }
-        )
-    experiences.append(
-        {
-            "index": len(profile.experiences),
-            "experience": Experience(),
-            "blank": True,
-            "achievements": [],
-        }
-    )
 
-    for item in experiences:
-        for row in item["achievements"]:
-            row["index"] = achievement_index
-            achievement_index += 1
-        item["blank_index"] = achievement_index
-        achievement_index += 1
-
-    def rows(entries: list, factory) -> list[dict]:
+    def rows(entries: list, factory, key: str = "entry") -> list[dict]:
         return [
-            *({"index": i, "blank": False, "entry": entry} for i, entry in enumerate(entries)),
-            {"index": len(entries), "blank": True, "entry": factory()},
+            *({"index": i, "blank": False, key: entry} for i, entry in enumerate(entries)),
+            {"index": len(entries), "blank": True, key: factory()},
         ]
 
     return {
-        "experiences": experiences,
-        "experience_count": len(experiences),
-        "achievement_count": achievement_index,
+        "experiences": rows(profile.experiences, Experience, key="experience"),
+        "experience_count": len(profile.experiences) + 1,
         "education_rows": rows(profile.education, Education),
         "project_rows": rows(profile.projects, Project),
         "skills_text": format_skills(profile.skills),
@@ -168,22 +131,8 @@ def _experiences_from_form(form: Mapping[str, object]) -> list[Experience]:
             context=_text(form, prefix + "context"),
             team_size=_text(form, prefix + "team_size"),
             stack=split_list(_text(form, prefix + "stack")),
-            difficulties=_text(form, prefix + "difficulties"),
-        )
-
-    for index in range(_number(form, "ach_count")):
-        prefix = f"ach.{index}."
-        text = _text(form, prefix + "text")
-        owner = by_index.get(_number(form, prefix + "exp_index", -1))
-        if not text or owner is None:
-            continue
-        owner.achievements.append(
-            Achievement(
-                id=_text(form, prefix + "id"),
-                text=text,
-                metrics=split_list(_text(form, prefix + "metrics")) or extract_metrics(text),
-                skills=split_list(_text(form, prefix + "skills")),
-            )
+            # One line, one highlight: a sentence may well contain a comma.
+            highlights=split_lines(_text(form, prefix + "highlights")),
         )
 
     return [by_index[index] for index in sorted(by_index)]

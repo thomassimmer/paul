@@ -8,7 +8,6 @@ import pytest
 
 from app.config import Settings
 from app.models import (
-    Achievement,
     DraftAnswer,
     DraftLine,
     Experience,
@@ -35,13 +34,7 @@ def _profile(*, facts: Facts | None = None) -> Profile:
                 id="exp-acme-2022",
                 company="Acme",
                 title="Lead Backend Engineer",
-                achievements=[
-                    Achievement(
-                        id="exp-acme-2022-a1",
-                        text="Cut ingestion latency by 60%",
-                        metrics=["60%"],
-                    )
-                ],
+                highlights=["Cut ingestion latency by 60%"],
             )
         ],
     )
@@ -74,7 +67,7 @@ def _cv_lines() -> list[DraftLine]:
         DraftLine(
             role="bullet",
             text="Cut ingestion latency by 60%",
-            achievement_ids=["exp-acme-2022-a1"],
+            source_ids=["exp-acme-2022"],
         ),
         DraftLine(role="section_title", text="Skills"),
         DraftLine(role="skill_line", text="Rust"),
@@ -89,7 +82,7 @@ def _letter_lines() -> list[DraftLine]:
         DraftLine(
             role="body_text",
             text="I cut ingestion latency by 60%.",
-            achievement_ids=["exp-acme-2022-a1"],
+            source_ids=["exp-acme-2022"],
         ),
         DraftLine(role="closing", text="Sincerely,"),
     ]
@@ -317,7 +310,7 @@ def test_save_only_touches_the_posted_section(monkeypatch):
         _profile(),
         record,
         folder=prepared.folder,
-        cv_source="[name] Camille Moreau\n[bullet] Cut latency by 60% {exp-acme-2022-a1}\n",
+        cv_source="[name] Camille Moreau\n[bullet] Cut latency by 60% {exp-acme-2022}\n",
     )
 
     assert saved.sections == ["CV"]
@@ -414,7 +407,7 @@ def test_regenerate_from_the_current_version_hands_back_the_stored_document(monk
 
     base = calls["base"]["cv"][0]
     assert "[name] Camille Moreau" in base
-    assert "{exp-acme-2022-a1}" in base  # the citations travel with the lines
+    assert "{exp-acme-2022}" in base  # the citations travel with the lines
     assert "<!--" not in base  # the header documents the format, it is not content
 
 

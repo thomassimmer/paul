@@ -25,7 +25,7 @@ nothing is ever sent for you.
 
 | Module                | What it does                                                                                                                                     |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Profiler**          | Imports your CV, interviews you one question at a time to fill the gaps, and builds a detailed, editable profile.                                |
+| **Profiler**          | Imports your CV, then interviews you one question at a time: the model reads the profile, asks what is missing, and writes each answer into it.  |
 | **Offer analyzer**    | Paste the **raw HTML fragment** of an offer, or plain text. The agent extracts the structured offer and the application form's questions.        |
 | **Filter and ranker** | Eliminates the offers that break your rules, scores the others against your profile and your wishes, with a one-sentence justification per axis. |
 | **Writer**            | Produces a tailored CV and cover letter **in your imported template**, drafts the form answers, and reports keyword coverage (ATS).              |
@@ -52,7 +52,8 @@ flowchart LR
 
 Typical session:
 
-1. **Once.** Import your CV, answer the profiler, import your templates, write your
+1. **Once.** Import your CV, answer the interview — one question at a time, and you
+   can stop and come back whenever you like — then import your templates, write your
    rules and your wishes.
 2. **Per offer.** Paste the HTML fragment. The offer is analyzed, filtered and
    scored in seconds.

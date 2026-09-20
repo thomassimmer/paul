@@ -7,7 +7,7 @@ rule). ``Profile`` is owned by the profiler, ``Offer`` by the offer analyzer;
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Identity(BaseModel):
@@ -45,27 +45,89 @@ class Facts(BaseModel):
     languages: list[str] = Field(default_factory=list)
 
 
-class Achievement(BaseModel):
-    """One result. The writer cites ``id``, which is what makes the grounding
-    check possible, and ``metrics`` is what makes it concrete."""
-
-    id: str = ""
-    text: str = ""
-    metrics: list[str] = Field(default_factory=list)
-    skills: list[str] = Field(default_factory=list)
-
-
 class Experience(BaseModel):
+    """One job or placement.
+
+    ``context`` is the setting: the company, the product, the scale, your remit.
+    ``highlights`` is what you did and got out of it, one line per thing — the
+    shape a CV bullet wants, and the material the ranker and the writer work from.
+
+    This replaced a structured ``achievements`` list (ids, metrics, skills) and a
+    separate ``difficulties`` field. The ceremony cost more than it told the
+    writer, and it was the app's taxonomy rather than the candidate's; a few plain
+    lines say more, and the interview fills them without a second thought.
+    """
+
     id: str = ""
     company: str = ""
     title: str = ""
     period: str = ""
-    # The interview targets exactly what a CV usually omits:
     context: str = ""
     team_size: str = ""
     stack: list[str] = Field(default_factory=list)
-    difficulties: str = ""
-    achievements: list[Achievement] = Field(default_factory=list)
+    highlights: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_legacy(cls, data: object) -> object:
+        """Read a file written before ``highlights`` without losing anything.
+
+        Older profiles stored a structured ``achievements`` list and a
+        ``difficulties`` field. Everything they held is kept: a result becomes a
+        highlight, with the figures it measured in parentheses after it; the
+        technologies it named join the stack of the job; and what was genuinely hard
+        becomes a line of the context, where it belongs — a constraint is not a
+        bullet a CV should carry. Those extra fields carried information the sentence
+        alone does not: "Led the migration" with a ``metrics`` of "13M invoices" says
+        something the text never repeats.
+        """
+        if not isinstance(data, dict):
+            return data
+        achievements = data.get("achievements") or []
+        difficulties = data.get("difficulties")
+        if not achievements and not difficulties:
+            return data
+
+        folded = [
+            str(item).strip() for item in (data.get("highlights") or []) if str(item).strip()
+        ]
+        stack = [str(item).strip() for item in (data.get("stack") or []) if str(item).strip()]
+        known = {skill.casefold() for skill in stack}
+
+        def add_highlight(line: str) -> None:
+            if line and line not in folded:
+                folded.append(line)
+
+        for item in achievements:
+            if not isinstance(item, dict):
+                add_highlight(str(item).strip())
+                continue
+            text = str(item.get("text", "")).strip()
+            measures = [
+                str(measure).strip()
+                for measure in (item.get("metrics") or [])
+                if str(measure).strip()
+            ]
+            add_highlight(f"{text} ({', '.join(measures)})" if text and measures else text)
+            for skill in item.get("skills") or []:
+                name = str(skill).strip()
+                if name and name.casefold() not in known:
+                    known.add(name.casefold())
+                    stack.append(name)
+
+        if isinstance(difficulties, str) and difficulties.strip():
+            context = str(data.get("context", "")).strip()
+            legacy_context = f"{context}\n{difficulties.strip()}" if context else difficulties.strip()
+        else:
+            legacy_context = data.get("context", "")
+
+        legacy = {
+            key: value for key, value in data.items() if key not in ("achievements", "difficulties")
+        }
+        legacy["highlights"] = folded
+        legacy["stack"] = stack
+        legacy["context"] = legacy_context
+        return legacy
 
 
 class Education(BaseModel):
@@ -361,6 +423,10 @@ LETTER_ROLES = (
 )
 # Roles that state a fact about the candidate, and therefore need a citation.
 FACTUAL_ROLES = ("bullet", "body_text", "entry_subtitle")
+# Roles whose numbers must already exist in the profile. Wider than FACTUAL_ROLES: a
+# headline cites nothing — it is not a result — but it is the line a recruiter reads
+# first, and "10 years of Rust" is exactly the claim this application refuses.
+NUMBER_CHECKED_ROLES = (*FACTUAL_ROLES, "headline")
 
 
 class TemplateBlock(BaseModel):
@@ -397,11 +463,17 @@ class DraftLine(BaseModel):
     ``role`` stays a plain string here: this is what the model answers, and a
     misspelled role must not cost a whole retry. ``writer/draft.py`` maps it back
     to the roles the renderer knows before anything is stored.
+
+    ``source_ids`` names the profile entries the line is based on — an
+    experience id like ``exp-acme-2022``. The writer cites an experience rather
+    than an individual result now that a result is just a line of its
+    ``highlights``: the citation says which job the claim comes from, and the
+    grounding check still refuses any number the profile does not contain.
     """
 
     role: str = "body_text"
     text: str = ""
-    achievement_ids: list[str] = Field(default_factory=list)
+    source_ids: list[str] = Field(default_factory=list)
 
 
 class CvDraft(BaseModel):

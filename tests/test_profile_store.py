@@ -74,10 +74,69 @@ def test_cv_text_is_kept_for_re_runs():
     assert store.load_cv_text() == "Camille Moreau"
 
 
-def test_interview_skips_are_stored_in_sqlite():
-    assert store.skipped_keys() == set()
-    store.skip_key("facts:notice_period")
-    store.skip_key("facts:notice_period")  # idempotent
-    assert store.skipped_keys() == {"facts:notice_period"}
-    store.clear_skips()
-    assert store.skipped_keys() == set()
+def test_a_file_written_before_highlights_keeps_what_it_recorded():
+    """An older profile folds its achievements and difficulties into highlights.
+
+    Nothing it recorded is dropped — including what the sentence alone did not
+    say: the figures an achievement measured, and the technologies it named.
+    """
+    store.PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    legacy = {
+        "experiences": [
+            {
+                "id": "exp-acme-2022",
+                "company": "Acme",
+                "context": "B2B invoicing SaaS",
+                "stack": ["Rust"],
+                "difficulties": "Rebuilding without downtime",
+                "achievements": [
+                    {
+                        "id": "exp-acme-2022-a1",
+                        "text": "Led the migration",
+                        "metrics": ["13M invoices", "10 hours"],
+                        "skills": ["Kafka", "Rust"],
+                    },
+                    {"text": "Led 40 services"},
+                ],
+            }
+        ]
+    }
+    store.PROFILE_PATH.write_text(yaml.safe_dump(legacy, sort_keys=False), encoding="utf-8")
+
+    profile = store.load_profile()
+    assert profile is not None
+    experience = profile.experiences[0]
+    assert experience.highlights == [
+        "Led the migration (13M invoices, 10 hours)",
+        "Led 40 services",
+    ]
+    # The technologies an achievement named join the stack of the job, without
+    # duplicating what is already there.
+    assert experience.stack == ["Rust", "Kafka"]
+    # What was hard about the job is context, not a bullet.
+    assert experience.context == "B2B invoicing SaaS\nRebuilding without downtime"
+
+    store.save_profile(profile)
+    text = store.PROFILE_PATH.read_text(encoding="utf-8")
+    assert "achievements" not in text and "difficulties" not in text
+
+    saved = store.load_profile()
+    assert saved is not None
+    assert saved.experiences[0].highlights[0] == "Led the migration (13M invoices, 10 hours)"
+
+
+def test_interview_questions_asked_are_stored_in_sqlite():
+    assert store.asked_questions() == []
+    store.remember_question("What did you build there?")
+    store.remember_question("What did you build there?")  # idempotent
+    store.remember_question("  What   did you build there?  ")  # whitespace collapsed
+    assert store.asked_questions() == ["What did you build there?"]
+
+    store.remember_question("Why did you leave?")
+    assert store.asked_questions() == [
+        "What did you build there?",
+        "Why did you leave?",
+    ]
+
+    store.forget_questions()
+    assert store.asked_questions() == []

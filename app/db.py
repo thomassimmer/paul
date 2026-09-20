@@ -1,8 +1,8 @@
 """SQLite access: one process, one database file under ``data/``.
 
-The profile itself lives in ``data/profile/profile.yaml``; the database holds
-what does not belong in a readable file, starting with the interview's skipped
-questions. Domain tables (offers, applications) arrive with the next modules.
+The profile itself lives in ``data/profile/profile.yaml``; the database holds what
+does not belong in a readable file: the questions the interview has already
+asked, the offers and their rankings, and the applications.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from app.config import DATA_DIR
 
 DB_PATH = DATA_DIR / "paul.sqlite3"
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -21,11 +21,14 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT NOT NULL
 );
 
--- Questions the user chose to skip during the profiler interview. Skipping is
--- UI state, not profile data, so it lives here and never touches the YAML.
-CREATE TABLE IF NOT EXISTS interview_skipped (
-    key        TEXT PRIMARY KEY,
-    skipped_at TEXT NOT NULL DEFAULT (datetime('now'))
+-- The interview questions already put to the candidate. The next question is
+-- computed from the profile each time the interview is opened, so nothing about
+-- it is stored; what has to survive between visits is what has already been
+-- asked, or the model would start over every time.
+CREATE TABLE IF NOT EXISTS interview_asked (
+    prompt    TEXT PRIMARY KEY,
+    topic     TEXT NOT NULL DEFAULT '',
+    asked_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Analyzed offers. The raw fragment and the cleaned text are kept so the

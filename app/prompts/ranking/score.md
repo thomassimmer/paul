@@ -10,7 +10,7 @@ salary.
 The axes:
 
 - technical_match: the offer's requirements against the candidate's skills,
-  stack and achievements. 5 = the must-haves are met with evidence from the
+  stack and highlights. 5 = the must-haves are met with evidence from the
   profile; 0 = the core of the role is absent from the profile.
 - seniority_scope: the responsibilities and the seniority against the
   candidate's experience. 5 = same scope and level; 0 = clearly out of reach or

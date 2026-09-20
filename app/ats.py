@@ -97,7 +97,7 @@ def _profile_text(profile: Profile) -> str:
     parts: list[str] = [skill for skills in profile.skills.values() for skill in skills]
     for experience in profile.experiences:
         parts.extend(experience.stack)
-        parts.extend(achievement.text for achievement in experience.achievements)
+        parts.extend(experience.highlights)
     return "\n".join(parts)
 
 

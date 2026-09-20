@@ -1,0 +1,74 @@
+{# The interview card. Every route in and out of the interview returns this
+   fragment, so with HTMX only the card moves and the page around it never
+   reloads. Rendered with no turn and no error it is the opening state: it asks
+   for the first question itself.
+
+   An error keeps whatever is on screen: the question that failed, with the answer
+   the candidate had typed, so the turn can be tried again. #}
+<div id="interview">
+  {% if error %}
+  <div class="card">
+    <p class="banner banner-error" role="alert">{{ error }}</p>
+    {% if not turn or not turn.question.prompt %}
+    <div class="actions">
+      <form hx-get="/profiler/interview/next" hx-target="#interview" hx-swap="outerHTML">
+        <button type="submit" class="primary">Try again <span class="spinner"></span></button>
+      </form>
+      <a class="button" href="/settings">Settings</a>
+      <a class="button" href="/profiler">Back to the profile</a>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% include "profiler/partials/written.html" %}
+
+  {% if turn and turn.question.prompt %}
+  <div class="card">
+    <p class="hint">
+      <a href="/profiler">Stop here and come back later</a> — nothing is lost.
+    </p>
+    {% if turn.question.topic %}<p class="topic">{{ turn.question.topic }}</p>{% endif %}
+    <h2 class="question">{{ turn.question.prompt }}</h2>
+    {% if turn.question.hint %}<p class="hint">{{ turn.question.hint }}</p>{% endif %}
+    {% if turn.question.why %}<p class="hint">What this adds: {{ turn.question.why }}</p>{% endif %}
+
+    <form method="post" action="/profiler/interview/answer">
+      <input type="hidden" name="question" value="{{ turn.question.prompt }}">
+      <label for="answer">Your answer</label>
+      <textarea id="answer" name="answer" rows="4" autofocus>{{ draft }}</textarea>
+      <div class="actions">
+        <button type="submit" class="primary"
+                hx-post="/profiler/interview/answer" hx-target="#interview" hx-swap="outerHTML"
+                hx-disabled-elt="this">Save and continue <span class="spinner"></span></button>
+        <button type="submit" formnovalidate formaction="/profiler/interview/skip"
+                hx-post="/profiler/interview/skip" hx-target="#interview" hx-swap="outerHTML"
+                hx-disabled-elt="this">Skip this question</button>
+      </div>
+    </form>
+  </div>
+  {% elif not error and not turn %}
+  <div class="card" hx-get="/profiler/interview/next" hx-trigger="load"
+       hx-target="#interview" hx-swap="outerHTML">
+    <p class="hint"><span class="spinner"></span> Reading your profile…</p>
+    <noscript>
+      <p class="hint">JavaScript is off, so ask for the question yourself:</p>
+      <a class="button primary" href="/profiler/interview/next">Ask the next question</a>
+    </noscript>
+  </div>
+  {% elif not error %}
+  <div class="card">
+    <h2>That is everything</h2>
+    <p>
+      The model has nothing left to ask about this profile. Come back after a new
+      job, or after importing an updated CV.
+    </p>
+    <div class="actions">
+      <a class="button primary" href="/profiler">Review the profile</a>
+      <form method="post" action="/profiler/interview/forget">
+        <button type="submit">Ask everything again</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>

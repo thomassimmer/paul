@@ -1,15 +1,17 @@
 """Checking a draft against the profile.
 
-The prompt states the rule — use only the profile, cite an achievement for every
+The prompt states the rule — use only the profile, cite an experience for every
 claim. This module checks it, line by line, in code: a model that invents one
 number is exactly the failure this application exists to avoid, and no prompt
 makes that impossible.
 
 The checks are deliberately lenient about wording and strict about facts: any
 number must already be somewhere in the profile, every citation must exist, and a
-skills line may not name something the candidate never listed. What counts as a
-result, a skill or an entry title is decided from the model of the profile, so a
-school or a project is a valid entry title just like a job.
+skills line may not name something the candidate never listed. A headline cites
+nothing — it is not a result — but it is the line a recruiter reads first, so it is
+held to the numbers rule all the same. What counts as a result, a skill or an entry
+title is decided from the model of the profile, so a school or a project is a valid
+entry title just like a job.
 """
 
 from __future__ import annotations
@@ -18,7 +20,14 @@ import re
 from collections.abc import Iterator
 
 from app.ats import normalize
-from app.models import FACTUAL_ROLES, DraftLine, GroundingIssue, GroundingReport, Profile
+from app.models import (
+    FACTUAL_ROLES,
+    NUMBER_CHECKED_ROLES,
+    DraftLine,
+    GroundingIssue,
+    GroundingReport,
+    Profile,
+)
 
 # Keys dropped from the material: the ids themselves. Otherwise the digits of
 # "exp-acme-2022-a1" would make almost every number look supported.
@@ -32,7 +41,7 @@ _SKILL_SPLIT = re.compile(r"[;,]| — | – ")
 
 def check(lines: list[DraftLine], profile: Profile) -> GroundingReport:
     material = _material(profile)
-    known_ids = _achievement_ids(profile)
+    known_ids = _source_ids(profile)
     entries = _entries(profile)
     profile_name = normalize(profile.identity.name)
 
@@ -43,15 +52,16 @@ def check(lines: list[DraftLine], profile: Profile) -> GroundingReport:
             continue
 
         if line.role in FACTUAL_ROLES:
-            if not line.achievement_ids:
+            if not line.source_ids:
                 issues.append(
-                    _issue(index, line, "states a result without citing one of your achievements")
+                    _issue(index, line, "states a result without citing one of your experiences")
                 )
-            unknown = [item for item in line.achievement_ids if item not in known_ids]
+            unknown = [item for item in line.source_ids if item not in known_ids]
             if unknown:
                 issues.append(
                     _issue(index, line, f"cites {', '.join(unknown)}, absent from your profile")
                 )
+        if line.role in NUMBER_CHECKED_ROLES:
             invented = [number for number in _NUMBER.findall(line.text) if number not in material]
             if invented:
                 issues.append(
@@ -61,7 +71,7 @@ def check(lines: list[DraftLine], profile: Profile) -> GroundingReport:
                         f"states {', '.join(invented)}, which your profile does not contain",
                     )
                 )
-        elif line.role == "skill_line":
+        if line.role == "skill_line":
             for item in _skill_items(line.text):
                 if item and normalize(item) not in material:
                     issues.append(
@@ -105,13 +115,10 @@ def _flatten(value: object) -> Iterator[str]:
             yield from _flatten(item)
 
 
-def _achievement_ids(profile: Profile) -> set[str]:
-    return {
-        achievement.id
-        for experience in profile.experiences
-        for achievement in experience.achievements
-        if achievement.id
-    }
+def _source_ids(profile: Profile) -> set[str]:
+    """The entries a factual line may cite. An experience is the unit now that a
+    result is a line of its ``highlights`` rather than a thing with its own id."""
+    return {experience.id for experience in profile.experiences if experience.id}
 
 
 def _entries(profile: Profile) -> set[str]:

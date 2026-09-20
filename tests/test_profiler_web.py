@@ -3,8 +3,15 @@ from __future__ import annotations
 from app import background
 from app.config import Settings, save_settings
 from app.llm import LLMError
-from app.models import Achievement, Experience, Facts, Identity, Profile, ProfileDraft
-from app.profiler import store
+from app.models import (
+    Experience,
+    Facts,
+    Identity,
+    Preferences,
+    Profile,
+    ProfileDraft,
+)
+from app.profiler import interview, store
 
 CV_TEXT = (
     "Camille Moreau — Senior Backend Engineer.\n"
@@ -65,13 +72,7 @@ def _edit_form(**overrides: str) -> dict[str, str]:
         "exp.0.context": "",
         "exp.0.team_size": "",
         "exp.0.stack": "Rust, Kafka",
-        "exp.0.difficulties": "",
-        "ach_count": "1",
-        "ach.0.id": "",
-        "ach.0.exp_index": "0",
-        "ach.0.text": "Cut ingestion latency by 60%",
-        "ach.0.metrics": "",
-        "ach.0.skills": "",
+        "exp.0.highlights": "Cut ingestion latency by 60%",
         "edu_count": "1",
         "edu.0.id": "",
         "edu.0.school": "",
@@ -92,6 +93,45 @@ def _edit_form(**overrides: str) -> dict[str, str]:
 def _seed_profile(client) -> Profile:
     client.post("/profiler/edit", data=_edit_form(), follow_redirects=False)
     return _loaded()
+
+
+def _full_profile() -> Profile:
+    """A profile with an experience and its facts already filled in."""
+    return Profile(
+        experiences=[
+            Experience(
+                company="Acme",
+                title="Engineer",
+                period="2022",
+                context="Analytics platform",
+                stack=["Rust"],
+                highlights=["Cut latency"],
+            )
+        ],
+        facts=Facts(work_authorization="EU citizen", languages=["English"]),
+        preferences=Preferences(more_of=["Rust"]),
+    )
+
+
+def _turn(*edits: interview.DraftEdit, question: str = "", **fields) -> interview.Turn:
+    """A model turn: what it writes, and the question that follows."""
+    return interview.Turn(
+        edits=list(edits),
+        question=interview.DraftQuestion(prompt=question, **fields),
+    )
+
+
+def _model_replies(monkeypatch, *turns: interview.Turn) -> list[dict]:
+    """Make the interview's model answer with these turns, in order."""
+    queue = list(turns)
+    calls: list[dict] = []
+
+    async def fake(settings, profile, *, asked, question="", answer=""):
+        calls.append({"asked": asked, "question": question, "answer": answer})
+        return queue.pop(0) if queue else interview.Turn()
+
+    monkeypatch.setattr("app.profiler.interview.ask", fake)
+    return calls
 
 
 def _loaded() -> Profile:
@@ -192,36 +232,191 @@ def test_edit_page_renders_the_blank_rows(client):
     assert 'name="exp_count" value="1"' in response.text
 
 
-def test_interview_answers_are_merged(client):
-    profile = _seed_profile(client)
-    experience_id = profile.experiences[0].id
+def test_the_interview_page_asks_for_its_question_itself(client):
+    """The page is instant; the question lands once the model has read the profile."""
+    _seed_profile(client)
 
-    response = client.get("/profiler/interview")
+    page = client.get("/profiler/interview").text
+
+    assert 'hx-get="/profiler/interview/next"' in page
+    assert 'hx-trigger="load"' in page
+
+
+def test_the_interview_reports_a_missing_model(client):
+    _seed_profile(client)
+
+    response = client.get("/profiler/interview/next")
+
     assert response.status_code == 200
-    assert "Acme" in response.text
-
-    response = client.post(
-        "/profiler/interview",
-        data={"key": f"exp:{experience_id}:context", "answer": "Analytics platform"},
-        follow_redirects=False,
-    )
-    assert response.status_code == 303
-    assert _loaded().experiences[0].context == "Analytics platform"
+    assert "No model configured" in response.text
+    assert "/settings" in response.text
 
 
-def test_interview_skipping_moves_to_the_next_question(client):
+def test_an_answer_is_written_into_the_profile_and_the_next_question_is_asked(client, monkeypatch):
     profile = _seed_profile(client)
-    first_key = f"exp:{profile.experiences[0].id}:context"
+    save_settings(Settings(model="openai/gpt-4o"))
+    calls = _model_replies(
+        monkeypatch,
+        _turn(
+            interview.DraftEdit(
+                target=f"exp:{profile.experiences[0].id}",
+                field="highlights",
+                value="Cut p99 latency by 60%",
+                source="we cut the p99 latency by 60%",
+            ),
+            question="How big was the team?",
+            topic="Team",
+            why="Gives the scale of the role.",
+        ),
+    )
 
     response = client.post(
-        "/profiler/interview/skip", data={"key": first_key}, follow_redirects=False
+        "/profiler/interview/answer",
+        data={"question": "What did you achieve?", "answer": "we cut the p99 latency by 60%"},
     )
-    assert response.status_code == 303
-    assert first_key in store.skipped_keys()
 
-    response = client.post("/profiler/interview/restart", follow_redirects=False)
+    assert response.status_code == 200
+    # What was written, then the question that follows it.
+    assert "Cut p99 latency by 60%" in response.text
+    assert "How big was the team?" in response.text
+    assert "Gives the scale of the role." in response.text
+    assert _loaded().experiences[0].highlights[-1] == "Cut p99 latency by 60%"
+    # Everything was written, so the exchange is remembered for good, and the model
+    # was told what had been asked before.
+    assert store.asked_questions() == ["What did you achieve?"]
+    assert calls[0]["asked"] == []
+
+
+def test_an_invented_detail_is_refused_and_reported(client, monkeypatch):
+    profile = _seed_profile(client)
+    save_settings(Settings(model="openai/gpt-4o"))
+    _model_replies(
+        monkeypatch,
+        _turn(
+            interview.DraftEdit(
+                target=f"exp:{profile.experiences[0].id}",
+                field="highlights",
+                value="Doubled revenue in one quarter",
+                source="not a word of this is in the answer",
+            ),
+            question="What next?",
+        ),
+    )
+
+    response = client.post(
+        "/profiler/interview/answer",
+        data={"question": "What did you achieve?", "answer": "I worked on the ingestion path"},
+    )
+
+    assert response.status_code == 200
+    assert "could not be written" in response.text
+    assert "Doubled revenue in one quarter" in response.text
+    # Nothing the answer does not support reached the profile.
+    assert _loaded().experiences[0].highlights == ["Cut ingestion latency by 60%"]
+    # Part of the answer was lost, so the question may come back to it.
+    assert store.asked_questions() == []
+
+
+def test_a_merged_line_is_shown_as_a_rewrite(client, monkeypatch):
+    profile = _seed_profile(client)
+    save_settings(Settings(model="openai/gpt-4o"))
+    _model_replies(
+        monkeypatch,
+        _turn(
+            interview.DraftEdit(
+                target=f"exp:{profile.experiences[0].id}",
+                field="highlights",
+                value="Cut ingestion latency by 60% for 12k daily users",
+                source="cut it by 60% for 12k daily users",
+                replaces="Cut ingestion latency by 60%",
+            ),
+            question="What next?",
+        ),
+    )
+
+    response = client.post(
+        "/profiler/interview/answer",
+        data={"question": "How much traffic?", "answer": "we cut it by 60% for 12k daily users"},
+    )
+
+    assert response.status_code == 200
+    assert "rewritten" in response.text
+    # The line was merged into, not added beside.
+    assert _loaded().experiences[0].highlights == [
+        "Cut ingestion latency by 60% for 12k daily users"
+    ]
+
+
+def test_an_htmx_answer_returns_only_the_card(client, monkeypatch):
+    _seed_profile(client)
+    save_settings(Settings(model="openai/gpt-4o"))
+    _model_replies(monkeypatch, _turn(question="How big was the team?"))
+
+    response = client.post(
+        "/profiler/interview/answer",
+        data={"question": "What did you achieve?", "answer": "Something"},
+        headers={"HX-Request": "true"},
+    )
+
+    assert 'id="interview"' in response.text
+    assert "<!doctype html>" not in response.text.lower()
+
+
+def test_skipping_a_question_remembers_it_and_asks_another(client, monkeypatch):
+    _seed_profile(client)
+    save_settings(Settings(model="openai/gpt-4o"))
+    calls = _model_replies(monkeypatch, _turn(question="What else did you do?"))
+
+    response = client.post(
+        "/profiler/interview/skip", data={"question": "What was the hardest part?"}
+    )
+
+    assert response.status_code == 200
+    assert "What else did you do?" in response.text
+    # A skipped question is remembered like any other, so it never comes back.
+    assert store.asked_questions() == ["What was the hardest part?"]
+    assert calls[0]["answer"] == ""
+
+
+def test_the_interview_says_when_it_has_nothing_left_to_ask(client, monkeypatch):
+    _seed_profile(client)
+    save_settings(Settings(model="openai/gpt-4o"))
+    _model_replies(monkeypatch, interview.Turn(finished=True))
+
+    response = client.get("/profiler/interview/next")
+
+    assert response.status_code == 200
+    assert "That is everything" in response.text
+
+
+def test_a_model_failure_keeps_the_question_and_hands_the_answer_back(client, monkeypatch):
+    _seed_profile(client)
+    save_settings(Settings(model="openai/gpt-4o"))
+
+    async def failing(settings, profile, *, asked, question="", answer=""):
+        raise LLMError("provider is down")
+
+    monkeypatch.setattr("app.profiler.interview.ask", failing)
+    response = client.post(
+        "/profiler/interview/answer",
+        data={"question": "What did you achieve?", "answer": "We cut the latency"},
+    )
+
+    assert response.status_code == 200
+    assert "provider is down" in response.text
+    # The question and the typed answer are still there, and nothing was marked asked.
+    assert "What did you achieve?" in response.text
+    assert "We cut the latency" in response.text
+    assert store.asked_questions() == []
+
+
+def test_forgetting_starts_the_interview_over(client):
+    store.remember_question("What was the hardest part?")
+
+    response = client.post("/profiler/interview/forget", follow_redirects=False)
+
     assert response.status_code == 303
-    assert store.skipped_keys() == set()
+    assert store.asked_questions() == []
 
 
 def test_interview_needs_an_experience_first(client, monkeypatch):
@@ -283,43 +478,23 @@ def test_the_quick_navigation_skips_a_card_that_is_not_rendered(client):
     assert 'id="education"' not in page
 
 
-def test_interview_answer_is_structured_when_a_model_is_configured(client, monkeypatch):
-    profile = _seed_profile(client)
-    save_settings(Settings(model="openai/gpt-4o"))
-    key = f"exp:{profile.experiences[0].id}:achievements"
-
-    async def fake(settings, *, answer, experience):
-        return [Achievement(text="Cut ingestion latency by 60%", metrics=["60%"], skills=["Rust"])]
-
-    monkeypatch.setattr("app.profiler.structure.structure_achievements", fake)
-    response = client.post(
-        "/profiler/interview",
-        data={"key": key, "answer": "Cut latency by 60% using Rust"},
-        follow_redirects=False,
-    )
-
-    assert response.status_code == 303
-    achievements = _loaded().experiences[0].achievements
-    assert [a.text for a in achievements] == ["Cut ingestion latency by 60%"]
-    assert achievements[0].metrics == ["60%"]
+# --- The profile page and the import ------------------------------------------
 
 
-def test_interview_answer_falls_back_and_warns_when_nothing_is_verifiable(client, monkeypatch):
-    profile = _seed_profile(client)
-    save_settings(Settings(model="openai/gpt-4o"))
-    key = f"exp:{profile.experiences[0].id}:achievements"
+def test_the_profile_page_shows_what_was_written(client):
+    _seed_profile(client)
 
-    async def unverifiable(settings, *, answer, experience):
-        return None
+    page = client.get("/profiler").text
 
-    monkeypatch.setattr("app.profiler.structure.structure_achievements", unverifiable)
-    response = client.post(
-        "/profiler/interview",
-        data={"key": key, "answer": "First result\nSecond result"},
-        follow_redirects=True,
-    )
+    assert "Acme" in page
+    assert "Cut ingestion latency by 60%" in page
 
-    assert response.status_code == 200
-    # The candidate's own lines are kept, and the fallback is explained.
-    assert len(_loaded().experiences[0].achievements) == 2
-    assert "could not be verified" in response.text
+
+def test_a_new_import_forgets_the_interview_questions(client, monkeypatch):
+    store.save_profile(_full_profile())
+    store.remember_question("What was the hardest part?")
+
+    _import(client, monkeypatch, text=CV_TEXT, replace="1")
+
+    # The interview was built from the profile the import replaced.
+    assert store.asked_questions() == []

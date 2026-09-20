@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.models import Achievement, Experience, Profile, Project
+from app.models import Experience, Profile, Project
 from app.profiler.ids import assign_ids, slugify
 
 
@@ -17,13 +17,12 @@ def test_assign_ids_derives_from_content():
                 Experience(
                     company="Acme",
                     period="2022-03 / 2024-06",
-                    achievements=[Achievement(text="Cut latency by 60%")],
+                    highlights=["Cut latency by 60%"],
                 )
             ]
         )
     )
     assert profile.experiences[0].id == "exp-acme-2022"
-    assert profile.experiences[0].achievements[0].id == "exp-acme-2022-a1"
 
 
 def test_assign_ids_keeps_existing_ids():
@@ -53,23 +52,19 @@ def test_assign_ids_is_deterministic_and_unique():
     assert len(set(ids)) == 2
 
 
-def test_assign_ids_fills_blank_achievements_without_collision():
+def test_assign_ids_gives_colliding_experiences_a_unique_suffix():
+    # Two experiences that derive the same base id must not end up sharing one:
+    # the writer cites the id, so the second gets a numeric suffix.
     profile = assign_ids(
         Profile(
             experiences=[
-                Experience(
-                    company="Acme",
-                    period="2022",
-                    achievements=[Achievement(id="exp-acme-2022-a1", text="kept")],
-                )
+                Experience(company="Acme", period="2022"),
+                Experience(company="Acme", period="2022"),
             ]
         )
     )
-    # A second, blank achievement must not reuse a1.
-    profile.experiences[0].achievements.append(Achievement(text="new"))
-    profile = assign_ids(profile)
-    ids = [achievement.id for achievement in profile.experiences[0].achievements]
-    assert ids == ["exp-acme-2022-a1", "exp-acme-2022-a2"]
+    ids = [experience.id for experience in profile.experiences]
+    assert ids == ["exp-acme-2022", "exp-acme-2022-2"]
 
 
 def test_assign_ids_covers_education_and_projects():

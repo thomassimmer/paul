@@ -1,3 +1,3 @@
-"""Profiler: CV import, the gap-targeted interview, and the editable profile."""
+"""Profiler: CV import, the model-driven interview, and the editable profile."""
 
 from __future__ import annotations

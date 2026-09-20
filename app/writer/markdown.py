@@ -5,7 +5,7 @@ One line per block, prefixed by its role, with the profile ids it cites in brace
     [name] Camille Moreau
     [section_title] Experience
     [entry_title] Acme — Lead Backend Engineer
-    [bullet] Cut ingestion latency by 60% {exp-acme-2022-a1}
+    [bullet] Cut ingestion latency by 60% {exp-acme-2022}
 
 That is readable enough to be an export, and explicit enough to be read back, so
 the review screen edits this text and the renderer gets exactly the lines that
@@ -27,7 +27,7 @@ ANSWERS_HEADER = "<!-- Paul: one '# question' block per form field, answers belo
 _EMPTY_ANSWER = "_To fill in._"
 
 _LINE = re.compile(r"^\[(?P<role>[a-z_]+)\]\s*(?P<text>.*)$")
-# An id always carries a hyphen (``exp-acme-2022-a1``), which is what tells a
+# An id always carries a hyphen (``exp-acme-2022``), which is what tells a
 # citation from a brace the prose legitimately uses, such as ``{braces}``.
 _CITATION = re.compile(r"\{(?P<ids>[^{}]*-[^{}]*)\}")
 _SPACES = re.compile(r"[ \t]{2,}")
@@ -38,7 +38,7 @@ def split_citations(text: str) -> tuple[str, list[str]]:
 
     The format puts a citation at the end of a line, but a model revising a
     document sometimes leaves one inside the text, or writes it twice — once in
-    the text and once in the ``achievement_ids`` field. Both mean the same, so
+    the text and once in the ``source_ids`` field. Both mean the same, so
     every citation is read here and only the prose is handed back.
     """
     ids: list[str] = []
@@ -67,8 +67,8 @@ def render_lines(lines: list[DraftLine]) -> str:
     body = []
     for line in lines:
         citation = ""
-        if line.achievement_ids:
-            citation = " {" + ", ".join(line.achievement_ids) + "}"
+        if line.source_ids:
+            citation = " {" + ", ".join(line.source_ids) + "}"
         body.append(f"[{line.role}] {line.text}{citation}".rstrip())
     return "\n".join([HEADER, "", *body]) + "\n"
 
@@ -95,7 +95,7 @@ def parse_lines(text: str) -> list[DraftLine]:
         role = match.group("role") if match else "body_text"
         body = match.group("text").strip() if match else raw
         body, ids = split_citations(body)
-        lines.append(DraftLine(role=role, text=body, achievement_ids=ids))
+        lines.append(DraftLine(role=role, text=body, source_ids=ids))
     return lines
 
 
@@ -139,8 +139,8 @@ def to_html(text: str) -> str:
     for line in parse_lines(text):
         body = html.escape(line.text)
         citation = ""
-        if line.achievement_ids:
-            citation = f'<span class="cite">{html.escape(", ".join(line.achievement_ids))}</span>'
+        if line.source_ids:
+            citation = f'<span class="cite">{html.escape(", ".join(line.source_ids))}</span>'
         parts.append(_line_html(line.role, body, citation))
     return "\n".join(parts)
 

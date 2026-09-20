@@ -49,19 +49,19 @@ def test_clean_ids_drops_blanks_and_duplicates():
 
 def test_normalize_lines_drops_empty_lines_and_keeps_the_text():
     lines = [
-        DraftLine(role="bullet", text="  A result  ", achievement_ids=["x"]),
+        DraftLine(role="bullet", text="  A result  ", source_ids=["x"]),
         DraftLine(role="bullet", text="   "),
     ]
     normalized = draft.normalize_lines(lines, CV_ROLES)
-    assert normalized == [DraftLine(role="bullet", text="A result", achievement_ids=["x"])]
+    assert normalized == [DraftLine(role="bullet", text="A result", source_ids=["x"])]
 
 
 def test_normalize_lines_lifts_a_citation_the_model_left_in_the_text():
     lines = [
-        DraftLine(role="bullet", text="Cut latency by 60% {exp-a1}", achievement_ids=["exp-a1"])
+        DraftLine(role="bullet", text="Cut latency by 60% {exp-a1}", source_ids=["exp-a1"])
     ]
     assert draft.normalize_lines(lines, CV_ROLES) == [
-        DraftLine(role="bullet", text="Cut latency by 60%", achievement_ids=["exp-a1"])
+        DraftLine(role="bullet", text="Cut latency by 60%", source_ids=["exp-a1"])
     ]
 
 
@@ -69,7 +69,7 @@ def test_normalize_lines_keeps_the_ids_of_a_citation_only_written_in_the_text():
     lines = [DraftLine(role="bullet", text="Cut latency by 60% {exp-a1}")]
     normalized = draft.normalize_lines(lines, CV_ROLES)
     assert normalized == [
-        DraftLine(role="bullet", text="Cut latency by 60%", achievement_ids=["exp-a1"])
+        DraftLine(role="bullet", text="Cut latency by 60%", source_ids=["exp-a1"])
     ]
 
 
@@ -94,7 +94,7 @@ def test_tailor_cv_returns_repaired_lines(monkeypatch):
         return schema(
             lines=[
                 DraftLine(role="skills", text="Rust; Kafka"),
-                DraftLine(role="bullet", text="Cut latency by 60%", achievement_ids=["exp-a1", "exp-a1"]),
+                DraftLine(role="bullet", text="Cut latency by 60%", source_ids=["exp-a1", "exp-a1"]),
                 DraftLine(role="bullet", text=""),
             ]
         )
@@ -113,7 +113,7 @@ def test_tailor_cv_returns_repaired_lines(monkeypatch):
     )
 
     assert [line.role for line in lines] == ["skill_line", "bullet"]
-    assert lines[1].achievement_ids == ["exp-a1"]
+    assert lines[1].source_ids == ["exp-a1"]
     assert "Candidate profile" in calls["content"]
     assert "Write in French" in calls["content"]
     assert "2 page(s)" in calls["content"]

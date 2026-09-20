@@ -4,7 +4,7 @@ Every call returns a validated object, but a validation our models define, not t
 one the renderer needs: a model may answer ``role: "skills"`` or ``"Title"`` where
 the template knows ``skill_line`` and ``section_title``. Rather than pay a retry
 for a spelling, the roles are repaired here, in code, against the exact tuple the
-renderer uses. ``achievement_ids`` are cleaned the same way, so the grounding check
+renderer uses. ``source_ids`` are cleaned the same way, so the grounding check
 only ever sees ids that were actually written.
 
 The prompts are the ones that carry the rule ("use only the profile"); this module
@@ -91,10 +91,10 @@ def normalize_lines(lines: list[DraftLine], allowed: Sequence[str]) -> list[Draf
     """Repair roles, lift the citations out of the text, drop the empty lines.
 
     A model told to cite by id sometimes writes the citation in the text as well
-    as in the ``achievement_ids`` field. Both cite the same achievement, so the
-    ids are merged and only the prose is kept. Nothing else is rewritten:
-    changing the wording here would make the grounding report point at something
-    the user never saw.
+    as in the ``source_ids`` field. Both cite the same experience, so the ids are
+    merged and only the prose is kept. Nothing else is rewritten: changing the
+    wording here would make the grounding report point at something the user never
+    saw.
     """
     result: list[DraftLine] = []
     for line in lines:
@@ -106,7 +106,7 @@ def normalize_lines(lines: list[DraftLine], allowed: Sequence[str]) -> list[Draf
             DraftLine(
                 role=normalize_role(line.role, allowed),
                 text=text,
-                achievement_ids=clean_ids([*line.achievement_ids, *inline_ids]),
+                source_ids=clean_ids([*line.source_ids, *inline_ids]),
             )
         )
     return result

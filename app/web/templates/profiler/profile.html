@@ -83,25 +83,23 @@
       {{ experience.period or 'dates unknown' }}
       <code>{{ experience.id }}</code>
     </p>
-    {% if experience.context %}<p>{{ experience.context }}</p>{% endif %}
+    {% if experience.context %}
+    {# One line, one paragraph: the context can hold several, and an appended answer
+       is a new line of it rather than a run-on sentence. #}
+    {% for line in experience.context.splitlines() %}<p>{{ line }}</p>{% endfor %}
+    {% endif %}
     <dl class="kv compact">
       {% if experience.team_size %}{{ field('Team', experience.team_size) }}{% endif %}
       {% if experience.stack %}{{ field('Stack', experience.stack | join(', ')) }}{% endif %}
     </dl>
-    {% if experience.difficulties %}<p><strong>Hard problems:</strong> {{ experience.difficulties }}</p>{% endif %}
 
-    {% if experience.achievements %}
-    <ul class="achievements">
-      {% for achievement in experience.achievements %}
-      <li>
-        {{ achievement.text }}
-        {% for metric in achievement.metrics %}<span class="metric">{{ metric }}</span>{% endfor %}
-        <code class="id">{{ achievement.id }}</code>
-      </li>
-      {% endfor %}
+    {% if experience.highlights %}
+    <ul class="highlights">
+      {% for line in experience.highlights %}<li>{{ line }}</li>{% endfor %}
     </ul>
     {% else %}
-    <p class="missing">No achievement recorded yet. <a href="/profiler/interview">Answer the interview</a>.</p>
+    <p class="missing">Nothing written yet for this one.
+      <a href="/profiler/interview">Answer the interview</a>.</p>
     {% endif %}
   </article>
   {% else %}

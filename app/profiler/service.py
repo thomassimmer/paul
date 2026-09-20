@@ -1,7 +1,8 @@
 """Profiler orchestration, kept out of the HTTP layer.
 
-The router deals with requests and redirects; what actually happens on an
-import (extract, draft, preserve what is yours, save) lives here.
+The router deals with requests and redirects; what actually happens on an import
+(extract, draft, preserve what is yours, save) and on an interview turn (ask,
+write, remember) lives here.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from dataclasses import dataclass
 from app.config import Settings
 from app.llm import LLMError
 from app.models import Profile
-from app.profiler import cv, interview, store, structure
+from app.profiler import cv, interview, store
 from app.profiler.draft import draft_profile
 from app.profiler.text import tidy_text
 
@@ -93,6 +94,9 @@ async def draft_profile_into(settings: Settings, prepared: PreparedImport) -> Im
         profile.preferences = prepared.existing.preferences
 
     profile = store.save_profile(profile)
+    # The interview was built from the profile this replaced, so its questions are
+    # about experiences and gaps that may no longer exist: start it over.
+    store.forget_questions()
     return ImportOutcome(profile=profile, drafted=drafted, notice=notice, level=level)
 
 
@@ -110,37 +114,43 @@ async def import_cv(
     return await draft_profile_into(settings, read_cv(filename=filename, data=data, text=text))
 
 
-async def apply_interview_answer(
-    settings: Settings, profile: Profile, key: str, answer: str
-) -> tuple[Profile, str | None]:
-    """Merge an interview answer, structuring it with the model when there is one.
+async def next_question(settings: Settings, profile: Profile) -> interview.Turn:
+    """The question to ask now, computed from the profile as it stands.
 
-    Returns ``(profile, notice)``; ``notice`` is set only when the model was
-    asked for a structured breakdown and could not be trusted, which is worth
-    telling the user about. The deterministic split is always the fallback.
+    Nothing is stored: closing and reopening the interview asks it again from the
+    current profile, which is what lets the candidate stop and come back later.
     """
-    experience = interview.is_achievements_target(profile, key)
-    achievements = None
-    notice = None
+    return await interview.ask(settings, profile, asked=store.asked_questions())
 
-    if experience is not None and settings.model.strip() and answer.strip():
-        try:
-            achievements = await structure.structure_achievements(
-                settings, answer=answer, experience=experience
-            )
-        except LLMError as exc:
-            notice = (
-                f"The model could not structure this answer ({exc}). "
-                "Your text was kept, one line per achievement."
-            )
-        if achievements is None and notice is None:
-            notice = (
-                "The model's breakdown could not be verified against your text, so it was "
-                "discarded: your answer was kept as written, one line per achievement."
-            )
 
-    updated = interview.apply_answer(profile, key, answer, achievements=achievements)
-    return updated, notice
+async def answer_question(
+    settings: Settings, profile: Profile, question: str, answer: str
+) -> tuple[interview.DraftResult, interview.Turn]:
+    """Write what one answer says, and ask the next question.
+
+    The two come from a single model call, so an exchange costs one round trip.
+    The question is marked as asked — unless part of the answer could not be
+    written: then the interview must be able to come back to it, since the
+    candidate only has the page to rephrase what was lost.
+    """
+    turn = await interview.ask(
+        settings, profile, asked=store.asked_questions(), question=question, answer=answer
+    )
+    result = interview.apply_turn(profile, turn, answer)
+    store.save_profile(result.profile)
+    if not result.dropped:
+        store.remember_question(question)
+    return result, turn
+
+
+async def skip_question(
+    settings: Settings, profile: Profile, question: str
+) -> interview.Turn:
+    """Remember a question the candidate would rather not answer, and move on."""
+    store.remember_question(question)
+    return await interview.ask(
+        settings, profile, asked=store.asked_questions(), question=question, answer=""
+    )
 
 
 def summary(profile: Profile | None) -> dict[str, object]:
@@ -149,7 +159,7 @@ def summary(profile: Profile | None) -> dict[str, object]:
         return {
             "has_profile": False,
             "experiences": 0,
-            "achievements": 0,
+            "highlights": 0,
             "skills": 0,
             "missing_facts": [],
         }
@@ -161,7 +171,7 @@ def summary(profile: Profile | None) -> dict[str, object]:
     return {
         "has_profile": True,
         "experiences": len(profile.experiences),
-        "achievements": sum(len(e.achievements) for e in profile.experiences),
+        "highlights": sum(len(e.highlights) for e in profile.experiences),
         "skills": sum(len(items) for items in profile.skills.values()),
         "missing_facts": missing,
     }

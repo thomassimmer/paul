@@ -1,8 +1,8 @@
 """Profiler storage.
 
 The profile is a single readable YAML file under ``data/profile/``; the raw CV
-text is kept next to it so the draft can be re-run with a better model. Skipped
-interview questions are UI state and live in SQLite, never in the YAML.
+text is kept next to it so the draft can be re-run with a better model. What the
+interview has already asked is UI state and lives in SQLite, never in the YAML.
 """
 
 from __future__ import annotations
@@ -80,22 +80,38 @@ def load_cv_text() -> str | None:
 
 
 # --- Interview state (SQLite) -------------------------------------------------
+#
+# The interview computes its next question from the profile each time it is
+# opened, so no question is stored ahead of being asked. What has to survive
+# between visits is the list of what was already put to the candidate: without it
+# the model would start over from the same first gap on every visit. A question
+# skipped is remembered like any other, which is what keeps it from coming back.
 
 
-def skipped_keys() -> set[str]:
+def asked_questions() -> list[str]:
+    """Every question already put to the candidate, oldest first."""
     db.init_db()
     with db.connect() as conn:
-        rows = conn.execute("SELECT key FROM interview_skipped").fetchall()
-    return {row["key"] for row in rows}
+        rows = conn.execute(
+            "SELECT prompt FROM interview_asked ORDER BY asked_at, rowid"
+        ).fetchall()
+    return [row["prompt"] for row in rows]
 
 
-def skip_key(key: str) -> None:
+def remember_question(prompt: str) -> None:
+    """Note that a question has been asked, so it is not asked again."""
+    prompt = " ".join((prompt or "").split())
+    if not prompt:
+        return
     db.init_db()
     with db.connect() as conn:
-        conn.execute("INSERT OR IGNORE INTO interview_skipped (key) VALUES (?)", (key,))
+        conn.execute(
+            "INSERT OR IGNORE INTO interview_asked (prompt) VALUES (?)", (prompt,)
+        )
 
 
-def clear_skips() -> None:
+def forget_questions() -> None:
+    """Start the interview over: everything may be asked again."""
     db.init_db()
     with db.connect() as conn:
-        conn.execute("DELETE FROM interview_skipped")
+        conn.execute("DELETE FROM interview_asked")

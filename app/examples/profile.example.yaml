@@ -34,24 +34,11 @@ experiences:
       - Kafka
       - PostgreSQL
       - Kubernetes
-    difficulties: >-
-      Rebuilding the ingestion pipeline without downtime while traffic doubled.
-    achievements:
-      - id: exp-acme-2022-a1
-        text: Cut end-to-end ingestion latency by 60% by batching writes and
-          replacing a synchronous fan-out with a Kafka consumer group.
-        metrics:
-          - "-60% latency"
-        skills:
-          - Rust
-          - Kafka
-      - id: exp-acme-2022-a2
-        text: Led the migration of 40 services to a shared deployment pipeline.
-        metrics:
-          - 40 services
-        skills:
-          - Kubernetes
-          - CI/CD
+    highlights:
+      - Cut end-to-end ingestion latency by 60% by batching writes and replacing a
+        synchronous fan-out with a Kafka consumer group.
+      - Led the migration of 40 services to a shared deployment pipeline.
+      - Rebuilt the ingestion pipeline without downtime while traffic doubled.
   - id: exp-northwind-2019
     company: Northwind Software
     title: Backend Engineer
@@ -62,13 +49,8 @@ experiences:
       - Python
       - Django
       - PostgreSQL
-    achievements:
-      - id: exp-northwind-2019-a1
-        text: Designed the multi-tenant data model still in use today.
-        metrics: []
-        skills:
-          - PostgreSQL
-          - Django
+    highlights:
+      - Designed the multi-tenant data model still in use today.
 education:
   - id: edu-insa-lyon
     school: INSA Lyon

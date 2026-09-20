@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.models import Achievement, DraftLine, Education, Experience, Identity, Profile, Project
+from app.models import DraftLine, Education, Experience, Identity, Profile, Project
 from app.writer import grounding
 
 
@@ -16,14 +16,7 @@ def _profile() -> Profile:
                 company="Acme",
                 title="Lead Backend Engineer",
                 stack=["Kafka"],
-                achievements=[
-                    Achievement(
-                        id="exp-acme-2022-a1",
-                        text="Cut ingestion latency by 60%",
-                        metrics=["60%"],
-                        skills=["Kafka"],
-                    )
-                ],
+                highlights=["Cut ingestion latency by 60%"],
             )
         ],
         education=[Education(id="edu-insa", school="INSA Lyon", degree="MSc in Computer Science")],
@@ -39,7 +32,7 @@ def test_a_grounded_bullet_passes():
     lines = [
         DraftLine(role="name", text="Camille Moreau"),
         DraftLine(role="entry_title", text="Lead Backend Engineer — Acme"),
-        DraftLine(role="bullet", text="Cut ingestion latency by 60%", achievement_ids=["exp-acme-2022-a1"]),
+        DraftLine(role="bullet", text="Cut ingestion latency by 60%", source_ids=["exp-acme-2022"]),
         DraftLine(role="skill_line", text="Rust; Kafka"),
     ]
     assert grounding.check(lines, _profile()).ok
@@ -50,16 +43,16 @@ def test_a_bullet_without_a_citation_is_flagged():
     assert any("without citing" in reason for reason in reasons)
 
 
-def test_a_bullet_citing_an_unknown_achievement_is_flagged():
+def test_a_bullet_citing_an_unknown_experience_is_flagged():
     reasons = _issues(
-        [DraftLine(role="bullet", text="Did a thing", achievement_ids=["exp-nope-a9"])]
+        [DraftLine(role="bullet", text="Did a thing", source_ids=["exp-nope-2020"])]
     )
     assert any("absent from your profile" in reason for reason in reasons)
 
 
 def test_a_number_absent_from_the_profile_is_flagged():
     reasons = _issues(
-        [DraftLine(role="bullet", text="Cut latency by 80%", achievement_ids=["exp-acme-2022-a1"])]
+        [DraftLine(role="bullet", text="Cut latency by 80%", source_ids=["exp-acme-2022"])]
     )
     assert any("80" in reason for reason in reasons)
 
@@ -67,7 +60,7 @@ def test_a_number_absent_from_the_profile_is_flagged():
 def test_the_ids_digits_are_not_treated_as_supporting_material():
     # "2022" only appears in the ids; a line that states it must be flagged.
     reasons = _issues(
-        [DraftLine(role="bullet", text="Led the 2022 migration", achievement_ids=["exp-acme-2022-a1"])]
+        [DraftLine(role="bullet", text="Led the 2022 migration", source_ids=["exp-acme-2022"])]
     )
     assert any("2022" in reason for reason in reasons)
 
@@ -109,9 +102,19 @@ def test_roles_that_state_no_result_are_not_number_checked():
     lines = [
         DraftLine(role="entry_dates", text="2020 / 2021"),
         DraftLine(role="contact", text="Paris · +33 6 00 00 00 00"),
-        DraftLine(role="headline", text="Backend engineer with 12 years"),
     ]
     assert grounding.check(lines, _profile()).ok
+
+
+def test_a_headline_cites_nothing_but_may_not_invent_a_number():
+    # It states no result, so it needs no citation — but it is the line a recruiter
+    # reads first, and the one a model is most tempted to inflate.
+    assert grounding.check(
+        [DraftLine(role="headline", text="Backend Engineer · Rust, Kafka")], _profile()
+    ).ok
+
+    reasons = _issues([DraftLine(role="headline", text="Backend engineer with 12 years")])
+    assert any("12" in reason for reason in reasons)
 
 
 def test_the_report_counts_what_it_checked():
@@ -125,7 +128,7 @@ def test_an_empty_profile_flags_nothing_it_cannot_judge():
     lines = [
         DraftLine(role="entry_title", text="Anything"),
         DraftLine(role="name", text="Anything"),
-        DraftLine(role="bullet", text="A result", achievement_ids=["x"]),
+        DraftLine(role="bullet", text="A result", source_ids=["x"]),
     ]
     reasons = [issue.reason for issue in grounding.check(lines, empty).issues]
     # The citation is still checked; the entry title and the name are not, since

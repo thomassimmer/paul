@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 
 from app import background
 from app.config import load_settings
+from app.llm import LLMError
 from app.models import Profile
 from app.profiler import cv, editor, interview, service, store
 from app.web.templating import htmx_redirect, redirect, render
@@ -143,55 +144,141 @@ async def import_status(request: Request):
     return render(request, "partials/background.html", run=run, poll_url="/profiler/import/status")
 
 
-@router.get("/interview", response_class=HTMLResponse)
-async def interview_page(request: Request):
+NO_MODEL = (
+    "No model configured: set one in Settings, and the interview can ask you "
+    "questions and write your answers into the profile."
+)
+
+
+def _is_htmx(request: Request) -> bool:
+    """Whether this request comes from an HTMX swap rather than a plain form post."""
+    return request.headers.get("HX-Request") == "true"
+
+
+def _interview_profile():
+    """``(profile, response)`` for the interview routes, experiences included."""
     profile, response = _need_profile()
     if response is not None:
-        return response
+        return None, response
     assert profile is not None
     if not profile.experiences:
-        return redirect(
+        return None, redirect(
             "/profiler/edit",
-            message="Add at least one experience first: the interview is built from them.",
+            message="Add at least one experience first: the interview asks about them.",
             level="warning",
         )
-    return render(
-        request,
-        "profiler/interview.html",
-        active="profiler",
-        profile=profile,
-        step=interview.next_step(profile, store.skipped_keys()),
-    )
+    return profile, None
 
 
-@router.post("/interview")
-async def interview_answer(
-    key: str = Form(...),
-    answer: str = Form(""),
+def _interview(
+    request: Request,
+    profile: Profile,
+    *,
+    turn: interview.Turn | None = None,
+    result: interview.DraftResult | None = None,
+    error: str = "",
+    draft: str = "",
 ):
-    profile, response = _need_profile()
+    """Answer an interview action: swap the card, or render the whole page.
+
+    The answer form posts here too, so the interview behaves the same without
+    JavaScript: with it only the card moves, without it every turn is a page.
+    """
+    context = {"turn": turn, "result": result, "error": error, "draft": draft}
+    if _is_htmx(request):
+        return render(request, "profiler/partials/interview.html", **context)
+    return render(request, "profiler/interview.html", active="profiler", profile=profile, **context)
+
+
+async def _ask_next(request: Request):
+    """Compute the next question, from the profile as it stands."""
+    profile, response = _interview_profile()
     if response is not None:
         return response
     assert profile is not None
-    updated, notice = await service.apply_interview_answer(
-        load_settings(), profile, key, answer
+    settings = load_settings()
+    if not settings.model.strip():
+        return _interview(request, profile, error=NO_MODEL)
+    try:
+        turn = await service.next_question(settings, profile)
+    except LLMError as exc:
+        return _interview(request, profile, error=str(exc))
+    return _interview(request, profile, turn=turn)
+
+
+@router.get("/interview", response_class=HTMLResponse)
+async def interview_page(request: Request):
+    """The interview: a card that asks the model for its first question on load."""
+    profile, response = _interview_profile()
+    if response is not None:
+        return response
+    assert profile is not None
+    return render(request, "profiler/interview.html", active="profiler", profile=profile)
+
+
+@router.get("/interview/next", response_class=HTMLResponse)
+async def interview_next(request: Request):
+    """The next question. Computed now, never stored."""
+    return await _ask_next(request)
+
+
+@router.post("/interview/answer", response_class=HTMLResponse)
+async def interview_answer(
+    request: Request,
+    question: str = Form(""),
+    answer: str = Form(""),
+):
+    """Send one answer: the model writes it, then asks the next question."""
+    profile, response = _interview_profile()
+    if response is not None:
+        return response
+    assert profile is not None
+    settings = load_settings()
+    if not settings.model.strip():
+        return _interview(request, profile, error=NO_MODEL, draft=answer)
+    try:
+        result, turn = await service.answer_question(settings, profile, question, answer)
+    except LLMError as exc:
+        # Nothing was written and the question was not marked as asked, so the
+        # candidate's text is handed back with the error and can be retried.
+        return _interview(
+            request,
+            profile,
+            turn=interview.Turn(question=interview.DraftQuestion(prompt=question)),
+            error=str(exc),
+            draft=answer,
+        )
+    return _interview(request, profile, turn=turn, result=result)
+
+
+@router.post("/interview/skip", response_class=HTMLResponse)
+async def interview_skip(request: Request, question: str = Form("")):
+    """Move to another question without answering this one.
+
+    The skipped question is remembered like any other, so the model is told about
+    it and does not come back to it.
+    """
+    profile, response = _interview_profile()
+    if response is not None:
+        return response
+    assert profile is not None
+    settings = load_settings()
+    if not settings.model.strip():
+        return _interview(request, profile, error=NO_MODEL)
+    try:
+        turn = await service.skip_question(settings, profile, question)
+    except LLMError as exc:
+        return _interview(request, profile, error=str(exc))
+    return _interview(request, profile, turn=turn)
+
+
+@router.post("/interview/forget")
+async def interview_forget():
+    """Start the interview over: every question may be asked again."""
+    store.forget_questions()
+    return redirect(
+        "/profiler/interview", message="The interview starts over."
     )
-    store.save_profile(updated)
-    if notice:
-        return redirect("/profiler/interview", message=notice, level="warning")
-    return redirect("/profiler/interview")
-
-
-@router.post("/interview/skip")
-async def interview_skip(key: str = Form(...)):
-    store.skip_key(key)
-    return redirect("/profiler/interview")
-
-
-@router.post("/interview/restart")
-async def interview_restart():
-    store.clear_skips()
-    return redirect("/profiler/interview", message="Skipped questions are back.")
 
 
 @router.get("/edit", response_class=HTMLResponse)

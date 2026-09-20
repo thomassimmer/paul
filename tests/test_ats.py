@@ -12,7 +12,7 @@ from docx.oxml.ns import nsdecls, qn
 
 from app import ats
 from app.config import Settings
-from app.models import Achievement, Experience, Keyword, Offer, Profile
+from app.models import Experience, Keyword, Offer, Profile
 
 
 def _docx_bytes(document: DocumentType) -> bytes:
@@ -88,7 +88,7 @@ def test_coverage_marks_keywords_found_in_the_profile():
         experiences=[
             Experience(
                 stack=["Kubernetes"],
-                achievements=[Achievement(text="A migré la plateforme vers Rust.")],
+                highlights=["A migré la plateforme vers Rust."],
             )
         ],
     )

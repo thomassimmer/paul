@@ -11,7 +11,6 @@ import re
 from app.config import Settings, save_settings
 from app.llm import LLMError
 from app.models import (
-    Achievement,
     DraftAnswer,
     DraftLine,
     Experience,
@@ -45,13 +44,7 @@ def _profile() -> Profile:
                 id="exp-acme-2022",
                 company="Acme",
                 title="Lead Backend Engineer",
-                achievements=[
-                    Achievement(
-                        id="exp-acme-2022-a1",
-                        text="Cut ingestion latency by 60%",
-                        metrics=["60%"],
-                    )
-                ],
+                highlights=["Cut ingestion latency by 60%"],
             )
         ],
     )
@@ -66,7 +59,7 @@ def _cv_lines() -> list[DraftLine]:
         DraftLine(
             role="bullet",
             text="Cut ingestion latency by 60%",
-            achievement_ids=["exp-acme-2022-a1"],
+            source_ids=["exp-acme-2022"],
         ),
         DraftLine(role="section_title", text="Skills"),
         DraftLine(role="skill_line", text="Rust"),
@@ -80,7 +73,7 @@ def _letter_lines() -> list[DraftLine]:
         DraftLine(
             role="body_text",
             text="I cut ingestion latency by 60%.",
-            achievement_ids=["exp-acme-2022-a1"],
+            source_ids=["exp-acme-2022"],
         ),
         DraftLine(role="closing", text="Sincerely,"),
     ]
@@ -313,7 +306,7 @@ def test_saving_the_cv(client, monkeypatch):
     response = client.post(
         f"/applications/{offer_id}/save",
         data={
-            "cv": "[name] Camille Moreau\n[bullet] Cut ingestion latency by 60% {exp-acme-2022-a1}\n"
+            "cv": "[name] Camille Moreau\n[bullet] Cut ingestion latency by 60% {exp-acme-2022}\n"
         },
         follow_redirects=True,
     )
