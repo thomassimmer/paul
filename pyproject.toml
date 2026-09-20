@@ -28,7 +28,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "httpx>=0.27",
+    # The TestClient drives the app through httpx2, httpx's successor. With the
+    # plain httpx package installed, Starlette warns on every import of it.
+    "httpx2>=2.13",
     "pytest>=8.0",
 ]
 
@@ -54,6 +56,14 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+filterwarnings = [
+    # Starlette 1.6.0 annotates its portal factory with the deprecated
+    # ``anyio.abc.BlockingPortal`` alias, which anyio flags when the module is
+    # imported. Already fixed on Starlette's master; drop this filter once a
+    # release ships the fix.
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated",
+]
 
 # Point the editor's Python tooling at the development virtualenv, so that
 # third-party imports resolve ("pip install -e \".\[dev\]\"").
