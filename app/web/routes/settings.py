@@ -17,6 +17,7 @@ from app.config import (
     save_settings,
 )
 from app.llm import test_connection
+from app.templates_engine import view as templates_view
 from app.web.templating import render
 
 router = APIRouter()
@@ -93,6 +94,7 @@ def _render_settings(
         languages=LANGUAGES,
         wishes_text=format_wishes(settings.wishes),
         has_api_key=bool(settings.api_key),
+        templates=templates_view.kinds(),
         errors=errors or [],
         saved=saved,
         test=test,

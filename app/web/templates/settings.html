@@ -18,7 +18,7 @@
 <p class="banner banner-ok" role="status">Settings saved.</p>
 {% endif %}
 
-<form method="post" action="/settings">
+<form id="settings-form" method="post" action="/settings">
   <section class="card">
     <h2>LLM provider</h2>
     <p class="hint">
@@ -96,9 +96,11 @@
               placeholder="startup: 3&#10;funded&#10;scientific domain: 2&#10;remote: 2">{{ wishes_text }}</textarea>
     <p class="hint">One criterion per line, optionally <code>label: weight</code> (default 1). They feed the "Your wishes" scoring axis.</p>
   </section>
-
-  <div class="actions sticky">
-    <button type="submit" class="primary">Save settings</button>
-  </div>
 </form>
+
+{% include "partials/templates.html" %}
+
+<div class="actions sticky">
+  <button type="submit" form="settings-form" class="primary">Save settings</button>
+</div>
 {% endblock %}

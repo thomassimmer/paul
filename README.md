@@ -48,7 +48,7 @@ Paul automates the mechanical parts with an LLM **while keeping you in control**
 | **Writer** | Produces a tailored CV and cover letter **in your imported template**, drafts answers to the form questions, and computes a keyword-coverage (ATS) score. |
 | **Board** | The home page: one table for every offer — score, verdict, status, documents, follow-up. Ranking runs from a modal over it, and each offer opens as a single page. |
 | **Tracker** | The status, the dates and the notes of each application, with follow-up reminders. Mailbox reading comes after the MVP. |
-| **Settings** | LLM provider, model and API key, follow-up delay, output language. |
+| **Settings** | LLM provider, model and API key, follow-up delay, output language, and the CV and letter templates. |
 
 ## Quick start
 
@@ -94,7 +94,7 @@ flowchart LR
 
 Typical session:
 
-1. **Once:** import your CV, answer the profiler's questions, import your CV and letter templates, write your filter rules and wishes.
+1. **Once:** import your CV, answer the profiler's questions, import your CV and letter templates in Settings, write your filter rules and wishes.
 2. **Per offer:** paste the HTML fragment. The offer is analyzed, filtered and scored in seconds.
 3. **For the best matches:** click *Prepare* in the table, or open the offer and prepare it there. Review the generated CV, letter and answers, fix what you want, regenerate a section if needed, export, apply on the company site.
 4. **Afterwards:** update the status in the table; get reminded when a follow-up is due.
@@ -340,10 +340,16 @@ yet without re-ranking the rest.
 
 ### 6. Settings
 
+One page, opened from the navigation:
+
 - LLM provider, model, API key or local endpoint (through LiteLLM), with a "test connection" button
 - Output language (auto / fixed)
 - Follow-up delay
 - Filter rules and weighted wishes (edited in the board's ranking modal, stored with the settings)
+- **Templates**: import your CV and cover letter `.docx`, check the roles that were
+  detected, or go back to the default. This is a section of the page rather than a
+  page of its own; it sits outside the settings form because its upload forms
+  cannot be nested inside it.
 
 ## Template import
 
@@ -386,7 +392,7 @@ If you provide no template, a clean, single-column, parser-friendly default is u
 
 - **DOCX** (always) and **Markdown** (always).
 - **PDF** through headless LibreOffice, included in the Docker image (larger image, about 500 MB). Build without it with `docker compose build --build-arg WITH_PDF=0`; the fit check then falls back to an estimate.
-- **Preview.** The review screen frames the rendered PDF, so you see the real layout and *where the page break falls*. It is converted on demand from the DOCX you last saved, so it refreshes when you save. Without LibreOffice, it falls back to a plain HTML preview that cannot show the pagination.
+- **Preview.** The document sections of the offer page frame the rendered PDF, so you see the real layout and *where the page break falls*. It is converted on demand from the DOCX you last saved, so it refreshes when you save. Without LibreOffice, it falls back to a plain HTML preview that cannot show the pagination.
 
 ## Data and privacy
 
@@ -454,6 +460,11 @@ paul-emploi/
 │   │   └── view.py            # the context of the document sections
 │   ├── ats.py                 # keyword coverage and format checks
 │   ├── templates_engine/      # DOCX analysis, blueprint, rendering
+│   │   ├── analyze.py         # LLM reads the block roles, guesses as a fallback
+│   │   ├── extract.py         # blocks read straight from the DOCX
+│   │   ├── render.py          # rebuild the base document line by line
+│   │   ├── router.py          # import, correct the roles, reset
+│   │   └── view.py            # what the settings page shows about them
 │   ├── tracker/               # statuses, follow-ups, (later) IMAP
 │   │   ├── router.py          # a status from a row, one application's tracking
 │   │   ├── service.py         # statuses, dates, the follow-up rule

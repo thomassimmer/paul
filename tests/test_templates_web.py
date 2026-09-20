@@ -32,16 +32,23 @@ def _seed_custom(kind: str = "cv") -> None:
 # --- the pages ----------------------------------------------------------------
 
 
-def test_templates_page_offers_both_kinds(client):
-    response = client.get("/templates")
+def test_the_settings_page_offers_both_kinds(client):
+    response = client.get("/settings")
     assert response.status_code == 200
+    assert response.text.count('id="templates"') == 1
     assert "CV" in response.text
     assert "Cover letter" in response.text
     assert "The default template is in use" in response.text
 
 
-def test_templates_page_warns_without_a_model(client):
-    assert "guessed from the layout only" in client.get("/templates").text
+def test_the_settings_page_warns_without_a_model(client):
+    assert "guessed from the layout only" in client.get("/settings").text
+
+
+def test_the_old_templates_page_redirects_to_the_settings(client):
+    response = client.get("/templates", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/settings#templates"
 
 
 def test_uploading_a_template_stores_it(client, monkeypatch):
@@ -62,7 +69,7 @@ def test_uploading_a_template_stores_it(client, monkeypatch):
     assert "template imported" in response.text
     assert "The model corrected 1 of the 4 blocks." in response.text
     assert store.has_custom("cv") is True
-    assert "blocks read from your file" in client.get("/templates").text
+    assert "blocks read from your file" in client.get("/settings").text
 
     store.delete_custom("cv")
 
@@ -131,8 +138,13 @@ def test_an_unknown_kind_is_refused(client):
     assert "Unknown template kind" in client.get("/templates/nope", follow_redirects=True).text
 
 
-def test_the_nav_links_to_the_templates(client):
-    assert 'href="/templates"' in client.get("/").text
+def test_the_settings_page_links_to_the_detected_roles(client):
+    _seed_custom()
+    try:
+        page = client.get("/settings").text
+        assert 'href="/templates/cv"' in page
+    finally:
+        store.delete_custom("cv")
 
 
 # --- the analysis -------------------------------------------------------------
