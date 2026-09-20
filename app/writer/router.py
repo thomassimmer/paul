@@ -223,7 +223,7 @@ async def applications_dismiss(request: Request):
 
 
 @router.get("")
-async def applications_list():
+async def applications_page():
     """Applications are shown per offer now; keep the old link working."""
     return redirect("/")
 

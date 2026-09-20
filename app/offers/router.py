@@ -106,7 +106,7 @@ def _offer_context(record: OfferRecord) -> dict:
 
 
 @router.get("")
-async def offers_list():
+async def offers_page():
     """The list is the board now; keep the old link working."""
     return redirect("/")
 
