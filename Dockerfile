@@ -20,6 +20,11 @@ WORKDIR /app
 # than in the layer, so a rebuild reuses the downloaded .debs instead of fetching
 # them again. Nothing is cleaned up afterwards: the mounts are not part of the
 # image, so the lists never end up in it.
+#
+# Carlito is Calibri's metric-compatible clone (SIL OFL). LibreOffice substitutes
+# it automatically, so a template written in Calibri keeps Word's line and page
+# breaks. Without it the substitution falls back to DejaVu, which is wider and
+# visibly different.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     set -eux; \
@@ -27,7 +32,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     if [ "$WITH_PDF" = "1" ]; then \
         apt-get install -y --no-install-recommends \
             libreoffice-writer \
-            fonts-dejavu-core; \
+            fonts-dejavu-core \
+            fonts-crosextra-carlito; \
     fi
 
 # Dependencies first, and from the metadata alone: a stub package and a stub
