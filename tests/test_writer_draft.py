@@ -120,6 +120,28 @@ def test_the_request_carries_an_instruction_when_given(monkeypatch):
     )
     assert "Additional instruction" in calls["content"]
     assert "shorter" in calls["content"]
+    assert "Current version" not in calls["content"]
+
+
+def test_the_request_carries_the_current_version_when_given(monkeypatch):
+    def result(schema):
+        return schema(lines=[])
+
+    calls = _fake_complete(monkeypatch, result)
+    asyncio.run(
+        draft.tailor_cv(
+            Settings(model="openai/gpt-4o"),
+            offer=_offer(),
+            profile=Profile(),
+            blueprint=templates_store.load_blueprint("cv"),
+            target_pages=1,
+            instruction="shorter",
+            current="[name] Camille Moreau",
+        )
+    )
+    assert "Current version" in calls["content"]
+    assert "[name] Camille Moreau" in calls["content"]
+    assert calls["content"].index("Current version") < calls["content"].index("Additional instruction")
 
 
 def test_write_letter_asks_for_a_letter(monkeypatch):
@@ -155,6 +177,25 @@ def test_answer_questions_numbers_them_and_states_the_limit(monkeypatch):
     )
     assert answers[0].answer == "Because."
     assert "max_length: 500" in calls["content"]
+
+
+def test_answer_questions_carries_the_current_answers_when_given(monkeypatch):
+    def result(schema):
+        return schema(answers=[DraftAnswer(question="Why us?", answer="Because.")])
+
+    calls = _fake_complete(monkeypatch, result)
+    asyncio.run(
+        draft.answer_questions(
+            Settings(model="openai/gpt-4o"),
+            offer=_offer(),
+            profile=Profile(),
+            questions=[("Why us?", 500)],
+            instruction="shorter",
+            current="### Why us?\nA long answer.",
+        )
+    )
+    assert "Current answers" in calls["content"]
+    assert "A long answer." in calls["content"]
 
 
 def test_answer_questions_without_questions_does_not_call_the_model(monkeypatch):

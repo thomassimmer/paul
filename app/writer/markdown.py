@@ -37,6 +37,17 @@ def render_lines(lines: list[DraftLine]) -> str:
     return "\n".join([HEADER, "", *body]) + "\n"
 
 
+def source_only(text: str) -> str:
+    """The editable lines of a stored document, without the header comment.
+
+    What is handed back to the model as "the current version": the header only
+    documents the format for a human, and would be read as content.
+    """
+    return "\n".join(
+        line for line in (text or "").splitlines() if not line.strip().startswith("<!--")
+    ).strip()
+
+
 def parse_lines(text: str) -> list[DraftLine]:
     """Read the lines back. Text without a role is kept, as a paragraph."""
     lines: list[DraftLine] = []

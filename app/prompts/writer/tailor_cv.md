@@ -27,6 +27,11 @@ Rules:
 - The roles are exactly: name, headline, contact, section_title, entry_title,
   entry_subtitle, entry_dates, bullet, body_text, skill_line.
 - Do not reproduce the template's decorative or fixed elements.
+- A "Current version" block may appear: it is the CV as it stands, in the same
+  "[role] text {ids}" form you must return. Treat it as the base and revise it:
+  keep every line it does not concern exactly as it is, citations included, and
+  change only what the instruction asks for. Without that block, write the CV from
+  the profile.
 - The candidate may add one instruction at the end of this request ("shorter",
   "more focus on data engineering", ...). Apply it, without breaking any rule
   above, and never let it justify an invented fact.

@@ -22,6 +22,7 @@ from app.models import (
     DraftAnswer,
     DraftLine,
     FormAnswer,
+    FormQuestion,
     GroundingReport,
     OfferRecord,
     Profile,
@@ -330,6 +331,8 @@ async def _draft_answers(
     *,
     instruction: str,
     warnings: list[str],
+    folder: str = "",
+    from_current: bool = False,
 ) -> list[FormAnswer]:
     questions = record.offer.form
     slots = answers.resolve(questions, profile)
@@ -338,6 +341,11 @@ async def _draft_answers(
         for question, slot in zip(questions, slots, strict=True)
         if slot is None
     ]
+    current = (
+        _current_answers(folder, record, profile, questions, slots)
+        if from_current and folder
+        else ""
+    )
 
     generated: list[DraftAnswer] = []
     if open_list:
@@ -348,6 +356,7 @@ async def _draft_answers(
                 profile=profile,
                 questions=open_list,
                 instruction=instruction,
+                current=current,
             )
         except LLMError as exc:
             warnings.append(f"Could not draft the open form questions: {exc}")
@@ -361,6 +370,29 @@ async def _draft_answers(
             + "."
         )
     return merged
+
+
+def _current_answers(
+    folder: str,
+    record: OfferRecord,
+    profile: Profile,
+    questions: list[FormQuestion],
+    slots: list[FormAnswer | None],
+) -> str:
+    """The stored answers to the open questions, as the user last left them.
+
+    Only the open ones: a factual answer is read from the profile, and never goes to
+    the model, so it has no business in the request either.
+    """
+    stored = _load_answers(folder, record, profile)
+    blocks: list[str] = []
+    for index, question in enumerate(questions):
+        if slots[index] is not None or index >= len(stored):
+            continue
+        text = stored[index].answer.strip()
+        if text:
+            blocks.append(f"### {answers.question_title(question)}\n{text}")
+    return "\n\n".join(blocks)
 
 
 def _load_answers(folder: str, record: OfferRecord, profile: Profile) -> list[FormAnswer]:
@@ -519,9 +551,15 @@ async def regenerate(
     section: str,
     instruction: str,
     warnings: list[str],
+    from_current: bool = False,
     on_step: OnStep | None = None,
 ) -> None:
-    """Redraft one section with an instruction, leaving the others untouched."""
+    """Redraft one section with an instruction, leaving the others untouched.
+
+    ``from_current`` hands the section as it stands on disk back to the model, so it
+    improves what is there instead of writing it again: the stored file carries the
+    user's own edits, which is exactly the version to build on.
+    """
     if section not in SECTIONS:
         raise WriterError(f"Unknown section: {section!r}")
     if not store.folder_exists(folder):
@@ -531,17 +569,23 @@ async def regenerate(
     detail = ""
     if section == "cv":
         document = await _regenerate_document(
-            settings, profile, record, folder, "cv", instruction, warnings
+            settings, profile, record, folder, "cv", instruction, warnings, from_current
         )
         detail = _document_detail(document)
     elif section == "letter":
         document = await _regenerate_document(
-            settings, profile, record, folder, "letter", instruction, warnings
+            settings, profile, record, folder, "letter", instruction, warnings, from_current
         )
         detail = _document_detail(document)
     else:
         merged = await _draft_answers(
-            settings, record, profile, instruction=instruction, warnings=warnings
+            settings,
+            record,
+            profile,
+            instruction=instruction,
+            warnings=warnings,
+            folder=folder,
+            from_current=from_current,
         )
         store.write_text(folder, store.ANSWERS_MD, markdown.render_answers(merged))
         detail = _answers_detail(merged)
@@ -566,28 +610,40 @@ async def _regenerate_document(
     kind: str,
     instruction: str,
     warnings: list[str],
+    from_current: bool = False,
 ) -> Document:
     blueprint = templates_store.load_blueprint(kind)
     target = settings.target_pages.cv if kind == "cv" else settings.target_pages.letter
 
+    source = store.CV_MD if kind == "cv" else store.LETTER_MD
+    base = markdown.source_only(store.read_text(folder, source) or "") if from_current else ""
+
     async def redraft(next_instruction: str) -> list[DraftLine]:
+        # The base follows the drafts: a condense pass must shorten the version it
+        # just produced, not the one that was on disk.
+        nonlocal base
         if kind == "cv":
-            return await draft.tailor_cv(
+            lines = await draft.tailor_cv(
                 settings,
                 offer=record.offer,
                 profile=profile,
                 blueprint=blueprint,
                 target_pages=target,
                 instruction=next_instruction,
+                current=base,
             )
-        return await draft.write_letter(
-            settings,
-            offer=record.offer,
-            profile=profile,
-            blueprint=blueprint,
-            target_pages=target,
-            instruction=next_instruction,
-        )
+        else:
+            lines = await draft.write_letter(
+                settings,
+                offer=record.offer,
+                profile=profile,
+                blueprint=blueprint,
+                target_pages=target,
+                instruction=next_instruction,
+                current=base,
+            )
+        base = markdown.source_only(markdown.render_lines(lines))
+        return lines
 
     lines = await redraft(instruction)
     document = await _fit(

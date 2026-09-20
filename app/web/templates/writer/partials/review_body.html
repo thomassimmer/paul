@@ -9,6 +9,11 @@
     <button type="submit" {% if job and job.running %}disabled{% endif %}
             onclick="this.disabled=true; this.form.submit();">Regenerate</button>
   </div>
+  <label class="regenerate-choice" for="from-current-{{ section }}">
+    <input id="from-current-{{ section }}" name="from_current" type="checkbox" value="1"
+           {% if job and job.running %}disabled{% endif %}>
+    Improve the current version, keeping what the instruction does not touch
+  </label>
 </form>
 {% endmacro %}
 

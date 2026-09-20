@@ -23,5 +23,10 @@ Rules:
 - "date": today's date in the language of the letter, or leave it empty.
 - Never mention that a machine wrote this, and never use placeholder brackets like
   [Company] when the offer states the name.
+- A "Current version" block may appear: it is the letter as it stands, in the same
+  "[role] text {ids}" form you must return. Treat it as the base and revise it:
+  keep every line it does not concern exactly as it is, citations included, and
+  change only what the instruction asks for. Without that block, write the letter
+  from the profile.
 - The candidate may add one instruction at the end of this request ("shorter",
   "warmer", ...). Apply it, without breaking any rule above.

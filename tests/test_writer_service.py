@@ -106,20 +106,34 @@ def _pages(*values: int):
 
 
 def _patch(monkeypatch, *, cv=None, letter=None, answers=None, pages: int | list[int] = 1):
-    calls: dict = {"cv": [], "letter": [], "answers": []}
+    calls: dict = {
+        "cv": [],
+        "letter": [],
+        "answers": [],
+        "base": {"cv": [], "letter": [], "answers": []},
+    }
     cv_fn = cv or (lambda instruction, index: _cv_lines())
     letter_fn = letter or (lambda instruction, index: _letter_lines())
 
-    async def tailor_cv(settings, *, offer, profile, blueprint, target_pages, instruction=""):
+    async def tailor_cv(
+        settings, *, offer, profile, blueprint, target_pages, instruction="", current=""
+    ):
         calls["cv"].append(instruction)
+        calls["base"]["cv"].append(current)
         return cv_fn(instruction, len(calls["cv"]))
 
-    async def write_letter(settings, *, offer, profile, blueprint, target_pages, instruction=""):
+    async def write_letter(
+        settings, *, offer, profile, blueprint, target_pages, instruction="", current=""
+    ):
         calls["letter"].append(instruction)
+        calls["base"]["letter"].append(current)
         return letter_fn(instruction, len(calls["letter"]))
 
-    async def answer_questions(settings, *, offer, profile, questions, instruction=""):
+    async def answer_questions(
+        settings, *, offer, profile, questions, instruction="", current=""
+    ):
         calls["answers"].append((instruction, list(questions)))
+        calls["base"]["answers"].append(current)
         return answers(questions) if answers else []
 
     monkeypatch.setattr(service.draft, "tailor_cv", tailor_cv)
@@ -360,6 +374,102 @@ def test_regenerate_redrafts_with_the_instruction(monkeypatch):
 
     assert calls["cv"] == ["focus on Rust"]
     assert calls["letter"] == []
+
+
+def test_regenerate_without_the_flag_rewrites_from_scratch(monkeypatch):
+    record, prepared = _prepared(monkeypatch)
+    calls = _patch(monkeypatch, pages=1)
+
+    asyncio.run(
+        service.regenerate(
+            _settings(),
+            _profile(),
+            record,
+            folder=prepared.folder,
+            section="cv",
+            instruction="focus on Rust",
+            warnings=[],
+        )
+    )
+
+    assert calls["base"]["cv"] == [""]
+
+
+def test_regenerate_from_the_current_version_hands_back_the_stored_document(monkeypatch):
+    record, prepared = _prepared(monkeypatch)
+    calls = _patch(monkeypatch, pages=1)
+
+    asyncio.run(
+        service.regenerate(
+            _settings(),
+            _profile(),
+            record,
+            folder=prepared.folder,
+            section="cv",
+            instruction="focus on Rust",
+            warnings=[],
+            from_current=True,
+        )
+    )
+
+    base = calls["base"]["cv"][0]
+    assert "[name] Camille Moreau" in base
+    assert "{exp-acme-2022-a1}" in base  # the citations travel with the lines
+    assert "<!--" not in base  # the header documents the format, it is not content
+
+
+def test_regenerate_answers_from_the_current_version_hands_back_the_open_answers(monkeypatch):
+    record, prepared = _prepared(monkeypatch)
+    calls = _patch(monkeypatch, pages=1)
+
+    asyncio.run(
+        service.regenerate(
+            _settings(),
+            _profile(),
+            record,
+            folder=prepared.folder,
+            section="answers",
+            instruction="shorter",
+            warnings=[],
+            from_current=True,
+        )
+    )
+
+    base = calls["base"]["answers"][0]
+    assert "Why us?" in base
+    assert "Because." in base
+    # A factual answer is never sent to the model.
+    assert "One month" not in base
+
+
+def test_the_condense_pass_builds_on_the_draft_it_just_produced(monkeypatch):
+    record, prepared = _prepared(monkeypatch)
+
+    def cv(instruction, index):
+        return _cv_lines() if index == 1 else _cv_lines()[:1]
+
+    # Two condense passes, so the third call is told what the second one produced.
+    calls = _patch(monkeypatch, cv=cv, pages=[5, 5, 1])
+
+    asyncio.run(
+        service.regenerate(
+            _settings(),
+            _profile(),
+            record,
+            folder=prepared.folder,
+            section="cv",
+            instruction="focus on Rust",
+            warnings=[],
+            from_current=True,
+        )
+    )
+
+    assert len(calls["base"]["cv"]) == 3
+    assert "[contact]" in calls["base"]["cv"][0]  # the stored document
+    assert "[contact]" in calls["base"]["cv"][1]  # the draft the first call returned
+    # The last condense pass builds on the shortened draft, not on what was on disk.
+    assert "[contact]" not in calls["base"]["cv"][2]
+    assert "[name] Camille Moreau" in calls["base"]["cv"][2]
 
 
 def test_regenerate_answers_rewrites_only_the_answers(monkeypatch):

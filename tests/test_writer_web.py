@@ -108,13 +108,19 @@ def _configure() -> None:
 
 
 def _patch_drafts(monkeypatch) -> None:
-    async def tailor_cv(settings, *, offer, profile, blueprint, target_pages, instruction=""):
+    async def tailor_cv(
+        settings, *, offer, profile, blueprint, target_pages, instruction="", current=""
+    ):
         return _cv_lines()
 
-    async def write_letter(settings, *, offer, profile, blueprint, target_pages, instruction=""):
+    async def write_letter(
+        settings, *, offer, profile, blueprint, target_pages, instruction="", current=""
+    ):
         return _letter_lines()
 
-    async def answer_questions(settings, *, offer, profile, questions, instruction=""):
+    async def answer_questions(
+        settings, *, offer, profile, questions, instruction="", current=""
+    ):
         return [
             DraftAnswer(question=question, answer="Because of the mission.")
             for question, _ in questions
@@ -129,10 +135,25 @@ def _patch_drafts(monkeypatch) -> None:
 def _run_inline(monkeypatch) -> None:
     """Replace the background scheduling with an inline run, so tests are deterministic."""
 
-    async def inline(settings, profile, record, *, kind, section="", instruction="", folder=""):
+    async def inline(
+        settings,
+        profile,
+        record,
+        *,
+        kind,
+        section="",
+        instruction="",
+        from_current=False,
+        folder="",
+    ):
         job = jobs.remember(
             jobs.build_job(
-                record, kind=kind, section=section, instruction=instruction, folder=folder
+                record,
+                kind=kind,
+                section=section,
+                instruction=instruction,
+                from_current=from_current,
+                folder=folder,
             )
         )
         assert job is not None
@@ -237,7 +258,9 @@ def test_a_failing_preparation_is_reported_in_the_panel(client, monkeypatch):
     offer_id = _setup(monkeypatch)
     _run_inline(monkeypatch)
 
-    async def failing(settings, *, offer, profile, blueprint, target_pages, instruction=""):
+    async def failing(
+        settings, *, offer, profile, blueprint, target_pages, instruction="", current=""
+    ):
         raise LLMError("provider is down")
 
     monkeypatch.setattr("app.writer.draft.tailor_cv", failing)
@@ -342,6 +365,22 @@ def test_regenerating_a_section_starts_a_job(client, monkeypatch):
     job = jobs.current()
     assert job is not None and job.kind == "regenerate"
     assert job.section == "cv" and job.instruction == "shorter"
+    assert job.from_current is False  # the checkbox is off unless it is posted
+
+
+def test_regenerating_from_the_current_version_is_opt_in(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    client.post(
+        f"/applications/{offer_id}/regenerate",
+        data={"section": "cv", "instruction": "shorter", "from_current": "1"},
+        follow_redirects=True,
+    )
+
+    job = jobs.current()
+    assert job is not None and job.from_current is True
 
 
 def test_regenerating_needs_a_model(client, monkeypatch):
@@ -562,6 +601,17 @@ def test_the_pdf_frame_hides_the_viewer_toolbar(client, monkeypatch):
 
 
 # --- adding a line by hand ------------------------------------------------------
+
+
+def test_the_editors_offer_a_checkbox_to_build_on_the_current_version(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    page = client.get(f"/offers/{offer_id}").text
+
+    assert 'name="from_current"' in page
+    assert "Improve the current version" in page
 
 
 def test_the_editors_offer_a_button_per_role(client, monkeypatch):

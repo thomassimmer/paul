@@ -697,6 +697,8 @@ code {
 .regenerate label { margin-top: 0; }
 .regenerate-row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .regenerate-row input { flex: 1; }
+.regenerate-choice { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.9rem; }
+.regenerate-choice input { flex: none; }
 
 /* --- Small screens ----------------------------------------------------- */
 

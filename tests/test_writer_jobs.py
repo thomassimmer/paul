@@ -160,7 +160,12 @@ def test_a_regeneration_runs_the_service_with_the_stored_instruction(monkeypatch
 
     monkeypatch.setattr("app.writer.jobs.service.regenerate", fake_regenerate)
     job = jobs.build_job(
-        _record(), kind="regenerate", section="letter", instruction="shorter", folder="2026-09-acme"
+        _record(),
+        kind="regenerate",
+        section="letter",
+        instruction="shorter",
+        from_current=True,
+        folder="2026-09-acme",
     )
 
     asyncio.run(jobs.run(job, Settings(), Profile(), _record()))
@@ -169,6 +174,7 @@ def test_a_regeneration_runs_the_service_with_the_stored_instruction(monkeypatch
     assert seen["folder"] == "2026-09-acme"
     assert seen["section"] == "letter"
     assert seen["instruction"] == "shorter"
+    assert seen["from_current"] is True  # the job carries the choice to the service
     assert job.result_folder == "2026-09-acme"
     assert job.done == job.total
 

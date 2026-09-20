@@ -27,6 +27,11 @@ def test_render_lines_starts_with_a_hint_that_is_not_a_line():
     assert markdown.parse_lines(rendered) == [DraftLine(role="name", text="Camille")]
 
 
+def test_source_only_drops_the_header_and_the_blank_lines_around_it():
+    rendered = markdown.render_lines([DraftLine(role="name", text="Camille")])
+    assert markdown.source_only(rendered) == "[name] Camille"
+
+
 def test_a_line_without_a_role_is_read_as_a_paragraph():
     parsed = markdown.parse_lines("Just a sentence.")
     assert parsed == [DraftLine(role="body_text", text="Just a sentence.")]

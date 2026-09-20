@@ -148,6 +148,7 @@ def _request(
     settings: Settings,
     target_pages: int,
     instruction: str = "",
+    current: str = "",
 ) -> str:
     parts = [
         "## Candidate profile",
@@ -160,6 +161,8 @@ def _request(
         "## Template",
         template_text(blueprint),
     ]
+    if current.strip():
+        parts += ["## Current version", current.strip()]
     if instruction.strip():
         parts += ["## Additional instruction", instruction.strip()]
     return "\n\n".join(parts) + "\n"
@@ -173,8 +176,13 @@ async def tailor_cv(
     blueprint: TemplateBlueprint,
     target_pages: int,
     instruction: str = "",
+    current: str = "",
 ) -> list[DraftLine]:
-    """Draft the CV lines. The grounding check is the caller's job."""
+    """Draft the CV lines. The grounding check is the caller's job.
+
+    ``current`` is the document as it stands, in the editable ``[role] text {ids}``
+    form; when it is given, the model starts from it instead of from nothing.
+    """
     draft = await complete_structured(
         settings,
         schema=CvDraft,
@@ -185,6 +193,7 @@ async def tailor_cv(
             settings=settings,
             target_pages=target_pages,
             instruction=instruction,
+            current=current,
         ),
         system=load_prompt("writer/tailor_cv.md"),
     )
@@ -199,7 +208,9 @@ async def write_letter(
     blueprint: TemplateBlueprint,
     target_pages: int,
     instruction: str = "",
+    current: str = "",
 ) -> list[DraftLine]:
+    """Write the cover letter. ``current`` is the letter as it stands, when revising."""
     draft = await complete_structured(
         settings,
         schema=LetterDraft,
@@ -210,6 +221,7 @@ async def write_letter(
             settings=settings,
             target_pages=target_pages,
             instruction=instruction,
+            current=current,
         ),
         system=load_prompt("writer/write_letter.md"),
     )
@@ -232,8 +244,12 @@ async def answer_questions(
     profile: Profile,
     questions: list[tuple[str, int | None]],
     instruction: str = "",
+    current: str = "",
 ) -> list[DraftAnswer]:
-    """Draft the open questions. Factual ones never reach this function."""
+    """Draft the open questions. Factual ones never reach this function.
+
+    ``current`` is the answers as they stand, one block per question, when revising.
+    """
     if not questions:
         return []
     parts = [
@@ -246,6 +262,8 @@ async def answer_questions(
         "## Questions to answer",
         questions_text(questions),
     ]
+    if current.strip():
+        parts += ["## Current answers", current.strip()]
     if instruction.strip():
         parts += ["## Additional instruction", instruction.strip()]
 

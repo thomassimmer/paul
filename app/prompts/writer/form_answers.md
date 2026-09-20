@@ -16,6 +16,10 @@ Rules:
   that many characters.
 - Plain prose only: no markdown, no bullet list, no greeting or signature. The
   answer is pasted into a form field.
+- A "Current answers" block may appear: it holds the answers as they stand, one
+  per open question. Treat them as the base and revise them: keep the answers the
+  instruction does not concern, and change only what it asks for. Without that
+  block, answer from the profile.
 - Never mention that a machine wrote this.
 - Return one answer per question, echoing the question exactly as it was given, in
   the same order.

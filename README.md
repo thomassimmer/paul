@@ -281,9 +281,12 @@ than creating a second one, and the folder is remembered on the application.
 shown as sections of the offer page; a sticky section nav, and a *Checks* card that
 folds away so the long page stays short. Buttons above each editor add a line under
 the role you pick, so the `[role]` prefix never has to be typed. Regenerate a
-section with an instruction ("shorter", "more focus on data engineering").
-Regenerating runs in the background too, with the same progress panel, and the
-sections refresh themselves when it lands. Then export.
+section with an instruction ("shorter", "more focus on data engineering"). Tick
+*Improve the current version* to hand the document as it stands back to the model,
+so it keeps what the instruction does not touch — including your own edits;
+left unticked, the section is written again from scratch. Regenerating runs in the
+background too, with the same progress panel, and the sections refresh themselves
+when it lands. Then export.
 
 **ATS score.** There is no universal ATS score: ATS (*Applicant Tracking System*, e.g. Workday, Greenhouse, Lever) is the software companies use to receive and sort applications, and vendors' "scores" are in practice keyword coverage. Paul does the same, transparently:
 

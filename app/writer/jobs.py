@@ -71,6 +71,7 @@ class Job:
     steps: list[Step]
     section: str = ""
     instruction: str = ""
+    from_current: bool = False
     folder: str = ""
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
     started_at: float = field(default_factory=time.monotonic)
@@ -162,6 +163,7 @@ def build_job(
     kind: str,
     section: str = "",
     instruction: str = "",
+    from_current: bool = False,
     folder: str = "",
 ) -> Job:
     """The step list for a job, before anything has happened."""
@@ -174,6 +176,7 @@ def build_job(
         steps=[Step(key=key, label=label) for key, label in labels],
         section=section,
         instruction=instruction,
+        from_current=from_current,
         folder=folder,
     )
 
@@ -215,6 +218,7 @@ async def run(job: Job, settings: Settings, profile: Profile, record: OfferRecor
                 section=job.section,
                 instruction=job.instruction,
                 warnings=job.warnings,
+                from_current=job.from_current,
                 on_step=_report_to(job),
             )
             job.result_folder = job.folder
@@ -244,12 +248,20 @@ async def start_job(
     kind: str,
     section: str = "",
     instruction: str = "",
+    from_current: bool = False,
     folder: str = "",
 ) -> Job:
     """Register a job and run it in the background, so the request can return."""
     global _task
     job = remember(
-        build_job(record, kind=kind, section=section, instruction=instruction, folder=folder)
+        build_job(
+            record,
+            kind=kind,
+            section=section,
+            instruction=instruction,
+            from_current=from_current,
+            folder=folder,
+        )
     )
     assert job is not None
     _task = asyncio.create_task(run(job, settings, profile, record))

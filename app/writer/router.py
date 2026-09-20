@@ -194,6 +194,8 @@ async def application_regenerate(offer_id: int, request: Request):
         kind="regenerate",
         section=section,
         instruction=str(form.get("instruction") or "").strip(),
+        # An unchecked checkbox posts nothing: off by default, the section is rewritten.
+        from_current=bool(form.get("from_current")),
         folder=folder,
     )
     phrase = SECTION_PHRASES.get(section, section)
