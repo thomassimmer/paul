@@ -1,0 +1,55 @@
+# The text a template is rewritten with, by scripts/anonymize_template.py.
+#
+# One pool per role: the anonymizer hands them out in turn, so a template with 17
+# bullet paragraphs gets 17 different lines rather than the same one repeated.
+# Everything here is grounded in app/examples/profile.example.yaml, and none of it
+# should contradict the profile the demo documents are written from.
+#
+# A role that is not listed is kept as it came from the file — which is how
+# section titles survive — unless its text still names the real candidate, in
+# which case it is emptied and reported.
+
+name:
+  - Camille Moreau
+
+headline:
+  - Senior Backend Engineer — Rust, Kafka · High-Volume Data Systems
+
+contact:
+  - Lyon, France · camille.moreau@example.com · +33 6 00 00 00 00 · github.com/example-camille
+
+entry_title:
+  - Acme Analytics — Lead Backend Engineer
+  - Northwind Software — Backend Engineer
+  - INSA Lyon — MSc in Computer Science
+  - Open-source job-board scraper
+
+entry_subtitle:
+  - Product analytics for e-commerce teams; owned the ingestion and storage path end to end.
+  - B2B invoicing SaaS, second backend hire in a team of 4 engineers.
+  - Specialisation in distributed systems.
+  - A small Python tool that normalises job postings into JSON.
+
+entry_dates:
+  - 2022-03 / 2024-06
+  - 2019-09 / 2022-02
+  - 2014 / 2019
+
+body_text:
+  - "Backend engineer working on high-volume data systems: rebuilt an end-to-end ingestion path, cutting latency by 60% while traffic doubled, and migrated 40 services to a shared deployment pipeline."
+
+bullet:
+  - Cut end-to-end ingestion latency by 60% by batching writes and replacing a synchronous fan-out with a Kafka consumer group.
+  - Led the migration of 40 services to a shared deployment pipeline.
+  - Designed the multi-tenant data model still in use today.
+  - Rebuilt the ingestion path without downtime while traffic doubled.
+  - Kept the storage layer's latency flat as the volume grew.
+  - Introduced the Kafka consumer group that replaced the synchronous fan-out.
+  - Wrote the deployment pipeline shared by every backend service.
+
+skill_line:
+  - "Languages: Rust, Python, SQL"
+  - "Frameworks: Django, FastAPI"
+  - "Tools: Kafka, Kubernetes, PostgreSQL, Docker"
+  - "Data: streaming pipelines, parallel aggregation, pgvector"
+  - "Spoken languages: French (native), English (C1)"

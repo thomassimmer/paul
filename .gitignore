@@ -2,6 +2,10 @@
 /data/*
 !/data/.gitignore
 
+# A demo workspace built by scripts/seed_demo.py. It holds settings.json too, and
+# therefore the API key pasted into it: it must never be committed.
+/demo-data/
+
 # Python
 __pycache__/
 *.py[cod]

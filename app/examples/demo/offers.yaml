@@ -1,0 +1,335 @@
+# Fictional workspace used by scripts/seed_demo.py, for screenshots, videos and
+# manual checks. Every company and offer here is made up, and every number a
+# justification quotes comes from app/examples/profile.example.yaml.
+#
+# The list is ordered best offer first, the way the board shows it. The seed
+# inserts them in reverse: the board lists offers by descending id, so the last
+# one written is the first one shown.
+
+# Stored with the settings. The rules are checked against the offers below: only
+# the last one matches, which is the eliminated row on the board.
+settings:
+  filter_rules: |
+    Eliminate offers that explicitly require citizenship, a security clearance or a work permit.
+    Eliminate offers that require fewer than 3 or more than 10 years of experience.
+  wishes:
+    - label: Full remote or hybrid in France
+      weight: 2
+    - label: Health-tech, scientific or regulated domain
+      weight: 1.5
+    - label: Mentoring and system design
+      weight: 1
+
+offers:
+  - slug: sentinel-health-senior-backend-engineer
+    html: sentinel-health-senior-backend-engineer.html
+    url: https://example.com/jobs/sentinel-health-senior-backend-engineer
+    status: ready
+    prepared: true
+    notes: |
+      # Notes
+
+      Referral: Nadia, from the platform team.
+
+      Interview prep, first round:
+      - they ask about the ingestion rebuild without downtime
+      - the source of the 60% latency number
+    open_answers:
+      - >-
+        Sentinel Health takes the reimbursement rules that clinics argue with today
+        and turns them into software, which is the part of my work I keep coming
+        back to. At Acme Analytics I rebuilt an ingestion path that could not go
+        down while traffic doubled, and I cut end-to-end latency by 60% by batching
+        writes and replacing a synchronous fan-out with a Kafka consumer group. I
+        later led the migration of 40 services to a shared deployment pipeline, so I
+        am comfortable owning a platform rather than a single service. A claims
+        platform is also a system where the rules come from people who are not
+        engineers, and working with the clinical team is the part of the posting I
+        would want to start with.
+    offer:
+      title: Senior Backend Engineer
+      company: Sentinel Health
+      location: Paris, France
+      remote_policy: Full remote in France
+      contract_type: Permanent
+      seniority: Senior, 5+ years
+      salary: 70 000 – 85 000 € gross / year
+      language: English
+      responsibilities:
+        - Own the claims ingestion and storage services end to end.
+        - Design the data model behind the reimbursement rules.
+        - Work directly with the clinical team to turn their rules into software.
+        - Review, release and keep the pipeline observable with a team of six engineers.
+      requirements:
+        must_have:
+          - 5+ years of backend experience on production systems.
+          - Strong Rust and PostgreSQL.
+          - Kafka, or another streaming platform, in production.
+          - Kubernetes (K8s) and containerised deployments.
+        nice_to_have:
+          - FastAPI or another Python service framework.
+          - Health data experience (HDS, GDPR article 9).
+      keywords:
+        - term: Rust
+          variants: []
+        - term: Kafka
+          variants: []
+        - term: PostgreSQL
+          variants: [Postgres]
+        - term: Kubernetes
+          variants: [K8s]
+        # Listed as a nice-to-have in the posting, and absent from the profile: the
+        # report shows it as missing with the hint saying not to invent it.
+        - term: HDS
+          variants: []
+      constraints:
+        language_level: English, working proficiency
+        on_site: One day a month in Paris
+      company_info:
+        size: 120 employees
+        funding: Series B
+        domain: Health-tech
+        mission: Get clinics reimbursed faster.
+    score:
+      technical_match:
+        score: 5
+        justification: >-
+          Rust, Kafka and PostgreSQL are all in your profile from Acme Analytics, and
+          the migration of 40 services covers the Kubernetes requirement.
+      seniority_scope:
+        score: 5
+        justification: >-
+          You led a team of 7 engineers and owned the ingestion path end to end,
+          which is the scope this role describes.
+      wishes:
+        score: 3
+        justification: >-
+          Full remote in France and the health-tech domain both match your list; the
+          role is individual contributor, and you asked for more mentoring.
+      red_flags:
+        score: 5
+        justification: none found
+
+  - slug: cobalt-pay-backend-engineer-rust
+    html: cobalt-pay-backend-engineer-rust.html
+    url: https://example.com/jobs/cobalt-pay-backend-engineer-rust
+    status: applied
+    applied_days_ago: 12
+    offer:
+      title: Backend Engineer (Rust)
+      company: Cobalt Pay
+      location: Lyon, France
+      remote_policy: Hybrid, 2 days on site
+      contract_type: Permanent
+      seniority: Mid-level, 4+ years
+      salary: 65 000 – 80 000 € gross / year
+      language: English
+      responsibilities:
+        - Extend the payment core in Rust, and the PostgreSQL schema behind it.
+        - Own the Kafka topics that carry transaction events.
+        - Keep latency budgets honest as volume grows.
+      requirements:
+        must_have:
+          - 4+ years of backend experience.
+          - Production experience with Rust.
+          - PostgreSQL and event streaming.
+        nice_to_have:
+          - Kubernetes.
+          - Previous work in payments or another regulated domain.
+      keywords:
+        - term: Rust
+          variants: []
+        - term: PostgreSQL
+          variants: [Postgres]
+        - term: Kafka
+          variants: []
+        - term: Payments
+          variants: []
+      constraints:
+        on_site: Hybrid, 2 days on site in Lyon
+        language_level: French and English
+      company_info:
+        size: 45 employees
+        domain: Payments for marketplaces
+    score:
+      technical_match:
+        score: 4
+        justification: >-
+          Rust, Kafka and PostgreSQL are all in your profile, and a payment core in
+          Rust is close to the ingestion work you did at Acme Analytics.
+      seniority_scope:
+        score: 4
+        justification: >-
+          A step down from Lead Backend Engineer, with no team to lead, but the same
+          depth on the payments core.
+      wishes:
+        score: 4
+        justification: >-
+          Hybrid in Lyon is the location you asked for; the domain is regulated but
+          not health-tech.
+      red_flags:
+        score: 3
+        justification: >-
+          The team you would join is not described, and on-call is not mentioned
+          either way.
+
+  - slug: helio-cloud-staff-engineer
+    html: helio-cloud-staff-engineer.html
+    url: https://example.com/jobs/helio-cloud-staff-engineer
+    status: shortlisted
+    offer:
+      title: Staff Engineer
+      company: Helio Cloud
+      location: Toulouse, France
+      remote_policy: Full remote in the EU
+      contract_type: Permanent
+      seniority: Staff, 8+ years
+      language: English
+      responsibilities:
+        - Set the technical direction of the ingestion platform.
+        - Own the streaming and storage layers, in Rust and Python.
+        - Take part in the on-call rotation, one week in four.
+        - Mentor the platform engineers and review the architecture proposals.
+      requirements:
+        must_have:
+          - 8+ years of experience, including a staff or lead role.
+          - Deep experience of distributed storage.
+          - Kubernetes and PostgreSQL at scale.
+        nice_to_have:
+          - Open-source contributions.
+          - Geospatial data.
+      keywords:
+        - term: Rust
+          variants: []
+        - term: Kubernetes
+          variants: [K8s]
+        - term: PostgreSQL
+          variants: [Postgres]
+        - term: Distributed storage
+          variants: []
+      constraints:
+        on_site: Full remote in the EU
+        language_level: English
+      company_info:
+        size: 200 employees
+        domain: Weather satellite data
+    score:
+      technical_match:
+        score: 3
+        justification: >-
+          Rust and PostgreSQL are in your profile, but the role assumes
+          distributed-storage depth you have not described.
+      seniority_scope:
+        score: 3
+        justification: >-
+          You led 7 engineers; a staff mandate across a platform team of eight is a
+          larger scope, and the posting asks for 8+ years.
+      wishes:
+        score: 3
+        justification: >-
+          Full remote in the EU and a scientific domain both match, but you asked
+          for less on-call and this role takes one week in four.
+      red_flags:
+        score: 4
+        justification: >-
+          On-call one week in four, and the posting states no salary range.
+
+  - slug: ferrite-labs-rust-engineer
+    html: ferrite-labs-rust-engineer.html
+    url: https://example.com/jobs/ferrite-labs-rust-engineer
+    status: applied
+    applied_days_ago: 3
+    offer:
+      title: Rust Engineer
+      company: Ferrite Labs
+      location: Nantes, France
+      remote_policy: Fully on site
+      contract_type: Permanent
+      seniority: 3+ years
+      salary: 50 000 – 60 000 € gross / year
+      language: English
+      responsibilities:
+        - Write the next generation of the machine control library, in Rust.
+        - Work with the electronics team on the hardware interface.
+        - Maintain the existing C++ codebase.
+      requirements:
+        must_have:
+          - 3+ years with Rust in production.
+          - Comfort with C++ and with embedded constraints.
+          - On site in Nantes, five days a week.
+        nice_to_have: []
+      keywords:
+        - term: Rust
+          variants: []
+        - term: C++
+          variants: []
+        - term: Embedded
+          variants: []
+      constraints:
+        on_site: On site in Nantes, five days a week
+        language_level: French
+      company_info:
+        size: 18 employees
+        domain: Industrial control for machine tools
+    score:
+      technical_match:
+        score: 2
+        justification: >-
+          Rust is in your profile, but the role is C++-heavy and embedded, without
+          the data-path work you have done.
+      seniority_scope:
+        score: 3
+        justification: >-
+          A narrower scope than your lead role: the seniority is a step sideways
+          rather than down.
+      wishes:
+        score: 2
+        justification: >-
+          Fully on site in Nantes, five days a week, against the remote you want;
+          the domain is industrial rather than health-tech or scientific.
+      red_flags:
+        score: 4
+        justification: >-
+          Nothing contradictory, but the stated range stops below your salary
+          expectation.
+
+  - slug: orion-defence-java-engineer
+    html: orion-defence-java-engineer.html
+    url: https://example.com/jobs/orion-defence-java-engineer
+    offer:
+      title: Java Engineer
+      company: Orion Defence
+      location: München, Germany
+      remote_policy: On site
+      contract_type: Permanent
+      seniority: Senior, 5+ years
+      language: English
+      responsibilities:
+        - Develop services in Java on a secure internal network.
+        - Participate in design reviews and threat modelling.
+      requirements:
+        must_have:
+          - Applicants must be eligible for a security clearance (SSBI).
+          - Citizenship of a European Union member state is required.
+          - Fluent German and English.
+          - 5+ years of Java.
+        nice_to_have: []
+      keywords:
+        - term: Java
+          variants: []
+        - term: Security clearance
+          variants: [SSBI]
+      constraints:
+        citizenship: Citizenship of an EU member state is required
+        clearance: Security clearance (SSBI)
+        on_site: On site in München
+        language_level: Fluent German and English
+      company_info:
+        domain: Command-and-control software for the public sector
+    elimination:
+      rule: >-
+        Eliminate offers that explicitly require citizenship, a security clearance or
+        a work permit.
+      excerpt: >-
+        Applicants must be eligible for a security clearance (SSBI). Citizenship of a
+        European Union member state is required.

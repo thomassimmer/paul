@@ -1,0 +1,60 @@
+<div class="job-posting">
+  <h1>Senior Backend Engineer</h1>
+  <p class="meta">Sentinel Health &middot; Paris, France &middot; Full remote in France &middot; Permanent</p>
+  <p>
+    Sentinel Health builds the claims platform used by 300 clinics to get reimbursed
+    faster. We are 120 people, backed by a Series B, and the engineering team is 24.
+  </p>
+  <p>
+    Our working language is English, and the team meets on site in Paris one day a
+    month.
+  </p>
+
+  <h2>What you will do</h2>
+  <ul>
+    <li>Own the claims ingestion and storage services end to end.</li>
+    <li>Design the data model behind the reimbursement rules.</li>
+    <li>Work directly with the clinical team to turn their rules into software.</li>
+    <li>Review, release and keep the pipeline observable with a team of six engineers.</li>
+  </ul>
+
+  <h2>What we are looking for</h2>
+  <ul>
+    <li>5+ years of backend experience on production systems.</li>
+    <li>Strong Rust and PostgreSQL.</li>
+    <li>Kafka, or another streaming platform, in production.</li>
+    <li>Kubernetes (K8s) and containerised deployments.</li>
+  </ul>
+
+  <h2>Nice to have</h2>
+  <ul>
+    <li>FastAPI or another Python service framework.</li>
+    <li>Health data experience (HDS, GDPR article 9).</li>
+  </ul>
+
+  <p>Salary: 70 000 &ndash; 85 000 &euro; gross / year, depending on experience.</p>
+</div>
+
+<form class="application-form" action="/apply" method="post">
+  <h2>Apply for this role</h2>
+
+  <label for="email">Email address</label>
+  <input id="email" name="email" type="email" required>
+
+  <fieldset>
+    <legend>Are you legally authorised to work in the European Union?</legend>
+    <label><input type="radio" name="work_authorization" value="yes" required> Yes</label>
+    <label><input type="radio" name="work_authorization" value="no"> No, I would need sponsorship</label>
+  </fieldset>
+
+  <label for="earliest_start">Earliest start date</label>
+  <input id="earliest_start" name="earliest_start" type="text" placeholder="e.g. in two months">
+
+  <label for="salary_expectation">Salary expectation</label>
+  <input id="salary_expectation" name="salary_expectation" type="text">
+
+  <label for="why">Why do you want to join Sentinel Health?</label>
+  <textarea id="why" name="why" maxlength="600" required></textarea>
+
+  <button type="submit">Submit application</button>
+</form>

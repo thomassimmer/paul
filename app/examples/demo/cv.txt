@@ -1,0 +1,45 @@
+Camille Moreau
+Senior Backend Engineer
+Lyon, France
+camille.moreau@example.com
++33 6 00 00 00 00
+github.com/example-camille
+
+PROFILE
+
+Backend engineer working on high-volume data systems. I rebuilt an end-to-end
+ingestion path at Acme Analytics, cutting latency by 60% while traffic doubled,
+and led the migration of 40 services to a shared deployment pipeline. I like
+owning a platform rather than a single service, and working with the people who
+use it.
+
+PROFESSIONAL EXPERIENCE
+
+Acme Analytics — Lead Backend Engineer
+2022-03 / 2024-06
+Product analytics for e-commerce teams. I owned the ingestion and storage path
+end to end, with a team of 7 engineers.
+- Cut end-to-end ingestion latency by 60% by batching writes and replacing a
+  synchronous fan-out with a Kafka consumer group.
+- Led the migration of 40 services to a shared deployment pipeline.
+
+Northwind Software — Backend Engineer
+2019-09 / 2022-02
+B2B invoicing SaaS, in a team of 4 engineers. I was the second backend hire.
+- Designed the multi-tenant data model still in use today.
+
+EDUCATION
+
+INSA Lyon — MSc in Computer Science
+2014 / 2019
+Specialisation in distributed systems.
+
+SKILLS
+
+Languages: Rust, Python, SQL
+Frameworks: Django, FastAPI
+Tools: Kafka, Kubernetes, PostgreSQL, Docker
+
+LANGUAGES
+
+French (native), English (C1)
