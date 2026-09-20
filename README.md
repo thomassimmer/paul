@@ -46,7 +46,8 @@ Paul automates the mechanical parts with an LLM **while keeping you in control**
 | **Offer analyzer** | Paste the **raw HTML fragment** of an offer (description + application form), or plain text. The agent extracts structured data and the form questions. |
 | **Filter and ranker** | Eliminates offers that break your rules and scores the others against your profile and your wishes, with a one-sentence justification. |
 | **Writer** | Produces a tailored CV and cover letter **in your imported template**, drafts answers to the form questions, and computes a keyword-coverage (ATS) score. |
-| **Tracker** | A table of all offers and their status, with follow-up reminders. Mailbox reading comes after the MVP. |
+| **Board** | The home page: one table for every offer — score, verdict, status, documents, follow-up. Ranking runs from a modal over it, and each offer opens as a single page. |
+| **Tracker** | The status, the dates and the notes of each application, with follow-up reminders. Mailbox reading comes after the MVP. |
 | **Settings** | LLM provider, model and API key, follow-up delay, output language. |
 
 ## Quick start
@@ -87,16 +88,16 @@ flowchart LR
     DB --> W
     T[CV and letter templates] --> W
     W -->|application folder| F[/data/applications/.../]
-    W --> TR[Tracker]
-    TR -->|status, follow-ups| U((You))
+    W --> B[Board]
+    B -->|status, follow-ups| U((You))
 ```
 
 Typical session:
 
 1. **Once:** import your CV, answer the profiler's questions, import your CV and letter templates, write your filter rules and wishes.
 2. **Per offer:** paste the HTML fragment. The offer is analyzed, filtered and scored in seconds.
-3. **For the best matches:** open **Applications** and click *Prepare*. Review the generated CV, letter and answers, fix what you want, regenerate a section if needed, export, apply on the company site.
-4. **Afterwards:** update the status in the tracker; get reminded when a follow-up is due.
+3. **For the best matches:** click *Prepare* in the table, or open the offer and prepare it there. Review the generated CV, letter and answers, fix what you want, regenerate a section if needed, export, apply on the company site.
+4. **Afterwards:** update the status in the table; get reminded when a follow-up is due.
 
 ## Modules in detail
 
@@ -187,8 +188,8 @@ Nothing is invented: a field the offer does not state stays empty. Company facts
 ### 3. Filter and ranker
 
 Two stages, both run against your own data. Your elimination rules and your
-weighted wishes are edited on the **Ranking** page and stored with your settings;
-*Run ranking* applies them to every stored offer.
+weighted wishes are edited in the **ranking modal** on the board and stored with
+your settings; *Run ranking* applies them to every offer the chosen scope selects.
 
 **Stage 1: elimination.** You write natural-language rules once, for example:
 
@@ -257,15 +258,14 @@ data/applications/2026-09-acme-senior-backend/
 └── notes.md            # your notes, interview prep
 ```
 
-The **Applications** page lists the offers with their score and status, says which
-ones already have a folder, and is where *Prepare* is clicked. Preparing is a
-background task with a step-by-step report — the page refreshes itself every 2
-seconds and can stop it — because it is three or four model calls plus a page
-measurement, and a slow provider should not leave you staring at a spinner. It
-needs an imported profile and a configured model. Writing into an existing folder
-updates it in place rather than creating a second one; the folder is remembered on
-the application, so the tracker links straight back to it, and the same button sits
-on the offer page so you do not have to guess where the writing starts.
+The board's **Documents** column says which offers already have a folder and is
+where *Prepare* is clicked; the offer page carries the same button, so you never
+have to guess where the writing starts. Preparing is a background task with a
+step-by-step report — the page refreshes itself every 2 seconds and can stop it —
+because it is three or four model calls plus a page measurement, and a slow
+provider should not leave you staring at a spinner. It needs an imported profile
+and a configured model. Writing into an existing folder updates it in place rather
+than creating a second one, and the folder is remembered on the application.
 
 **Tailoring.** The writer selects and orders the most relevant experiences and achievements from your profile, rephrases them with the offer's vocabulary, and writes a letter grounded in the company and the role. Documents are generated in the **language of the offer** (or the one you force in settings).
 
@@ -277,8 +277,13 @@ on the offer page so you do not have to guess where the writing starts.
 
 **Form answers.** Open questions ("Why do you want to join us?") get a draft that respects the max length, using your profile and the offer.
 
-**Review screen.** Side-by-side preview and editor for CV, letter and answers; a sticky section nav, and a *Checks* card that folds away so the long page stays short. Buttons above each editor add a line under the role you pick, so the `[role]` prefix never has to be typed. Regenerate a section with an instruction ("shorter", "more focus on data engineering"). Regenerating runs in the background too, with the same progress panel, and
-the review refreshes itself when it lands. Then export.
+**Review screen.** Side-by-side preview and editor for CV, letter and answers,
+shown as sections of the offer page; a sticky section nav, and a *Checks* card that
+folds away so the long page stays short. Buttons above each editor add a line under
+the role you pick, so the `[role]` prefix never has to be typed. Regenerate a
+section with an instruction ("shorter", "more focus on data engineering").
+Regenerating runs in the background too, with the same progress panel, and the
+sections refresh themselves when it lands. Then export.
 
 **ATS score.** There is no universal ATS score: ATS (*Applicant Tracking System*, e.g. Workday, Greenhouse, Lever) is the software companies use to receive and sort applications, and vendors' "scores" are in practice keyword coverage. Paul does the same, transparently:
 
@@ -289,25 +294,40 @@ the review refreshes itself when it lands. Then export.
 
 Treat it as an indicator, not a guarantee.
 
-### 5. Tracker
+### 5. The board
 
-One page, one row per analyzed offer, sortable on any column and filterable:
+The home page is one table: **one row per analyzed offer**, and everything the app
+knows about an offer is on it.
 
 | Column | Content |
 |---|---|
-| Company / role | link to the application record |
-| Score | the ranking total, when there is one |
+| (tick) | selects the offer for the ranking run's *only the offers I tick* scope |
+| Company / role | link to the offer page |
+| Score | the ranking total, when there is one, with *not ranked* and *out of date* tags |
+| Verdict | *Kept* or *Eliminated*, marked when you overrode the rules by hand |
 | Status | `Analyzed` → `Shortlisted` → `Ready` → `Applied` → `Interview` → `Offer` / `Rejected` / `No response` |
-| Applied | the date the application was sent |
+| Documents | *Prepare*, then *Review* once the folder exists |
 | Follow-up | highlighted when *N days* (configurable, default 7) have passed with no news |
-| Notes | free text |
 
 A filter switches between *Follow-up due*, *Not applied to yet*, every status, or
-everything. The status is changed from the row itself, and moving to an applied
-status records **today's date** so the follow-up clock starts on its own; the
-record page holds the dates and the notes. Nothing is inferred: the follow-up
-counts from the last contact, or from the application date when there has been
-none, and only a status still *Applied* waits for news.
+everything, and any column sorts. The status is changed from the row itself, and
+moving to an applied status records **today's date** so the follow-up clock starts
+on its own. Nothing is inferred: the follow-up counts from the last contact, or
+from the application date when there has been none, and only a status still
+*Applied* waits for news.
+
+**Ranking** lives in a modal over the table — the elimination rules, the weighted
+wishes, the pace, and the run — because the run's selection is the table's own
+ticks. Progress is reported in the modal, and the table refreshes itself as the
+scores arrive.
+
+Opening an offer gives **one page** for everything about it: the structured offer
+and its actions, its verdict with the scoring axes and the elimination evidence,
+the tailored CV, cover letter and form answers, and the tracking form. A quick
+navigation sticks to the top of that page to move between the sections.
+
+The onboarding checklist sits above the table and folds itself away once every
+step is done; it can always be reopened.
 
 Statuses are changed by hand in the MVP. **After the MVP:** one click reads your
 mailbox over **IMAP with an app password** (no OAuth setup), matches messages to
@@ -323,7 +343,7 @@ yet without re-ranking the rest.
 - LLM provider, model, API key or local endpoint (through LiteLLM), with a "test connection" button
 - Output language (auto / fixed)
 - Follow-up delay
-- Filter rules and weighted wishes (edited in the ranker page, stored with the settings)
+- Filter rules and weighted wishes (edited in the board's ranking modal, stored with the settings)
 
 ## Template import
 
@@ -412,7 +432,7 @@ paul-emploi/
 │   │   ├── clean.py           # deterministic HTML cleaning + form parsing
 │   │   ├── editor.py          # structured offer form <-> Offer
 │   │   ├── extract.py         # LLM: cleaned text -> OfferDraft
-│   │   ├── router.py          # HTTP routes
+│   │   ├── router.py          # the offer page, and the analyzer's actions
 │   │   ├── service.py         # analysis orchestration
 │   │   └── store.py           # offers in SQLite (raw + cleaned kept)
 │   ├── ranking/               # filter and ranker
@@ -428,18 +448,20 @@ paul-emploi/
 │   │   ├── grounding.py       # every claim checked against the profile, in code
 │   │   ├── jobs.py            # background job: steps, progress, stopping
 │   │   ├── markdown.py        # the editable `[role] text {ids}` form
-│   │   ├── router.py          # HTTP routes
+│   │   ├── router.py          # prepare, save, regenerate, download, preview
 │   │   ├── service.py         # prepare, save, regenerate: the whole orchestration
-│   │   └── store.py           # application folders on disk
+│   │   ├── store.py           # application folders on disk
+│   │   └── view.py            # the context of the document sections
 │   ├── ats.py                 # keyword coverage and format checks
 │   ├── templates_engine/      # DOCX analysis, blueprint, rendering
 │   ├── tracker/               # statuses, follow-ups, (later) IMAP
-│   │   ├── router.py          # the board, and one application's detail
+│   │   ├── router.py          # a status from a row, one application's tracking
 │   │   ├── service.py         # statuses, dates, the follow-up rule
 │   │   └── store.py           # applications in SQLite
 │   ├── web/                   # presentation layer
-│   │   ├── templating.py      # Jinja env, render/redirect/flash helpers
-│   │   ├── routes/            # dashboard, settings
+│   │   ├── templating.py      # Jinja env, render/redirect/local_url helpers
+│   │   ├── board.py           # the one table: its rows, filter and sort
+│   │   ├── routes/            # board (the home page), settings
 │   │   ├── templates/         # Jinja templates
 │   │   └── static/            # CSS, vendored HTMX
 │   └── examples/              # fictional profile, sample templates

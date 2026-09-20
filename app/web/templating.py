@@ -1,8 +1,9 @@
-"""Shared Jinja setup and the two helpers every route uses.
+"""Shared Jinja setup and the HTTP helpers every route uses.
 
 ``render`` injects the pending flash messages and clears them; ``redirect``
-implements Post/Redirect/Get with one optional message. Keeping both here means
-no route has to think about cookies.
+implements Post/Redirect/Get with one optional message; ``local_url`` reads a
+``next`` field without letting a form redirect the user off the site. Keeping all
+three here means no route has to think about cookies or open redirects.
 """
 
 from __future__ import annotations
@@ -62,3 +63,15 @@ def redirect(url: str, *, message: str = "", level: str = "ok") -> RedirectRespo
             samesite="lax",
         )
     return response
+
+
+def local_url(value: object, default: str) -> str:
+    """A ``next`` field a form sent, when it stays inside this site.
+
+    A bare path is ours; ``//host`` is another site that would look local at a
+glance, so it is refused. Anything else falls back to ``default``.
+    """
+    url = str(value or "")
+    if url.startswith("/") and not url.startswith("//"):
+        return url
+    return default

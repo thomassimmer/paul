@@ -1,0 +1,105 @@
+{% macro sort_header(key, label) %}
+  <th>
+    <a href="/?sort={{ key }}&dir={{ 'asc' if sort == key and direction == 'desc' else 'desc' }}&status={{ status_filter }}">
+      {{ label }}{% if sort == key %} <span class="sort-mark">{{ '▲' if direction == 'asc' else '▼' }}</span>{% endif %}
+    </a>
+  </th>
+{% endmacro %}
+
+{% if rows %}
+<table class="table">
+  <thead>
+    <tr>
+      <th class="tick"></th>
+      {{ sort_header('role', 'Company / role') }}
+      {{ sort_header('score', 'Score') }}
+      <th>Verdict</th>
+      {{ sort_header('status', 'Status') }}
+      <th>Documents</th>
+      {{ sort_header('followup', 'Follow-up') }}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr{% if row.followup_due %} class="due"{% endif %}>
+      <td class="tick">
+        {# The tick feeds the ranking modal's "only the offers I tick" scope: the
+           form lives in the dialog, the boxes live here. #}
+        <input type="checkbox" name="offer_ids" value="{{ row.record.id }}" form="run-form"
+               aria-label="Select {{ row.title }}">
+      </td>
+      <td>
+        <a href="/offers/{{ row.record.id }}">{{ row.title }}</a>
+        {% if row.ranking is none %}<span class="tag">not ranked</span>{% endif %}
+        {% if row.stale %}<span class="tag tag-warn">out of date</span>{% endif %}
+        <div class="hint">{{ row.company or '—' }}</div>
+      </td>
+      <td>
+        {% if row.total is not none %}<strong>{{ row.total }}</strong><span class="muted">/100</span>
+        {% elif row.needs_score %}<span class="muted">needs scoring</span>
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td>
+        {% if row.eliminated %}
+          <span class="verdict verdict-no">Eliminated</span>
+        {% elif row.ranking %}
+          <span class="verdict verdict-ok">Kept</span>
+          {% if row.ranking.override %}<div class="hint">by hand</div>{% endif %}
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td>
+        <form method="post" action="/tracker/{{ row.record.id }}/status" class="status-form">
+          <input type="hidden" name="sort" value="{{ sort }}">
+          <input type="hidden" name="dir" value="{{ direction }}">
+          {# Named ``filter`` on purpose: ``status`` is the select below. #}
+          <input type="hidden" name="filter" value="{{ status_filter }}">
+          <select name="status" aria-label="Status for this offer">
+            {% for value in status_order %}
+            <option value="{{ value }}" {% if value == row.status %}selected{% endif %}>{{ statuses[value] }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">Set</button>
+        </form>
+      </td>
+      <td>
+        {% if row.prepared %}
+          <a href="/offers/{{ row.record.id }}#cv">Review</a>
+        {% elif has_profile and has_model %}
+          <form method="post" action="/applications/{{ row.record.id }}/prepare" class="inline-form">
+            <input type="hidden" name="next" value="/">
+            <button type="submit" {% if busy %}disabled{% endif %}
+                    onclick="this.disabled=true; this.form.submit();">Prepare</button>
+          </form>
+        {% else %}
+          <span class="muted">Not prepared</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if row.followup_due %}
+          <span class="verdict verdict-warn">Follow up</span>
+          <div class="hint">{{ row.days_since_contact }} days without news</div>
+        {% elif row.days_since_contact is not none %}
+          <span class="muted">{{ row.days_since_contact }} d</span>
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card">
+  <p>No offer analyzed yet.</p>
+  <p class="hint">
+    Open an offer in your browser, right-click the block that holds the
+    description (and the application form), <em>Inspect</em>, right-click the
+    element, <em>Copy outerHTML</em>, then paste it.
+  </p>
+  <div class="actions">
+    <a class="button primary" href="/offers/new">Analyze your first offer</a>
+  </div>
+</div>
+{% endif %}

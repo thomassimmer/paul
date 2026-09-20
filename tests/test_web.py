@@ -21,13 +21,13 @@ def test_health(client):
     assert response.json() == {"status": "ok"}
 
 
-def test_dashboard_renders(client):
+def test_the_board_renders(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "Paul" in response.text
 
 
-def test_the_dashboard_lists_the_writer_step(client):
+def test_the_board_lists_the_writer_step(client):
     assert "Write the tailored documents" in client.get("/").text
 
 

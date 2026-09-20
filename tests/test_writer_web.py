@@ -153,33 +153,6 @@ def _prepare(client, offer_id: int) -> None:
     client.post(f"/applications/{offer_id}/prepare")
 
 
-# --- the list page -------------------------------------------------------------
-
-
-def test_the_page_renders_without_a_profile(client):
-    _seed_offer()
-    response = client.get("/applications")
-    assert response.status_code == 200
-    assert "Import your CV" in response.text
-    assert "Not prepared" in response.text
-
-
-def test_the_page_warns_without_a_model(client):
-    _seed_profile()
-    _seed_offer()
-    assert "No model configured" in client.get("/applications").text
-
-
-def test_the_nav_links_to_the_applications(client):
-    assert 'href="/applications"' in client.get("/").text
-
-
-def test_no_job_panel_before_anything_has_run(client):
-    _seed_offer()
-    assert 'id="job"' in client.get("/applications").text
-    assert 'hx-trigger="every 2s"' not in client.get("/applications").text
-
-
 # --- preparing -----------------------------------------------------------------
 
 
@@ -212,33 +185,9 @@ def test_prepare_starts_a_background_job(client, monkeypatch):
     response = client.post(f"/applications/{offer_id}/prepare", follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/applications"
+    assert response.headers["location"] == "/"
     job = jobs.current()
     assert job is not None and job.kind == "prepare"
-
-
-def test_the_page_polls_while_a_job_runs(client, monkeypatch):
-    offer_id = _setup(monkeypatch)
-    job = jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
-
-    page = client.get("/applications")
-
-    assert 'hx-get="/applications/progress"' in page.text
-    assert 'hx-trigger="every 2s"' in page.text
-    assert "Preparation in progress" in page.text
-    assert "disabled" in page.text  # preparing twice is not offered while one runs
-    assert job is not None
-
-
-def test_the_progress_endpoint_returns_the_panel_and_the_table(client, monkeypatch):
-    offer_id = _setup(monkeypatch)
-    jobs.remember(jobs.build_job(_record(offer_id), kind="prepare"))
-
-    response = client.get("/applications/progress")
-
-    assert response.status_code == 200
-    assert 'id="job"' in response.text
-    assert 'id="applications-table" hx-swap-oob="outerHTML"' in response.text
 
 
 def test_a_second_preparation_is_refused_while_one_runs(client, monkeypatch):
@@ -258,10 +207,10 @@ def test_prepare_writes_the_folder_and_the_review_reads_it(client, monkeypatch):
 
     assert response.status_code == 200
     assert "Last preparation" in response.text
-    assert "Open the review" in response.text
+    assert "Open the offer" in response.text
     assert store.list_folders() != []
 
-    page = client.get(f"/applications/{offer_id}")
+    page = client.get(f"/offers/{offer_id}")
     assert page.status_code == 200
     assert "Grounding of the CV" in page.text
     assert "100%" in page.text
@@ -315,10 +264,17 @@ def test_stopping_and_dismissing_a_job(client, monkeypatch):
     assert "Nothing is running" in response.text
 
 
-def test_the_review_page_needs_a_prepared_offer(client, monkeypatch):
+def test_the_offer_page_shows_the_documents_of_a_prepared_offer(client, monkeypatch):
     offer_id = _setup(monkeypatch)
-    response = client.get(f"/applications/{offer_id}", follow_redirects=True)
-    assert "not prepared yet" in response.text
+    _run_inline(monkeypatch)
+    _prepare(client, offer_id)
+
+    response = client.get(f"/applications/{offer_id}", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/offers/{offer_id}"
+
+    page = client.get(f"/offers/{offer_id}")
+    assert "Grounding of the CV" in page.text
 
 
 # --- saving and regenerating ---------------------------------------------------
@@ -417,7 +373,7 @@ def test_regenerating_an_unknown_section_is_refused(client, monkeypatch):
     assert "Unknown section" in response.text
 
 
-def test_the_review_poll_refreshes_the_body(client, monkeypatch):
+def test_the_documents_poll_refreshes_the_sections(client, monkeypatch):
     offer_id = _setup(monkeypatch)
     _run_inline(monkeypatch)
     _prepare(client, offer_id)
@@ -425,13 +381,14 @@ def test_the_review_poll_refreshes_the_body(client, monkeypatch):
         jobs.build_job(_record(offer_id), kind="regenerate", section="cv")
     )
 
-    page = client.get(f"/applications/{offer_id}")
-    assert f'hx-get="/applications/{offer_id}/progress"' in page.text
+    page = client.get(f"/offers/{offer_id}")
+    assert f'hx-get="/offers/{offer_id}/progress"' in page.text
     assert "Regeneration in progress" in page.text
 
-    response = client.get(f"/applications/{offer_id}/progress")
+    response = client.get(f"/offers/{offer_id}/progress")
     assert response.status_code == 200
-    assert 'id="review-body" hx-swap-oob="outerHTML"' in response.text
+    assert 'id="documents" hx-swap-oob="outerHTML"' in response.text
+    assert 'id="section-nav" hx-swap-oob="outerHTML"' in response.text
 
 
 # --- downloads -----------------------------------------------------------------
@@ -483,7 +440,7 @@ def test_the_review_frames_the_saved_documents_when_libreoffice_is_there(client,
     _prepare(client, offer_id)
     _framing(monkeypatch)
 
-    page = client.get(f"/applications/{offer_id}")
+    page = client.get(f"/offers/{offer_id}")
 
     assert "doc-pdf" in page.text
     assert f'src="/applications/{offer_id}/preview/cv?v=' in page.text
@@ -496,7 +453,7 @@ def test_the_review_falls_back_to_html_without_libreoffice(client, monkeypatch):
     _prepare(client, offer_id)
     monkeypatch.setattr("app.writer.router.pdf.converter", lambda: None)
 
-    page = client.get(f"/applications/{offer_id}")
+    page = client.get(f"/offers/{offer_id}")
 
     assert 'class="doc-preview"' in page.text
     assert "doc-pdf" not in page.text
@@ -547,7 +504,7 @@ def test_the_review_links_to_its_sections(client, monkeypatch):
     _run_inline(monkeypatch)
     _prepare(client, offer_id)
 
-    page = client.get(f"/applications/{offer_id}")
+    page = client.get(f"/offers/{offer_id}")
 
     assert 'class="section-nav"' in page.text
     for anchor in ("checks", "cv", "letter", "answers"):
@@ -560,7 +517,7 @@ def test_the_checks_can_be_folded_away(client, monkeypatch):
     _run_inline(monkeypatch)
     _prepare(client, offer_id)
 
-    page = client.get(f"/applications/{offer_id}")
+    page = client.get(f"/offers/{offer_id}")
 
     assert '<details class="collapse">' in page.text
     assert "<summary>" in page.text
@@ -572,7 +529,7 @@ def test_the_pdf_frame_hides_the_viewer_toolbar(client, monkeypatch):
     _prepare(client, offer_id)
     _framing(monkeypatch)
 
-    page = client.get(f"/applications/{offer_id}")
+    page = client.get(f"/offers/{offer_id}")
 
     assert "#toolbar=0" in page.text
     assert "&amp;navpanes=0" in page.text
@@ -586,7 +543,7 @@ def test_the_editors_offer_a_button_per_role(client, monkeypatch):
     _run_inline(monkeypatch)
     _prepare(client, offer_id)
 
-    page = client.get(f"/applications/{offer_id}")
+    page = client.get(f"/offers/{offer_id}")
 
     assert 'data-insert-role="bullet"' in page.text  # CV
     assert 'data-insert-role="salutation"' in page.text  # letter
@@ -598,7 +555,7 @@ def test_the_editors_have_the_ids_the_insert_needs(client, monkeypatch):
     _run_inline(monkeypatch)
     _prepare(client, offer_id)
 
-    page = client.get(f"/applications/{offer_id}")
+    page = client.get(f"/offers/{offer_id}")
 
     assert 'id="cv-source"' in page.text
     assert 'id="letter-source"' in page.text

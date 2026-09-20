@@ -1,0 +1,9 @@
+{# Answer to the poll: the job panel, plus the navigation and the documents swapped
+   out of band (preparing adds the sections the navigation points at). #}
+{% include "writer/partials/job.html" %}
+<div id="section-nav" hx-swap-oob="outerHTML">
+  {% include "offers/partials/nav.html" %}
+</div>
+<div id="documents" hx-swap-oob="outerHTML">
+  {% include "offers/partials/documents.html" %}
+</div>

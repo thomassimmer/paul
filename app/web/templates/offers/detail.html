@@ -5,10 +5,15 @@
 <div class="page-head">
   <h1>{{ offer.title or 'Untitled offer' }}</h1>
   <div class="actions">
-    {% if folder %}
-    <a class="button primary" href="/applications/{{ record.id }}">Review application</a>
+    {% if prepared %}
+    <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form">
+      <input type="hidden" name="next" value="/offers/{{ record.id }}">
+      <button type="submit" class="primary"
+              onclick="this.disabled=true; this.form.submit();">Prepare again</button>
+    </form>
     {% else %}
     <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form">
+      <input type="hidden" name="next" value="/offers/{{ record.id }}">
       <button type="submit" class="primary"
               onclick="this.disabled=true; this.form.submit();">Prepare CV, letter and answers</button>
     </form>
@@ -25,24 +30,10 @@
   </div>
 </div>
 
-{% if folder %}
-<p class="hint">Documents prepared in <code>{{ folder }}/</code>.</p>
-<div class="actions">
-  <form method="post" action="/applications/{{ record.id }}/prepare">
-    <button type="submit" onclick="this.disabled=true; this.form.submit();">Prepare again</button>
-  </form>
-</div>
-{% else %}
-<p class="hint">
-  Preparing writes a CV and a cover letter tailored to this offer, in your own
-  template, plus the form answers and an ATS coverage report. It needs a profile
-  and a configured model.
-</p>
-{% endif %}
-
 <p class="lede">
   {{ offer.company }}{% if offer.company and offer.location %} · {% endif %}{{ offer.location }}
   {% if record.analyzed_at %}<span class="muted">· analyzed {{ record.analyzed_at }} ({{ record.source }})</span>{% endif %}
+  {% if prepared %}<span class="muted">· documents in <code>{{ folder }}/</code></span>{% endif %}
 </p>
 
 {% if missing %}
@@ -53,101 +44,73 @@
 </p>
 {% endif %}
 
-<div class="card">
-  <h2>Overview</h2>
-  <dl class="kv">
-    <dt>Seniority</dt><dd>{{ offer.seniority or '—' }}</dd>
-    <dt>Contract</dt><dd>{{ offer.contract_type or '—' }}</dd>
-    <dt>Remote</dt><dd>{{ offer.remote_policy or '—' }}</dd>
-    <dt>Salary</dt><dd>{{ offer.salary or 'not stated' }}</dd>
-    <dt>Language</dt><dd>{{ offer.language or '—' }}</dd>
-  </dl>
+{% include "writer/partials/job.html" %}
+
+<div id="section-nav">
+  {% include "offers/partials/nav.html" %}
 </div>
 
-<div class="card">
-  <h2>Responsibilities</h2>
-  {% if offer.responsibilities %}
-  <ul>{% for item in offer.responsibilities %}<li>{{ item }}</li>{% endfor %}</ul>
-  {% else %}<p class="missing">Not stated in the pasted content.</p>{% endif %}
+{% include "offers/partials/offer_body.html" %}
+{% include "offers/partials/ranking.html" %}
+
+<div id="documents">
+  {% include "offers/partials/documents.html" %}
 </div>
 
-<div class="card">
-  <h2>Requirements</h2>
-  <h4>Must have</h4>
-  {% if offer.requirements.must_have %}
-  <ul>{% for item in offer.requirements.must_have %}<li>{{ item }}</li>{% endfor %}</ul>
-  {% else %}<p class="missing">None extracted.</p>{% endif %}
-  <h4>Nice to have</h4>
-  {% if offer.requirements.nice_to_have %}
-  <ul>{% for item in offer.requirements.nice_to_have %}<li>{{ item }}</li>{% endfor %}</ul>
-  {% else %}<p class="missing">None extracted.</p>{% endif %}
-</div>
+{% include "offers/partials/tracking.html" %}
 
-<div class="card">
-  <h2>Keywords <span class="tag">{{ offer.keywords | length }}</span></h2>
-  {% if offer.keywords %}
-  <ul class="keywords">
-    {% for keyword in offer.keywords %}
-    <li>
-      <strong>{{ keyword.term }}</strong>
-      {% for variant in keyword.variants %}<span class="metric">{{ variant }}</span>{% endfor %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}<p class="missing">None extracted.</p>{% endif %}
-</div>
+<script>
+  // The header is sticky and wraps, so its height is only known once the page is
+  // laid out. Publish it so the section nav tucks right under it and the anchors
+  // know how much room to leave. Without the script the stylesheet's default is
+  // used: the nav is only a little lower on narrow screens.
+  (function () {
+    var header = document.querySelector("header");
+    if (!header) return;
+    function place() {
+      document.documentElement.style.setProperty("--nav-top", header.offsetHeight + "px");
+    }
+    place();
+    window.addEventListener("resize", place);
+  })();
 
-{% set constraints = [offer.constraints.work_authorization, offer.constraints.citizenship,
-                      offer.constraints.on_site, offer.constraints.language_level,
-                      offer.constraints.clearance] %}
-{% if constraints | select | list %}
-<div class="card">
-  <h2>Constraints</h2>
-  <dl class="kv">
-    <dt>Work authorization</dt><dd>{{ offer.constraints.work_authorization or '—' }}</dd>
-    <dt>Citizenship</dt><dd>{{ offer.constraints.citizenship or '—' }}</dd>
-    <dt>On site</dt><dd>{{ offer.constraints.on_site or '—' }}</dd>
-    <dt>Language level</dt><dd>{{ offer.constraints.language_level or '—' }}</dd>
-    <dt>Clearance</dt><dd>{{ offer.constraints.clearance or '—' }}</dd>
-  </dl>
-</div>
-{% endif %}
+  // Adding a line without knowing the vocabulary: the buttons above each editor
+  // drop the "[role] " prefix at the caret. The caret is remembered on blur,
+  // because clicking a button has already taken focus away from the textarea by
+  // the time the click is heard. Without a remembered caret the line is appended.
+  (function () {
+    var caret = {};
 
-{% set company = [offer.company_info.size, offer.company_info.funding,
-                  offer.company_info.domain, offer.company_info.mission] %}
-{% if company | select | list %}
-<div class="card">
-  <h2>Company <span class="tag">from the offer text</span></h2>
-  <dl class="kv">
-    <dt>Size</dt><dd>{{ offer.company_info.size or '—' }}</dd>
-    <dt>Funding</dt><dd>{{ offer.company_info.funding or '—' }}</dd>
-    <dt>Domain</dt><dd>{{ offer.company_info.domain or '—' }}</dd>
-    <dt>Mission</dt><dd>{{ offer.company_info.mission or '—' }}</dd>
-  </dl>
-</div>
-{% endif %}
+    document.addEventListener(
+      "blur",
+      function (event) {
+        var area = event.target;
+        if (area instanceof HTMLTextAreaElement) {
+          caret[area.id] = [area.selectionStart, area.selectionEnd];
+        }
+      },
+      true
+    );
 
-<div class="card">
-  <h2>Application form <span class="tag">{{ offer.form | length }} question(s)</span></h2>
-  {% if offer.form %}
-  <ol class="questions">
-    {% for question in offer.form %}
-    <li>
-      {{ question.label or question.name }}
-      <span class="id">{{ question.type }}{% if question.name %} · name={{ question.name }}{% endif %}{% if question.required %} · required{% endif %}{% if question.max_length %} · max {{ question.max_length }}{% endif %}</span>
-      {% if question.options %}
-      <ul class="options">{% for option in question.options %}<li>{{ option }}</li>{% endfor %}</ul>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ol>
-  <p class="hint">Read from the pasted markup, not guessed by the model.</p>
-  {% else %}
-  <p class="missing">
-    No form field was found. Paste the fragment that contains the application
-    form (and keep its <code>&lt;label&gt;</code>, <code>name</code> and
-    <code>&lt;option&gt;</code> markup).
-  </p>
-  {% endif %}
-</div>
+    document.addEventListener("click", function (event) {
+      var button = event.target.closest ? event.target.closest("[data-insert-role]") : null;
+      if (!button) return;
+      var form = button.closest("form");
+      var area = form && form.querySelector("textarea");
+      if (!area) return;
+
+      var at = caret[area.id] || [area.value.length, area.value.length];
+      var value = area.value;
+      // A line of its own, unless the caret already sits at the start of one.
+      var prefix = at[0] === 0 || value[at[0] - 1] === "\n" ? "" : "\n";
+      var snippet = prefix + "[" + button.getAttribute("data-insert-role") + "] ";
+      area.value = value.slice(0, at[0]) + snippet + value.slice(at[1]);
+
+      var position = at[0] + snippet.length;
+      caret[area.id] = [position, position];
+      area.focus();
+      area.setSelectionRange(position, position);
+    });
+  })();
+</script>
 {% endblock %}

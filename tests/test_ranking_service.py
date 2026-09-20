@@ -221,37 +221,10 @@ def test_a_manual_override_reuses_the_evidence_and_skips_the_rules(monkeypatch):
     assert stored.override == "kept"
 
 
-# --- the table ----------------------------------------------------------------
+# --- staleness ----------------------------------------------------------------
 
 
-def test_rows_order_the_shortlist():
-    weak, strong, eliminated = _saved("Weak"), _saved("Strong"), _saved("Eliminated")
-    _saved("Unranked")
-
-    store.save_ranking(weak, elimination=Elimination(), override="", score=_score_with(40))
-    store.save_ranking(strong, elimination=Elimination(), override="", score=_score_with(90))
-    store.save_ranking(
-        eliminated,
-        elimination=Elimination(eliminated=True, rule="A rule", excerpt="An excerpt"),
-        override="",
-        score=None,
-    )
-
-    rows = service.ranking_rows(
-        offers_store.list_offers(), store.list_rankings(), SETTINGS, PROFILE
-    )
-
-    assert [row["offer"].offer.title for row in rows] == [
-        "Strong",
-        "Weak",
-        "Unranked",
-        "Eliminated",
-    ]
-    assert [row["total"] for row in rows[:3]] == [90, 40, None]
-    assert rows[2]["needs_score"] is False  # never ranked is not "needs a score"
-
-
-def test_rows_mark_outdated_scores():
+def test_a_stored_score_goes_out_of_date_when_the_criteria_change():
     offer_id = _saved("A")
     record = offers_store.load_offer(offer_id)
     assert record is not None
@@ -262,10 +235,16 @@ def test_rows_mark_outdated_scores():
         score=_score_with(80),
         fingerprint=service.fingerprint(SETTINGS, PROFILE, record.offer),
     )
+    ranking = store.load_ranking(offer_id)
 
-    rows = service.ranking_rows(offers_store.list_offers(), store.list_rankings(), SETTINGS, PROFILE)
-    assert rows[0]["stale"] is False
+    assert service.is_stale(SETTINGS, PROFILE, record.offer, ranking) is False
 
     changed = SETTINGS.model_copy(update={"filter_rules": "Something else entirely."})
-    rows = service.ranking_rows(offers_store.list_offers(), store.list_rankings(), changed, PROFILE)
-    assert rows[0]["stale"] is True
+    assert service.is_stale(changed, PROFILE, record.offer, ranking) is True
+
+
+def test_an_offer_that_was_never_ranked_is_not_stale():
+    offer_id = _saved("A")
+    record = offers_store.load_offer(offer_id)
+    assert record is not None
+    assert service.is_stale(SETTINGS, PROFILE, record.offer, None) is False

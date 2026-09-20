@@ -76,14 +76,14 @@ def _running_job() -> jobs.Job:
 
 
 def test_ranking_page_renders_without_a_profile(client):
-    response = client.get("/ranking")
+    response = client.get("/")
     assert response.status_code == 200
     assert "Import your CV" in response.text
 
 
 def test_ranking_page_renders_the_criteria_and_the_pace(client):
     _seed_offer()  # the run form only appears when there is something to rank
-    response = client.get("/ranking")
+    response = client.get("/")
     assert response.status_code == 200
     assert 'name="filter_rules"' in response.text
     assert 'name="wishes"' in response.text
@@ -93,7 +93,7 @@ def test_ranking_page_renders_the_criteria_and_the_pace(client):
 
 def test_offers_appear_as_not_ranked(client):
     _seed_offer()
-    assert "not ranked" in client.get("/ranking").text
+    assert "not ranked" in client.get("/").text
 
 
 def test_criteria_and_pace_are_saved(client):
@@ -122,35 +122,40 @@ def test_an_absurd_concurrency_is_clamped(client):
 # --- running ------------------------------------------------------------------
 
 
-def test_running_shows_scores_and_reasons(client, monkeypatch):
+def test_running_shows_scores_in_the_table_and_the_reasons_on_the_offer(client, monkeypatch):
     _seed_profile()
-    _seed_offer()
+    offer_id = _seed_offer()
     _configure()
     _patch(monkeypatch, total=74)
     _run_inline(monkeypatch)
 
-    response = client.post("/ranking/run", follow_redirects=True)
+    board = client.post("/ranking/run", follow_redirects=True)
 
-    assert response.status_code == 200
-    assert "74" in response.text
-    assert "Why this score" in response.text
-    assert "Rust matches the must-haves" in response.text
-    assert "Kept" in response.text
-    assert "Last run" in response.text  # the report panel
+    assert board.status_code == 200
+    assert "74" in board.text
+    assert "Kept" in board.text
+    assert "Last run" in board.text  # the report panel
+
+    # The axes are not on the board: it ranks, the offer page explains.
+    offer = client.get(f"/offers/{offer_id}")
+    assert "Why this score" in offer.text
+    assert "Rust matches the must-haves" in offer.text
 
 
 def test_running_shows_the_elimination_evidence(client, monkeypatch):
     _seed_profile()
-    _seed_offer()
+    offer_id = _seed_offer()
     _configure()
     _patch(monkeypatch, eliminated=True)
     _run_inline(monkeypatch)
 
-    response = client.post("/ranking/run", follow_redirects=True)
+    board = client.post("/ranking/run", follow_redirects=True)
 
-    assert "Eliminated" in response.text
-    assert "Eliminate offers requiring a security clearance." in response.text
-    assert "Candidates must hold an active SC clearance." in response.text
+    assert "Eliminated" in board.text
+
+    offer = client.get(f"/offers/{offer_id}")
+    assert "Eliminate offers requiring a security clearance." in offer.text
+    assert "Candidates must hold an active SC clearance." in offer.text
 
 
 def test_nothing_to_do_when_everything_is_up_to_date(client, monkeypatch):
@@ -238,11 +243,11 @@ def test_a_changed_criterion_marks_the_score_out_of_date(client, monkeypatch):
     _run_inline(monkeypatch)
     client.post("/ranking/run")
 
-    assert 'class="tag tag-warn">out of date' not in client.get("/ranking").text
+    assert 'class="tag tag-warn">out of date' not in client.get("/").text
 
     client.post("/ranking/rules", data={"filter_rules": "", "wishes": "startup: 5", "concurrency": "4"})
 
-    assert 'class="tag tag-warn">out of date' in client.get("/ranking").text
+    assert 'class="tag tag-warn">out of date' in client.get("/").text
 
 
 def test_running_needs_a_profile(client, monkeypatch):
@@ -286,10 +291,10 @@ def test_the_progress_endpoint_returns_the_panel_and_the_table(client, monkeypat
     _run_inline(monkeypatch)
     client.post("/ranking/run")
 
-    response = client.get("/ranking/progress")
+    response = client.get("/progress/ranking")
 
     assert response.status_code == 200
-    assert 'id="job"' in response.text
+    assert 'id="job-ranking"' in response.text
     assert 'hx-swap-oob="outerHTML"' in response.text
     assert "Senior Backend Engineer" in response.text
 
@@ -298,7 +303,7 @@ def test_a_running_job_polls_itself(client):
     _seed_profile()
     _running_job()
 
-    response = client.get("/ranking")
+    response = client.get("/")
 
     assert 'hx-trigger="every 2s"' in response.text
     assert "Ranking in progress" in response.text
@@ -312,7 +317,7 @@ def test_a_finished_job_stops_polling(client, monkeypatch):
     _run_inline(monkeypatch)
     client.post("/ranking/run")
 
-    response = client.get("/ranking")
+    response = client.get("/")
 
     assert "Last run" in response.text
     assert 'hx-trigger="every 2s"' not in response.text

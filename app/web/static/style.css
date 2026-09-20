@@ -178,6 +178,39 @@ details.collapse[open] > summary::before { content: "▾"; }
 details.collapse[open] > summary { margin-bottom: 0.35rem; }
 .collapse-title { font-weight: 700; font-size: 1.05rem; }
 
+/* --- Modal ------------------------------------------------------------- */
+
+/* The ranking panel lives in a native dialog, so the table stays visible behind
+   it: that table is where the run's selection comes from. The dialog is a column
+   so its header can stay put while the body scrolls. */
+dialog {
+  width: min(780px, calc(100vw - 2rem));
+  max-height: calc(100vh - 3rem);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  display: none;
+  flex-direction: column;
+}
+dialog[open] { display: flex; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.35rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.modal-head h2 { margin: 0; font-size: 1.15rem; }
+
+.modal-body { padding: 1.25rem 1.35rem; overflow-y: auto; }
+.modal-body > :last-child { margin-bottom: 0; }
+
 /* --- Forms ------------------------------------------------------------- */
 
 label { display: block; font-weight: 600; margin: 1rem 0 0.35rem; }

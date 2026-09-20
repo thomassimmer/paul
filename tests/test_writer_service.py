@@ -413,32 +413,6 @@ def test_load_review_reads_the_documents_back(monkeypatch):
     assert [answer.source for answer in view.answers] == ["fact", "generated"]
 
 
-def test_application_rows_mark_a_prepared_offer(monkeypatch):
-    from app.tracker import store as tracker_store
-
-    record, prepared = _prepared(monkeypatch)
-    applications = tracker_store.list_applications()
-
-    rows = service.application_rows(
-        offers_store.list_offers(), {}, applications, _settings(), _profile()
-    )
-
-    assert rows[0]["prepared"] is True
-    assert rows[0]["folder"] == prepared.folder
-    assert rows[0]["status_label"] == "Analyzed"
-
-
-def test_application_rows_mark_an_unprepared_offer():
-    _seed()
-
-    rows = service.application_rows(
-        offers_store.list_offers(), {}, {}, _settings(), _profile()
-    )
-
-    assert rows[0]["prepared"] is False
-    assert rows[0]["folder"] == ""
-
-
 # --- progress ------------------------------------------------------------------
 
 

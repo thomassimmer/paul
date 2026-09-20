@@ -1,0 +1,41 @@
+{# The ranking run, self-polling. The polling answer also refreshes the table, so
+   scores appear as they are computed. #}
+<div id="job-ranking"{% if ranking_job and ranking_job.running %} hx-get="/progress/ranking?sort={{ sort }}&dir={{ direction }}&status={{ status_filter }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  {% if ranking_job %}
+  <div class="card">
+    <div class="page-head">
+      <h2>{% if ranking_job.running %}Ranking in progress…{% else %}Last run{% endif %}</h2>
+      {% if ranking_job.running %}
+      <form method="post" action="/ranking/cancel" class="inline-form">
+        <button type="submit">Stop</button>
+      </form>
+      {% else %}
+      <form method="post" action="/ranking/dismiss" class="inline-form">
+        <button type="submit">Dismiss</button>
+      </form>
+      {% endif %}
+    </div>
+
+    <div class="progress"><div class="progress-bar" style="width: {{ ranking_job.percent }}%"></div></div>
+    <p class="hint">
+      {{ ranking_job.done }}/{{ ranking_job.total }} · {{ ranking_job.summary }}
+      {%- if ranking_job.running and ranking_job.eta_seconds %} · about {{ ranking_job.eta_seconds | round | int }} s left{% endif %}
+    </p>
+
+    {% if ranking_job.error %}
+    <p class="banner banner-error" role="alert">{{ ranking_job.error }}</p>
+    {% endif %}
+
+    <ul class="job-list">
+      {% for item in ranking_job.offers %}
+      <li>
+        <span class="job-status job-{{ item.status }}">{{ ranking_status_labels.get(item.status, item.status) }}</span>
+        {{ item.title }}{% if item.company %} · {{ item.company }}{% endif %}
+        {% if item.total is not none %}<strong>{{ item.total }}</strong><span class="muted">/100</span>{% endif %}
+        {% if item.error %}<span class="hint">{{ item.error }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>

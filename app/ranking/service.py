@@ -167,33 +167,3 @@ async def rank_one(
         fingerprint=computed,
     )
     return RankOutcome(status="scored", total=result.total)
-
-
-def ranking_rows(
-    offers: Sequence[OfferRecord],
-    rankings: dict[int, RankingRecord],
-    settings: Settings,
-    profile: Profile,
-) -> list[dict]:
-    """Offers with their verdict, best first: eliminated last, unscored last."""
-    rows: list[dict] = []
-    for offer in offers:
-        ranking = rankings.get(offer.id)
-        rows.append(
-            {
-                "offer": offer,
-                "ranking": ranking,
-                "total": (
-                    ranking.score.total
-                    if ranking is not None and ranking.score is not None
-                    else None
-                ),
-                "eliminated": ranking.eliminated if ranking is not None else False,
-                "needs_score": bool(
-                    ranking is not None and not ranking.eliminated and ranking.score is None
-                ),
-                "stale": is_stale(settings, profile, offer.offer, ranking),
-            }
-        )
-    rows.sort(key=lambda row: (row["eliminated"], row["total"] is None, -(row["total"] or 0)))
-    return rows

@@ -1,9 +1,15 @@
+"""Tracking: the status of one offer, and its dates and notes.
+
+The status select is in a board row, the rest is a section of the offer page; the
+two routes below are what changes them.
+"""
+
 from __future__ import annotations
 
 from app.config import Settings, save_settings
 from app.models import Application, Offer, OfferDraft
 from app.offers import store as offers_store
-from app.tracker import service, store
+from app.tracker import store
 
 
 def _seed_offer(title: str = "Senior Backend Engineer") -> int:
@@ -12,170 +18,27 @@ def _seed_offer(title: str = "Senior Backend Engineer") -> int:
 
 
 def _seed_application(offer_id: int, **fields) -> Application:
-    base = {
-        "status": "analyzed",
-        "applied_on": "",
-        "last_contact": "",
-        "notes": "",
-    }
+    base = {"status": "analyzed", "applied_on": "", "last_contact": "", "notes": ""}
     base.update(fields)
     return store.save_application(offer_id, **base)
 
 
-# --- the board ----------------------------------------------------------------
+# --- the tracking form on the offer page --------------------------------------
 
 
-def test_the_tracker_starts_empty(client):
-    response = client.get("/tracker")
-    assert response.status_code == 200
-    assert "Nothing here yet" in response.text
-
-
-def test_analyzed_offers_show_up_with_the_default_status(client):
-    _seed_offer()
-    response = client.get("/tracker")
-
-    assert "Senior Backend Engineer" in response.text
-    assert "Acme" in response.text
-    assert '<option value="analyzed" selected>' in response.text
-
-
-def test_the_detail_page_points_to_the_writer(client):
+def test_the_offer_page_renders_the_tracking_form(client):
     offer_id = _seed_offer()
-
-    page = client.get(f"/tracker/{offer_id}")
-
-    assert "Prepare a CV, a cover letter and the form answers" in page.text
-
-
-def test_the_detail_page_links_to_the_prepared_documents(client):
-    offer_id = _seed_offer()
-    _seed_application(offer_id, folder="2026-09-acme-senior-backend-engineer")
-
-    page = client.get(f"/tracker/{offer_id}")
-
-    assert f'href="/applications/{offer_id}"' in page.text
-    assert "2026-09-acme-senior-backend-engineer/" in page.text
-
-
-def test_a_status_can_be_changed_from_the_board(client):
-    offer_id = _seed_offer()
-
-    response = client.post(
-        f"/tracker/{offer_id}/status", data={"status": "applied"}, follow_redirects=True
-    )
-
-    assert "Status set to Applied" in response.text
-    assert "follow-up clock" in response.text
-    application = store.load_application(offer_id)
-    assert application is not None
-    assert application.status == "applied"
-    assert application.applied_on  # filled in for you
-
-
-def test_changing_the_status_keeps_the_current_view(client):
-    offer_id = _seed_offer()
-    response = client.post(
-        f"/tracker/{offer_id}/status",
-        data={"status": "shortlisted", "sort": "company", "dir": "asc", "filter": "not_applied"},
-        follow_redirects=False,
-    )
-    assert response.status_code == 303
-    assert "sort=company" in response.headers["location"]
-    assert "dir=asc" in response.headers["location"]
-    assert "status=not_applied" in response.headers["location"]
-
-
-def test_the_row_form_has_only_one_field_named_status(client):
-    """A second ``status`` field would shadow the select and break every change."""
-    offer_id = _seed_offer()
-    page = client.get("/tracker").text
-    start = page.index(f'action="/tracker/{offer_id}/status"')
-    form = page[start : page.index("</form>", start)]
-    assert form.count('name="status"') == 1
-
-
-def test_the_board_status_form_sends_what_the_server_reads(client):
-    """Replay the exact fields the template renders."""
-    offer_id = _seed_offer()
-    response = client.post(
-        f"/tracker/{offer_id}/status",
-        data={"sort": "score", "dir": "desc", "filter": "all", "status": "applied"},
-        follow_redirects=True,
-    )
-
-    assert "Status set to Applied" in response.text
-    application = store.load_application(offer_id)
-    assert application is not None
-    assert application.status == "applied"
-    assert application.applied_on
-
-
-def test_a_followup_is_highlighted_after_the_delay(client):
-    offer_id = _seed_offer()
-    _seed_application(offer_id, status="applied", applied_on="2020-01-01")
-
-    response = client.get("/tracker")
-
-    assert "Follow up" in response.text
-    assert "days without news" in response.text
-    assert 'class="due"' in response.text
-
-
-def test_the_delay_comes_from_the_settings(client):
-    offer_id = _seed_offer()
-    _seed_application(offer_id, status="applied", applied_on=service.today_utc().isoformat())
-
-    assert "Follow up" not in client.get("/tracker").text
-
-    save_settings(Settings(followup_days=0))
-    assert "Follow up" in client.get("/tracker").text
-
-
-def test_the_board_can_be_filtered(client):
-    applied = _seed_offer("Applied role")
-    _seed_offer("Fresh role")
-    _seed_application(applied, status="applied", applied_on="2020-01-01")
-
-    response = client.get("/tracker?status=not_applied")
-    assert "Fresh role" in response.text
-    assert "Applied role" not in response.text
-
-    response = client.get("/tracker?status=applied")
-    assert "Applied role" in response.text
-    assert "Fresh role" not in response.text
-
-    response = client.get("/tracker?status=followup")
-    assert "Applied role" in response.text
-    assert "Fresh role" not in response.text
-
-
-def test_the_board_can_be_sorted(client):
-    _seed_offer("Alpha role")
-    _seed_offer("Beta role")
-
-    asc = client.get("/tracker?sort=role&dir=asc")
-    assert asc.text.index("Alpha role") < asc.text.index("Beta role")
-
-    desc = client.get("/tracker?sort=role&dir=desc")
-    assert desc.text.index("Beta role") < desc.text.index("Alpha role")
-
-
-# --- one application ----------------------------------------------------------
-
-
-def test_the_detail_page_renders_the_form(client):
-    offer_id = _seed_offer()
-    response = client.get(f"/tracker/{offer_id}")
+    response = client.get(f"/offers/{offer_id}")
 
     assert response.status_code == 200
+    assert 'id="tracking"' in response.text
     assert 'name="applied_on"' in response.text
     assert 'name="last_contact"' in response.text
     assert 'name="notes"' in response.text
     assert "has not been ranked" in response.text
 
 
-def test_the_detail_page_saves_dates_and_notes(client):
+def test_the_offer_page_saves_dates_and_notes(client):
     offer_id = _seed_offer()
 
     response = client.post(
@@ -220,10 +83,31 @@ def test_an_application_can_be_reset(client):
     assert store.load_application(offer_id) is None
 
 
+# --- the sections of the offer page -------------------------------------------
+
+
+def test_the_offer_page_offers_to_prepare_the_documents(client):
+    offer_id = _seed_offer()
+    page = client.get(f"/offers/{offer_id}").text
+    # The prompt to prepare, and the button that actually prepares.
+    assert "Tailored documents" in page
+    assert f'action="/applications/{offer_id}/prepare"' in page
+
+
+def test_the_offer_page_navigates_to_the_tracking(client):
+    offer_id = _seed_offer()
+    page = client.get(f"/offers/{offer_id}").text
+    assert 'href="#tracking"' in page
+    assert 'href="#offer"' in page
+    assert 'href="#ranking"' in page
+
+
+def test_followup_delay_is_repeated_on_the_tracking_form(client):
+    save_settings(Settings(followup_days=12))
+    offer_id = _seed_offer()
+    assert "after 12 days" in client.get(f"/offers/{offer_id}").text
+
+
 def test_a_missing_offer_is_reported(client):
-    assert "no longer exists" in client.get("/tracker/999").text
-    assert "no longer exists" in client.post("/tracker/999/status", data={"status": "ready"}).text
-
-
-def test_the_nav_links_to_the_tracker(client):
-    assert 'href="/tracker"' in client.get("/").text
+    # The old detail URL lands on the offer page, which reports the missing offer.
+    assert "no longer exists" in client.get("/tracker/999", follow_redirects=True).text

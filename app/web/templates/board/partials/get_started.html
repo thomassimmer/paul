@@ -1,0 +1,77 @@
+{# The onboarding checklist. It folds itself away once every step is done, and can
+   always be reopened; nothing is stored, the counts below say what is left. #}
+<details class="collapse card" {% if not get_started.done %}open{% endif %}>
+  <summary>
+    <span class="collapse-title">Get started</span>
+    <span class="hint">
+      {% if get_started.done %}everything is set up{% else %}a few steps are still open{% endif %}
+    </span>
+  </summary>
+  <ol class="steps">
+    <li class="{% if get_started.configured %}done{% endif %}">
+      <strong>Configure your model</strong>
+      <p>Pick a provider, paste an API key and test the connection in
+        <a href="/settings">Settings</a>.</p>
+    </li>
+    <li class="{% if summary.has_profile %}done{% endif %}">
+      <strong>Import your CV</strong>
+      <p>
+        {% if summary.has_profile %}
+          {{ summary.experiences }} experience(s), {{ summary.achievements }} achievement(s).
+          <a href="/profiler/interview">Continue the interview</a> or
+          <a href="/profiler">view the profile</a>.
+        {% else %}
+          The profiler turns your CV into an editable profile and interviews you
+          to fill the gaps. <a href="/profiler/import">Import your CV</a>.
+        {% endif %}
+      </p>
+    </li>
+    <li class="{% if get_started.offers %}done{% endif %}">
+      <strong>Paste a job offer</strong>
+      <p>
+        {% if get_started.offers %}
+          {{ get_started.offers }} offer(s) analyzed. <a href="/offers/new">Analyze another</a>.
+        {% else %}
+          The analyzer reads the description and the application form from the
+          pasted HTML. <a href="/offers/new">Analyze an offer</a>.
+        {% endif %}
+      </p>
+    </li>
+    <li class="{% if get_started.ranked %}done{% endif %}">
+      <strong>Filter and rank</strong>
+      <p>
+        {% if get_started.ranked %}
+          {{ get_started.ranked }} offer(s) ranked. <a href="#ranking" data-open-ranking>Open the ranking</a>.
+        {% else %}
+          Set your elimination rules and wishes, then rank the offers you
+          collected. <a href="#ranking" data-open-ranking>Open the ranking</a>.
+        {% endif %}
+      </p>
+    </li>
+    <li class="{% if get_started.prepared %}done{% endif %}">
+      <strong>Write the tailored documents</strong>
+      <p>
+        {% if get_started.prepared %}
+          {{ get_started.prepared }} application(s) prepared. Prepare one from the
+          table below, and review it by opening the offer.
+        {% else %}
+          For the offers worth applying to, Paul writes a CV and a cover letter in
+          your own template, drafts the form answers and scores the keyword
+          coverage. Use the <em>Prepare</em> button of a row, or open the offer.
+        {% endif %}
+      </p>
+    </li>
+    <li class="{% if get_started.applied %}done{% endif %}">
+      <strong>Track and follow up</strong>
+      <p>
+        {% if counts.total %}
+          {{ counts.not_applied }} not applied to yet · {{ counts.applied }} applied ·
+          <strong>{{ counts.due }}</strong> follow-up(s) due.
+        {% else %}
+          Keep the status of every application and get reminded when a follow-up is
+          due.{% endif %}
+        Set the status right in the table, and keep the notes on the offer's page.
+      </p>
+    </li>
+  </ol>
+</details>

@@ -20,11 +20,11 @@ from app.ranking import router as ranking_router
 from app.templates_engine import router as templates_router
 from app.tracker import router as tracker_router
 from app.web import WEB_DIR
-from app.web.routes import dashboard, settings
+from app.web.routes import board, settings
 from app.writer import router as writer_router
 
 ROUTERS = (
-    dashboard.router,
+    board.router,
     settings.router,
     profiler_router.router,
     offers_router.router,

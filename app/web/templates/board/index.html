@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Offers{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Offers</h1>
+  <div class="actions">
+    <a class="button primary" href="/offers/new">Analyze an offer</a>
+    <button type="button" data-open-ranking>
+      Ranking{% if ranking_job and ranking_job.running %} <span class="tag">running</span>{% endif %}
+    </button>
+  </div>
+</div>
+<p class="lede">
+  Every offer you analyzed, with its score, its verdict, its documents and where
+  it stands. Open one to read the offer, prepare the documents and follow it up.
+</p>
+
+{% if not has_profile %}
+<p class="banner banner-warning" role="status">
+  {% if profile_error %}{{ profile_error }}{% else %}
+  No profile yet: scoring compares offers to <em>your</em> experiences and skills.
+  <a href="/profiler/import">Import your CV</a> first.{% endif %}
+</p>
+{% endif %}
+{% if not has_model %}
+<p class="banner banner-warning" role="status">
+  No model configured: analyzing, ranking and writing all need one. Set it in
+  <a href="/settings">Settings</a>.
+</p>
+{% endif %}
+{% if summary.has_profile and summary.missing_facts %}
+<p class="banner banner-warning" role="status">
+  Facts the application forms will ask for, and that only you can answer:
+  {{ summary.missing_facts | join(', ') }}.
+  <a href="/profiler/interview">Answer in the interview</a>.
+</p>
+{% endif %}
+
+{% include "board/partials/get_started.html" %}
+
+{% include "board/partials/job_writing.html" %}
+
+<form method="get" action="/" class="filters">
+  <label for="status">Show</label>
+  <select id="status" name="status">
+    {% for value, label in filters.items() %}
+    <option value="{{ value }}" {% if value == status_filter %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <input type="hidden" name="dir" value="{{ direction }}">
+  <button type="submit">Apply</button>
+</form>
+
+{% if counts.total %}
+<p class="hint">
+  <strong>{{ counts.total }}</strong> offer(s) · {{ counts.applied }} applied ·
+  {{ counts.not_applied }} not applied to yet ·
+  <strong>{{ counts.due }}</strong> follow-up(s) due.
+  {% if shown != counts.total %}{{ shown }} shown.{% endif %}
+</p>
+{% endif %}
+
+<div id="board-table">
+  {% include "board/partials/table.html" %}
+</div>
+
+{% include "board/partials/ranking_modal.html" %}
+
+<script>
+  // The ranking panel lives in a native dialog. One handler opens it wherever it
+  // is asked for — the toolbar button, the "Get started" step, and the plain
+  // links that point at #ranking — so the markup stays free of inline script.
+  (function () {
+    var modal = document.getElementById("ranking-modal");
+    if (!modal) return;
+
+    document.addEventListener("click", function (event) {
+      var opener = event.target.closest
+        ? event.target.closest("[data-open-ranking], a[href='#ranking']")
+        : null;
+      if (!opener) return;
+      event.preventDefault();
+      modal.showModal();
+    });
+
+    // Starting a run redirects to /#ranking so the progress stays in view.
+    if (window.location.hash === "#ranking") modal.showModal();
+
+    // A click that lands on the dialog itself landed on the backdrop.
+    modal.addEventListener("click", function (event) {
+      if (event.target === modal) modal.close();
+    });
+
+    // Drop the hash on close, so reopening is always a deliberate click.
+    modal.addEventListener("close", function () {
+      if (window.location.hash === "#ranking") {
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+    });
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,13 @@
+{# The quick navigation. It grows the document anchors once they exist, which is
+   why the polling endpoint swaps it along with the documents. #}
+<nav class="section-nav" aria-label="Sections of this offer">
+  <a href="#offer">Offer</a>
+  <a href="#ranking">Ranking</a>
+  {% if prepared %}
+  <a href="#checks">Checks</a>
+  <a href="#cv">CV</a>
+  <a href="#letter">Cover letter</a>
+  <a href="#answers">Form answers</a>
+  {% endif %}
+  <a href="#tracking">Tracking</a>
+</nav>

@@ -1,0 +1,48 @@
+{# Where this one offer stands: the only thing on the page you set by hand. #}
+<form method="post" action="/tracker/{{ record.id }}" class="card" id="tracking">
+  <input type="hidden" name="next" value="/offers/{{ record.id }}#tracking">
+  <h2>Tracking</h2>
+
+  <label for="status">Status</label>
+  <select id="status" name="status">
+    {% for value, label in statuses.items() %}
+    <option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <p class="hint">Set to <em>Applied</em> and today's date is filled in for you if it is empty.</p>
+
+  <div class="grid-2">
+    <div>
+      <label for="applied_on">Applied on</label>
+      <input id="applied_on" name="applied_on" type="date"
+             value="{{ application.applied_on if application else '' }}">
+    </div>
+    <div>
+      <label for="last_contact">Last contact</label>
+      <input id="last_contact" name="last_contact" type="date"
+             value="{{ application.last_contact if application else '' }}">
+    </div>
+  </div>
+  <p class="hint">
+    Follow-ups count from the last contact, or from the application date when
+    there has been none. They are flagged after {{ followup_days }} days.
+  </p>
+
+  <label for="notes">Notes</label>
+  <textarea id="notes" name="notes" rows="5"
+            placeholder="Who you spoke to, what was said, what to prepare…">{{ application.notes if application else '' }}</textarea>
+
+  <div class="actions">
+    <button type="submit" class="primary">Save tracking</button>
+  </div>
+</form>
+
+{% if application %}
+<div class="actions">
+  <form method="post" action="/tracker/{{ record.id }}/clear"
+        onsubmit="return confirm('Forget this application and go back to Analyzed?');">
+    <input type="hidden" name="next" value="/offers/{{ record.id }}#tracking">
+    <button type="submit">Reset to Analyzed</button>
+  </form>
+</div>
+{% endif %}

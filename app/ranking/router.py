@@ -1,25 +1,33 @@
-"""Ranking routes: the criteria, a background run with progress, manual overrides.
+"""Ranking actions: the criteria, a run, and the manual overrides.
 
-The run itself is a background task (see ``jobs.py``), so these routes only
-decide *what* to rank, then let the page poll ``/ranking/progress``.
+The page itself is the board (``app/web/routes/board.py``): the criteria and the
+run live in a modal there, and the run's progress is polled by the board. What
+stays here is what *changes*: the rules, starting and stopping a run, and
+overriding one verdict by hand.
+
+A run is a background task (see ``jobs.py``), so these routes only decide what to
+rank and redirect back to the board, which reopens the modal.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
 
-from app.config import format_wishes, load_settings, parse_wishes, save_settings
+from app.config import load_settings, parse_wishes, save_settings
 from app.models import Profile
 from app.offers import store as offers_store
 from app.profiler import store as profile_store
 from app.ranking import jobs, service, store
 from app.tracker import store as tracker_store
-from app.web.templating import redirect, render
+from app.web.templating import local_url, redirect
 
 router = APIRouter(prefix="/ranking", tags=["ranking"])
 
 MAX_CONCURRENCY = 8
+
+# Where a ranking action lands when it is not given a ``next``: the board
+# reopens the modal from the hash, so a run started in the dialog reports there.
+BOARD = "/#ranking"
 
 _OVERRIDE_MESSAGES = {
     "kept": "Offer restored: the rules no longer eliminate it.",
@@ -41,40 +49,10 @@ def _profile() -> tuple[Profile | None, str | None]:
         return None, str(exc)
 
 
-def _context() -> dict:
-    settings = load_settings()
-    profile, profile_error = _profile()
-    usable = profile if profile is not None else Profile()
-
-    offers = offers_store.list_offers()
-    rankings = store.list_rankings()
-    pending = service.select_offers("pending", offers, rankings, settings, usable)
-
-    return {
-        "settings": settings,
-        "wishes_text": format_wishes(settings.wishes),
-        "rows": service.ranking_rows(offers, rankings, settings, usable),
-        "scopes": service.SCOPES,
-        "default_scope": service.DEFAULT_SCOPE,
-        "pending_count": len(pending),
-        "up_to_date_count": len(offers) - len(pending),
-        "total_count": len(offers),
-        "job": jobs.current(),
-        "status_labels": jobs.STATUS_LABELS,
-        "has_profile": profile is not None,
-        "profile_error": profile_error,
-    }
-
-
-@router.get("", response_class=HTMLResponse)
-async def ranking_page(request: Request):
-    return render(request, "ranking/index.html", active="ranking", **_context())
-
-
-@router.get("/progress", response_class=HTMLResponse)
-async def ranking_progress(request: Request):
-    """The job panel, plus the refreshed table via an out-of-band swap."""
-    return render(request, "ranking/partials/progress.html", **_context())
+@router.get("")
+async def ranking_page():
+    """The criteria and the run live in the board's modal now."""
+    return redirect(BOARD)
 
 
 @router.post("/rules")
@@ -97,7 +75,7 @@ async def ranking_rules(request: Request):
             }
         )
     )
-    return redirect("/ranking", message="Elimination rules, wishes and pace saved.")
+    return redirect(BOARD, message="Elimination rules, wishes and pace saved.")
 
 
 @router.post("/run")
@@ -108,20 +86,20 @@ async def ranking_run(request: Request):
 
     if profile is None:
         return redirect(
-            "/ranking",
+            BOARD,
             message=error or "Import your CV first: offers are scored against your profile.",
             level="warning",
         )
     if not settings.model.strip():
         return redirect(
-            "/ranking",
+            BOARD,
             message="No model configured. Set one in Settings to rank your offers.",
             level="error",
         )
 
     running = jobs.current()
     if running is not None and running.running:
-        return redirect("/ranking", message="A ranking is already running.", level="warning")
+        return redirect(BOARD, message="A ranking is already running.", level="warning")
 
     scope = str(form.get("scope") or service.DEFAULT_SCOPE)
     if scope not in service.SCOPES:
@@ -143,9 +121,7 @@ async def ranking_run(request: Request):
     )
 
     if not records:
-        return redirect(
-            "/ranking", message=_EMPTY_SCOPE_MESSAGES[scope], level="warning"
-        )
+        return redirect(BOARD, message=_EMPTY_SCOPE_MESSAGES[scope], level="warning")
 
     await jobs.start_job(
         settings,
@@ -156,41 +132,43 @@ async def ranking_run(request: Request):
         concurrency=settings.ranking_concurrency,
     )
     return redirect(
-        "/ranking",
-        message=f"Ranking {len(records)} offer(s) in the background. This page updates itself.",
+        BOARD,
+        message=f"Ranking {len(records)} offer(s) in the background. The page updates itself.",
     )
 
 
 @router.post("/cancel")
 async def ranking_cancel():
     if jobs.cancel():
-        return redirect("/ranking", message="Stopping: the calls already in flight will finish.")
-    return redirect("/ranking", message="Nothing is running.", level="warning")
+        return redirect(BOARD, message="Stopping: the calls already in flight will finish.")
+    return redirect(BOARD, message="Nothing is running.", level="warning")
 
 
 @router.post("/dismiss")
 async def ranking_dismiss():
     jobs.reset()
-    return redirect("/ranking")
+    return redirect(BOARD)
 
 
-def _override(offer_id: int, override: str):
+async def _override(request: Request, offer_id: int, override: str):
+    form = await request.form()
+    back = local_url(form.get("next"), BOARD)
     if offers_store.load_offer(offer_id) is None:
-        return redirect("/ranking", message="This offer no longer exists.", level="error")
+        return redirect(back, message="This offer no longer exists.", level="error")
     store.set_override(offer_id, override)
-    return redirect("/ranking", message=_OVERRIDE_MESSAGES[override])
+    return redirect(back, message=_OVERRIDE_MESSAGES[override])
 
 
 @router.post("/{offer_id}/keep")
-async def ranking_keep(offer_id: int):
-    return _override(offer_id, "kept")
+async def ranking_keep(offer_id: int, request: Request):
+    return await _override(request, offer_id, "kept")
 
 
 @router.post("/{offer_id}/eliminate")
-async def ranking_eliminate(offer_id: int):
-    return _override(offer_id, "eliminated")
+async def ranking_eliminate(offer_id: int, request: Request):
+    return await _override(request, offer_id, "eliminated")
 
 
 @router.post("/{offer_id}/reset")
-async def ranking_reset(offer_id: int):
-    return _override(offer_id, "")
+async def ranking_reset(offer_id: int, request: Request):
+    return await _override(request, offer_id, "")

@@ -19,17 +19,14 @@ from app.ats import AtsReport, coverage, extract_keywords, format_issues, to_ats
 from app.config import Settings
 from app.llm import LLMError
 from app.models import (
-    Application,
     DraftAnswer,
     DraftLine,
     FormAnswer,
     GroundingReport,
     OfferRecord,
     Profile,
-    RankingRecord,
 )
 from app.offers import store as offers_store
-from app.ranking import service as ranking_service
 from app.templates_engine import pdf, render
 from app.templates_engine import store as templates_store
 from app.tracker import service as tracker_service
@@ -606,30 +603,3 @@ async def _regenerate_document(
         store.write_text(folder, store.LETTER_MD, markdown.render_lines(document.lines))
         store.write_bytes(folder, store.LETTER_DOCX, document.docx)
     return document
-
-
-# --- The list page -------------------------------------------------------------
-
-
-def application_rows(
-    offers: list[OfferRecord],
-    rankings: dict[int, RankingRecord],
-    applications: dict[int, Application],
-    settings: Settings,
-    profile: Profile,
-) -> list[dict]:
-    """One row per offer for the applications page, best match first."""
-    rows = ranking_service.ranking_rows(offers, rankings, settings, profile)
-    for row in rows:
-        application = applications.get(row["offer"].id)
-        status = tracker_service.normalize_status(application.status if application else "")
-        folder = application.folder if application else ""
-        row.update(
-            {
-                "status": status,
-                "status_label": tracker_service.STATUS_LABELS[status],
-                "folder": folder,
-                "prepared": bool(folder) and store.folder_exists(folder),
-            }
-        )
-    return rows

@@ -1,0 +1,56 @@
+{# The verdict, and the two ways to disagree with it by hand. #}
+<div class="card" id="ranking">
+  <div class="doc-head">
+    <h2>Ranking</h2>
+    <div class="doc-meta">
+      <a href="/#ranking">Rank the offers</a>
+    </div>
+  </div>
+
+  {% if ranking %}
+    {% if ranking.eliminated %}
+    <p><span class="verdict verdict-no">Eliminated</span> by your rules
+      {% if ranking.override %}<span class="tag">by hand</span>{% endif %}.</p>
+    {% if ranking.elimination.rule %}<div class="hint">Rule: {{ ranking.elimination.rule }}</div>{% endif %}
+    {% if ranking.elimination.excerpt %}<blockquote class="excerpt">{{ ranking.elimination.excerpt }}</blockquote>{% endif %}
+    {% elif ranking.score %}
+    <p><strong>{{ ranking.score.total }}</strong><span class="muted">/100</span>
+      {% if ranking.override %}<span class="tag">by hand</span>{% endif %}</p>
+    <details class="collapse">
+      <summary><span class="collapse-title">Why this score</span></summary>
+      <dl class="kv">
+        {% for axis in ranking.score.axes %}
+        <dt>{{ axis.label }} <span class="id">weight {{ axis.weight }}</span></dt>
+        <dd><strong>{{ axis.score }}/5</strong>{% if axis.justification %} — {{ axis.justification }}{% endif %}</dd>
+        {% endfor %}
+      </dl>
+    </details>
+    {% else %}
+    <p class="missing">Restored but not scored again yet. <a href="/#ranking">Run the ranking</a>.</p>
+    {% endif %}
+  {% else %}
+  <p class="banner banner-warning" role="status">
+    This offer has not been ranked. <a href="/#ranking">Run the ranking</a> to see how it compares.
+  </p>
+  {% endif %}
+
+  <div class="actions">
+    {% if ranking and ranking.eliminated %}
+    <form method="post" action="/ranking/{{ record.id }}/keep" class="inline-form">
+      <input type="hidden" name="next" value="/offers/{{ record.id }}#ranking">
+      <button type="submit">Restore</button>
+    </form>
+    {% elif ranking %}
+    <form method="post" action="/ranking/{{ record.id }}/eliminate" class="inline-form">
+      <input type="hidden" name="next" value="/offers/{{ record.id }}#ranking">
+      <button type="submit">Eliminate by hand</button>
+    </form>
+    {% endif %}
+    {% if ranking and ranking.override %}
+    <form method="post" action="/ranking/{{ record.id }}/reset" class="inline-form">
+      <input type="hidden" name="next" value="/offers/{{ record.id }}#ranking">
+      <button type="submit">Undo the manual verdict</button>
+    </form>
+    {% endif %}
+  </div>
+</div>

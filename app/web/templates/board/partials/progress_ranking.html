@@ -1,0 +1,5 @@
+{# Answer to the ranking poll: the panel, plus the refreshed table. #}
+{% include "board/partials/job_ranking.html" %}
+<div id="board-table" hx-swap-oob="outerHTML">
+  {% include "board/partials/table.html" %}
+</div>
