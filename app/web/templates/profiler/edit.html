@@ -11,7 +11,8 @@
 </div>
 <p class="lede">
   Each list ends with a blank row: fill it to add an entry, empty a row to delete
-  it. Ids are generated for new entries and kept for existing ones.
+  it. Use <em>Add another</em> to prepare several entries and save them in one go.
+  Ids are generated for new entries and kept for existing ones.
 </p>
 
 <form id="profile-form" method="post" action="/profiler/edit">
@@ -61,12 +62,12 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" data-row-list="exp">
     <h2>Experience</h2>
     <input type="hidden" name="exp_count" value="{{ experience_count }}">
 
     {% for item in experiences %}
-    <article class="entry {% if item.blank %}blank{% endif %}">
+    <article class="entry {% if item.blank %}blank{% endif %}" data-row>
       <input type="hidden" name="exp.{{ item.index }}.id" value="{{ item.experience.id }}">
       <div class="grid-2">
         <div><label>Company</label>
@@ -87,13 +88,14 @@
       <p class="hint">One thing per line. Numbers and scale help: what it took, how long, how many.</p>
     </article>
     {% endfor %}
+    <button type="button" class="button" data-add-row hidden>Add another experience</button>
   </section>
 
-  <section class="card">
+  <section class="card" data-row-list="edu">
     <h2>Education</h2>
     <input type="hidden" name="edu_count" value="{{ education_rows | length }}">
     {% for row in education_rows %}
-    <article class="entry {% if row.blank %}blank{% endif %}">
+    <article class="entry {% if row.blank %}blank{% endif %}" data-row>
       <input type="hidden" name="edu.{{ row.index }}.id" value="{{ row.entry.id }}">
       <div class="grid-2">
         <div><label>School</label>
@@ -107,13 +109,14 @@
       </div>
     </article>
     {% endfor %}
+    <button type="button" class="button" data-add-row hidden>Add another education</button>
   </section>
 
-  <section class="card">
+  <section class="card" data-row-list="proj">
     <h2>Projects</h2>
     <input type="hidden" name="proj_count" value="{{ project_rows | length }}">
     {% for row in project_rows %}
-    <article class="entry {% if row.blank %}blank{% endif %}">
+    <article class="entry {% if row.blank %}blank{% endif %}" data-row>
       <input type="hidden" name="proj.{{ row.index }}.id" value="{{ row.entry.id }}">
       <div class="grid-2">
         <div><label>Name</label>
@@ -127,6 +130,7 @@
       <input name="proj.{{ row.index }}.skills" value="{{ row.entry.skills | join(', ') }}" placeholder="comma-separated">
     </article>
     {% endfor %}
+    <button type="button" class="button" data-add-row hidden>Add another project</button>
   </section>
 
   <section class="card">

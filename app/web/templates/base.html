@@ -100,6 +100,54 @@
         requestAnimationFrame(restore);
       });
     })();
+
+    // The profile editor renders one blank row per list, so an entry can still be
+    // added without JavaScript. When scripting is on, that empty row is captured
+    // as a template instead, and "add another" appends a fresh empty row at the
+    // end — below what was just filled, right above the button. Rows are
+    // renumbered so the form stays sequential for the server, which reads a count
+    // and indexes from 0.
+    (function () {
+      var lists = document.querySelectorAll("[data-row-list]");
+      if (!lists.length) return;
+
+      function rowsOf(list) {
+        return list.querySelectorAll("[data-row]");
+      }
+
+      function renumber(list, prefix) {
+        rowsOf(list).forEach(function (row, index) {
+          row.querySelectorAll("[name]").forEach(function (field) {
+            field.name = field.name.replace(/^[^.]+\.\d+\./, prefix + "." + index + ".");
+          });
+        });
+        var count = list.querySelector('input[name="' + prefix + '_count"]');
+        if (count) count.value = String(rowsOf(list).length);
+      }
+
+      lists.forEach(function (list) {
+        var prefix = list.dataset.rowList;
+        var button = list.querySelector("[data-add-row]");
+        var rows = rowsOf(list);
+        if (!button || !prefix || !rows.length) return;
+
+        // The trailing row is the blank one. Capture it before the reader can fill
+        // it in, so every added row starts empty whatever the last one holds.
+        var template = rows[rows.length - 1].cloneNode(true);
+        button.hidden = false;
+
+        button.addEventListener("click", function () {
+          var clone = template.cloneNode(true);
+          clone.querySelectorAll("input, textarea").forEach(function (field) {
+            field.value = "";
+          });
+          list.insertBefore(clone, button);
+          renumber(list, prefix);
+          var first = clone.querySelector("input:not([type='hidden']), textarea");
+          if (first) first.focus();
+        });
+      });
+    })();
   </script>
 </body>
 </html>

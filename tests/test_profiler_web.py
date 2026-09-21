@@ -231,6 +231,19 @@ def test_edit_page_renders_the_blank_rows(client):
     assert 'name="exp_count" value="1"' in response.text
 
 
+def test_edit_page_lets_several_rows_be_added_before_one_save(client):
+    """Each list carries the hooks the "add another" button works on, so several
+    entries can be prepared and saved in one go. Without JavaScript, the single
+    blank row is still the way in."""
+    page = client.get("/profiler/edit").text
+
+    for prefix in ("exp", "edu", "proj"):
+        assert f'data-row-list="{prefix}"' in page
+        assert f'name="{prefix}_count"' in page
+    assert "data-add-row" in page
+    assert "data-row>" in page
+
+
 def test_the_interview_page_asks_for_its_question_itself(client):
     """The page is instant; the question lands once the model has read the profile."""
     _seed_profile(client)

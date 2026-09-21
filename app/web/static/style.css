@@ -371,6 +371,11 @@ button:focus-visible, .button:focus-visible { outline: 2px solid var(--accent); 
 }
 .actions form { display: flex; margin: 0; }
 .page-head .actions { margin-top: 0; }
+
+/* The profile editor's "add another" button is revealed only where scripting can
+   make it work, so it never shows up dead. Hidden it takes no room; shown it sits
+   clearly apart from the rows above it. */
+[data-add-row] { margin-top: 1.5rem; }
 .actions.sticky {
   position: sticky;
   bottom: 0;
