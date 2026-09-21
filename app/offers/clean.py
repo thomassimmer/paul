@@ -114,7 +114,6 @@ class CleanedOffer:
     """What the cleaner produced, ready for the extraction prompt."""
 
     text: str = ""
-    fragments: int = 0
     html: bool = False
     links: int = 0
     truncated: bool = False
@@ -409,52 +408,46 @@ def _clean_text(content: str) -> list[str]:
     return [line for line in _squash(content).split("\n") if line]
 
 
-def clean_fragments(parts) -> CleanedOffer:
-    """Clean one or several fragments of the same offer and merge them.
+def clean_fragment(content: str) -> CleanedOffer:
+    """Clean one pasted offer fragment into a compact document.
 
-    Several fragments are the normal case: the description and the application
-    form often live on different pages, and the user pastes them separately.
+    The fragment is whatever the user copied: the whole posting, or its
+    description and its application form pasted one after the other. Both are
+    cleaned in one pass, so one box is enough.
     """
     result = CleanedOffer()
     lines: list[str] = []
     seen: set[str] = set()
 
-    for part in parts:
-        content = (part or "").strip()
-        if not content:
+    content = (content or "").strip()
+    if looks_like_html(content):
+        result.html = True
+        cleaned = _clean_html(content)
+        fragment_lines = list(cleaned.lines)
+        if cleaned.title:
+            fragment_lines.insert(0, f"Page title: {cleaned.title}")
+        result.links = cleaned.links
+    else:
+        cleaned = _Html(title="", lines=_clean_text(content), questions=[], links=0)
+        fragment_lines = cleaned.lines
+
+    result.form = list(cleaned.questions)
+
+    for line in fragment_lines:
+        line = line.strip()
+        if not line:
             continue
-        result.fragments += 1
-
-        if looks_like_html(content):
-            result.html = True
-            cleaned = _clean_html(content)
-            fragment_lines = list(cleaned.lines)
-            if cleaned.title:
-                fragment_lines.insert(0, f"Page title: {cleaned.title}")
-            result.links += cleaned.links
-        else:
-            cleaned = _Html(title="", lines=_clean_text(content), questions=[], links=0)
-            fragment_lines = cleaned.lines
-
-        for question in cleaned.questions:
-            if question not in result.form:
-                result.form.append(question)
-
-        for line in fragment_lines:
-            line = line.strip()
-            if not line:
-                continue
-            # Pasting two fragments of the same page repeats the header: keep it once.
-            if len(line) >= DEDUPE_MIN_LENGTH and line in seen:
-                continue
-            seen.add(line)
-            lines.append(line)
+        # Mixed content can render the same line twice; keep it once.
+        if len(line) >= DEDUPE_MIN_LENGTH and line in seen:
+            continue
+        seen.add(line)
+        lines.append(line)
 
     if not lines:
         if result.form:
             raise CleanError(
                 "Only an application form was found in this fragment. Paste the "
-                "offer's description too, as another fragment if it is on another page."
+                "offer's description too, in the same box."
             )
         raise CleanError(
             "No text could be read from this fragment. Paste the offer's content, "

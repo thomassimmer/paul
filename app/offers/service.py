@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 
 from app.config import Settings
 from app.llm import LLMError
 from app.models import OfferDraft, OfferRecord
 from app.offers import clean, extract, store
-
-FRAGMENT_SEPARATOR = "\n\n---\n\n"
 
 # Fields worth completing by hand when the offer text did not state them.
 IMPORTANT_FIELDS = {
@@ -59,23 +56,22 @@ def _warnings(cleaned: clean.CleanedOffer, offer: OfferDraft) -> list[str]:
     return warnings
 
 
-def prepare_fragments(settings: Settings, fragments: Sequence[str]) -> tuple[list[str], clean.CleanedOffer]:
-    """The local half of an analysis: clean the pasted fragments.
+def prepare_fragment(settings: Settings, fragment: str) -> clean.CleanedOffer:
+    """The local half of an analysis: clean the pasted fragment.
 
-    Returns ``(parts, cleaned)``. Raises ``clean.CleanError`` when nothing usable
-    was pasted and ``LLMError`` when no model is configured: both are cheap and
-    actionable, so the page answers them before dispatching the model call.
+    Raises ``clean.CleanError`` when nothing usable was pasted and ``LLMError``
+    when no model is configured: both are cheap and actionable, so the page
+    answers them before dispatching the model call.
     """
-    parts = [part for part in fragments if (part or "").strip()]
-    if not parts:
+    if not (fragment or "").strip():
         raise clean.CleanError("Paste the offer's HTML fragment or its text first.")
     if not settings.model.strip():
         raise LLMError("No model configured. Set one in Settings to analyze an offer.")
-    return parts, clean.clean_fragments(parts)
+    return clean.clean_fragment(fragment)
 
 
 async def extract_and_store(
-    settings: Settings, parts: Sequence[str], cleaned: clean.CleanedOffer, *, url: str
+    settings: Settings, raw: str, cleaned: clean.CleanedOffer, *, url: str
 ) -> AnalysisOutcome:
     """The model half: extract the offer from the cleaned text and store it."""
     draft = await extract.extract_offer(settings, cleaned.text)
@@ -84,7 +80,7 @@ async def extract_and_store(
     warnings = _warnings(cleaned, offer)
     record = store.save_offer(
         offer,
-        raw=FRAGMENT_SEPARATOR.join(parts),
+        raw=raw,
         cleaned=cleaned.text,
         source="html" if cleaned.html else "text",
         url=url,
@@ -95,14 +91,14 @@ async def extract_and_store(
     return AnalysisOutcome(record=record, notice=notice, level="warning" if warnings else "ok")
 
 
-async def analyze(settings: Settings, fragments: Sequence[str], *, url: str) -> AnalysisOutcome:
-    """Clean the pasted fragments, extract the offer, and store everything.
+async def analyze(settings: Settings, fragment: str, *, url: str) -> AnalysisOutcome:
+    """Clean the pasted fragment, extract the offer, and store everything.
 
     Raises ``clean.CleanError`` when nothing usable was pasted and ``LLMError``
     when no model is configured or the provider fails.
     """
-    parts, cleaned = prepare_fragments(settings, fragments)
-    return await extract_and_store(settings, parts, cleaned, url=url)
+    cleaned = prepare_fragment(settings, fragment)
+    return await extract_and_store(settings, fragment, cleaned, url=url)
 
 
 def prepare_reanalysis(settings: Settings, record: OfferRecord) -> str:

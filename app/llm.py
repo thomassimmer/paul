@@ -34,6 +34,33 @@ _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
 
 TEST_PROMPT = "Reply with the single word: ok"
 
+# A rejected credential is the one provider failure the user can fix in Settings,
+# so it gets a message that says where. Every other provider error is shown
+# verbatim: the raw text is usually the point (unknown model, quota, outage).
+_AUTH_HINTS = (
+    "authenticationerror",
+    "authentication_error",
+    "authentication fails",
+    "invalid api key",
+    "incorrect api key",
+    "invalid x-api-key",
+    "unauthorized",
+    "401",
+)
+
+AUTH_ERROR = (
+    "The model refused to sign in: check the model, the API key and the API base "
+    "in Settings, then try again."
+)
+
+
+def _describe(exc: Exception) -> str:
+    """Provider error text, with an unreachable model turned into an actionable one."""
+    text = f"{type(exc).__name__}: {exc}"
+    if any(hint in text.lower() for hint in _AUTH_HINTS):
+        return AUTH_ERROR
+    return text
+
 
 def _import_litellm():
     try:
@@ -76,7 +103,7 @@ async def _complete(litellm, settings: Settings, messages: list[dict], *, timeou
     except LLMError:
         raise
     except Exception as exc:  # provider errors are shown verbatim, they are the point
-        raise LLMError(f"{type(exc).__name__}: {exc}") from exc
+        raise LLMError(_describe(exc)) from exc
     try:
         return response.choices[0].message.content or ""
     except (AttributeError, IndexError) as exc:

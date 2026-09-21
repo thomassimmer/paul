@@ -136,7 +136,7 @@ def seed(*, model: str = "", today: date | None = None) -> dict:
     # is the first one shown, and the fixture reads best offer first.
     for entry in reversed(fixture["offers"]):
         html = _fragment(entry)
-        cleaned = offers_clean.clean_fragments([html])
+        cleaned = offers_clean.clean_fragment(html)
         offer = Offer(**entry["offer"], form=cleaned.form)
         record = offers_store.save_offer(
             offer, raw=html, cleaned=cleaned.text, source="html", url=entry.get("url", "")

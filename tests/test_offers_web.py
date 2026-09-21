@@ -53,7 +53,7 @@ def _analyze(client) -> int:
     """Analyze FRAGMENT and return the new offer id."""
     response = client.post(
         "/offers/new",
-        data={"url": URL, "fragment_count": "1", "fragment.0": FRAGMENT},
+        data={"url": URL, "fragment": FRAGMENT},
         follow_redirects=False,
     )
     assert response.status_code == 200
@@ -83,7 +83,7 @@ def test_analyze_requires_the_offer_link(client, monkeypatch):
 
     response = client.post(
         "/offers/new",
-        data={"fragment_count": "1", "fragment.0": FRAGMENT},
+        data={"fragment": FRAGMENT},
     )
 
     assert response.status_code == 400
@@ -126,7 +126,7 @@ def test_analyze_needs_a_model_and_keeps_the_pasted_fragment(client):
     # reported on the page rather than after a redirect.
     response = client.post(
         "/offers/new",
-        data={"url": URL, "fragment_count": "1", "fragment.0": FRAGMENT},
+        data={"url": URL, "fragment": FRAGMENT},
     )
 
     assert response.status_code == 400
@@ -138,9 +138,7 @@ def test_analyze_needs_a_model_and_keeps_the_pasted_fragment(client):
 
 def test_analyze_with_empty_input_explains_what_to_paste(client):
     save_settings(Settings(model="openai/gpt-4o"))
-    response = client.post(
-        "/offers/new", data={"url": URL, "fragment_count": "1", "fragment.0": "  "}
-    )
+    response = client.post("/offers/new", data={"url": URL, "fragment": "  "})
     assert response.status_code == 400
     assert "Paste the offer" in response.text
 
@@ -262,7 +260,7 @@ def test_the_analyze_page_shows_the_run_while_it_works(client, monkeypatch):
 
     monkeypatch.setattr("app.background.start", no_wait)
     response = client.post(
-        "/offers/new", data={"url": URL, "fragment_count": "1", "fragment.0": FRAGMENT}
+        "/offers/new", data={"url": URL, "fragment": FRAGMENT}
     )
 
     assert response.status_code == 200

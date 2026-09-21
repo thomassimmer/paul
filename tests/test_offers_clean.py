@@ -54,7 +54,7 @@ FORM_ONLY_FRAGMENT = """
 
 
 def test_reads_headings_lists_paragraphs_and_tables():
-    text = clean.clean_fragments([FRAGMENT]).text
+    text = clean.clean_fragment(FRAGMENT).text
     assert text.startswith("Page title: Senior Backend Engineer - Acme")
     assert "# Senior Backend Engineer" in text
     assert "## What you will do" in text
@@ -66,12 +66,12 @@ def test_reads_headings_lists_paragraphs_and_tables():
 
 
 def test_keeps_line_breaks_inside_a_paragraph():
-    text = clean.clean_fragments([FRAGMENT]).text
+    text = clean.clean_fragment(FRAGMENT).text
     assert "We are looking for a backend engineer.\nYou will own the ingestion path." in text
 
 
 def test_drops_scripts_styles_images_and_hidden_content():
-    text = clean.clean_fragments([FRAGMENT]).text
+    text = clean.clean_fragment(FRAGMENT).text
     assert "track()" not in text
     assert ".x{}" not in text
     assert "track.gif" not in text
@@ -79,19 +79,19 @@ def test_drops_scripts_styles_images_and_hidden_content():
 
 
 def test_renders_links_and_strips_tracking_parameters():
-    cleaned = clean.clean_fragments([FRAGMENT])
+    cleaned = clean.clean_fragment(FRAGMENT)
     assert "[the team](https://acme.test/team?id=1)" in cleaned.text
     assert cleaned.links == 1
 
 
 def test_form_fragments_do_not_pollute_the_description():
-    text = clean.clean_fragments([FORM_FRAGMENT]).text
+    text = clean.clean_fragment(FORM_FRAGMENT).text
     assert "Why do you want to join us?" not in text
     assert "Work authorization" not in text
 
 
 def test_parses_the_application_form():
-    form = clean.clean_fragments([FORM_FRAGMENT]).form
+    form = clean.clean_fragment(FORM_FRAGMENT).form
     # Hidden plumbing and the submit button are not questions; the phone input is.
     assert [q.name for q in form] == ["why", "country", "permit", "phone"]
 
@@ -113,27 +113,24 @@ def test_parses_the_application_form():
 
 
 def test_ignores_hidden_and_submit_controls_and_falls_back_to_the_name():
-    form = clean.clean_fragments([FORM_FRAGMENT]).form
+    form = clean.clean_fragment(FORM_FRAGMENT).form
     assert "csrf" not in [q.name for q in form]
     assert "Apply" not in [q.label for q in form]
     # The phone input has no label: its name is humanised instead.
     assert "Phone" in [q.label for q in form]
 
 
-def test_two_fragments_are_merged_and_duplicated_lines_kept_once():
-    first = "<div><h1>Senior Backend Engineer</h1><p>We are looking for a backend engineer with Rust.</p></div>"
-    second = (
-        '<div><h1>Senior Backend Engineer</h1><p>We are looking for a backend engineer with Rust.</p>'
-        "<p>Extra: hybrid, three days on site in Lyon.</p></div>"
-    )
-    cleaned = clean.clean_fragments([first, second])
-    assert cleaned.fragments == 2
-    assert cleaned.text.count("We are looking for a backend engineer with Rust.") == 1
-    assert "Extra: hybrid, three days on site in Lyon." in cleaned.text
+def test_a_description_and_a_form_paste_together():
+    # The description and the application form can be copied from different pages,
+    # then pasted one after the other in the same box.
+    description = "<div><p>Acme is hiring a backend engineer for its ingestion team.</p></div>"
+    cleaned = clean.clean_fragment(description + FORM_ONLY_FRAGMENT)
+    assert [q.name for q in cleaned.form] == ["why"]
+    assert "Acme is hiring" in cleaned.text
 
 
 def test_plain_text_fragments_are_accepted():
-    cleaned = clean.clean_fragments(["Senior Backend Engineer\nAcme, Lyon\nRust and Kafka required."])
+    cleaned = clean.clean_fragment("Senior Backend Engineer\nAcme, Lyon\nRust and Kafka required.")
     assert cleaned.html is False
     assert cleaned.form == []
     assert "Rust and Kafka required." in cleaned.text
@@ -162,31 +159,24 @@ def test_clean_url(href, expected):
 
 def test_refuses_a_form_only_fragment():
     with pytest.raises(clean.CleanError, match="Only an application form"):
-        clean.clean_fragments([FORM_ONLY_FRAGMENT])
-
-
-def test_a_form_only_fragment_can_join_a_description_fragment():
-    description = "<div><p>Acme is hiring a backend engineer for its ingestion team.</p></div>"
-    cleaned = clean.clean_fragments([description, FORM_ONLY_FRAGMENT])
-    assert [q.name for q in cleaned.form] == ["why"]
-    assert "Acme is hiring" in cleaned.text
+        clean.clean_fragment(FORM_ONLY_FRAGMENT)
 
 
 def test_refuses_empty_content():
     with pytest.raises(clean.CleanError, match="No text could be read"):
-        clean.clean_fragments(["", "   "])
+        clean.clean_fragment("   ")
 
 
 def test_refuses_a_fragment_with_almost_no_text():
     with pytest.raises(clean.CleanError, match="almost no text"):
-        clean.clean_fragments(["<div><p>Hi</p></div>"])
+        clean.clean_fragment("<div><p>Hi</p></div>")
 
 
 def test_truncates_a_huge_fragment():
     huge = "<div>" + "".join(
         f"<p>line {index} of text that is long enough to matter</p>" for index in range(4000)
     ) + "</div>"
-    cleaned = clean.clean_fragments([huge])
+    cleaned = clean.clean_fragment(huge)
     assert cleaned.truncated is True
     assert len(cleaned.text) <= clean.MAX_CHARS
     assert len(huge) > clean.MAX_CHARS

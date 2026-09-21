@@ -9,8 +9,6 @@ packages this page borrows from.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
@@ -33,21 +31,6 @@ router = APIRouter(prefix="/offers", tags=["offers"])
 # The single-call background runs this router starts, and where their page polls.
 ANALYZE = "offer_analyze"
 REANALYZE = "offer_reanalyze"
-
-
-def _number(form, key: str) -> int:
-    try:
-        return int(str(form.get(key, "")).strip())
-    except (TypeError, ValueError):
-        return 0
-
-
-def _slots(fragments: Sequence[str]) -> list[str]:
-    """Filled slots, plus the always-available blank one."""
-    slots = list(fragments)
-    while slots and not slots[-1].strip():
-        slots.pop()
-    return [*slots, ""]
 
 
 def _load(offer_id: int):
@@ -173,7 +156,7 @@ async def offer_new(request: Request):
         request,
         "offers/new.html",
         active="offers",
-        fragments=[""],
+        fragment="",
         url="",
         settings=load_settings(),
     )
@@ -182,7 +165,7 @@ async def offer_new(request: Request):
 @router.post("/new", response_class=HTMLResponse)
 async def offer_analyze(request: Request):
     form = await request.form()
-    fragments = [str(form.get(f"fragment.{index}") or "") for index in range(_number(form, "fragment_count"))]
+    fragment = str(form.get("fragment") or "")
     url = str(form.get("url") or "").strip()
     settings = load_settings()
 
@@ -192,7 +175,7 @@ async def offer_analyze(request: Request):
             request,
             "offers/new.html",
             active="offers",
-            fragments=_slots(fragments),
+            fragment=fragment,
             url=url,
             settings=settings,
             error="The offer's link is required: paste the URL of the posting you copied.",
@@ -202,7 +185,7 @@ async def offer_analyze(request: Request):
     # The local half runs here, so a fragment that cannot be read is still
     # reported on the page: there is no point starting a run for it.
     try:
-        parts, cleaned = service.prepare_fragments(settings, fragments)
+        cleaned = service.prepare_fragment(settings, fragment)
     except (clean.CleanError, LLMError) as exc:
         # Re-render instead of redirecting: a pasted fragment can be long, and
         # losing it to a one-line error message would be infuriating.
@@ -210,7 +193,7 @@ async def offer_analyze(request: Request):
             request,
             "offers/new.html",
             active="offers",
-            fragments=_slots(fragments),
+            fragment=fragment,
             url=url,
             settings=settings,
             error=str(exc),
@@ -220,13 +203,13 @@ async def offer_analyze(request: Request):
     await background.start(
         ANALYZE,
         "Analyzing the offer…",
-        _analyze_work(settings, parts, cleaned, url),
+        _analyze_work(settings, fragment, cleaned, url),
     )
     return render(
         request,
         "offers/new.html",
         active="offers",
-        fragments=_slots(fragments),
+        fragment=fragment,
         url=url,
         settings=settings,
         run=background.current(ANALYZE),
@@ -234,9 +217,9 @@ async def offer_analyze(request: Request):
     )
 
 
-def _analyze_work(settings, parts, cleaned, url: str):
+def _analyze_work(settings, raw, cleaned, url: str):
     async def work(run: background.Run) -> None:
-        outcome = await service.extract_and_store(settings, parts, cleaned, url=url)
+        outcome = await service.extract_and_store(settings, raw, cleaned, url=url)
         run.message = outcome.notice
         run.level = outcome.level
         run.return_url = f"/offers/{outcome.record.id}"

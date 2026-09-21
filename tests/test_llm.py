@@ -56,3 +56,23 @@ def test_provider_error_is_returned(monkeypatch):
     ok, message = asyncio.run(llm.test_connection(Settings(model="openai/gpt-4o")))
     assert ok is False
     assert "RuntimeError: boom" in message
+
+
+def test_authentication_error_points_to_settings(monkeypatch):
+    class AuthenticationError(Exception):
+        pass
+
+    _install_fake_litellm(
+        monkeypatch,
+        error=AuthenticationError(
+            "litellm.AuthenticationError: AuthenticationError: DeepseekException "
+            "- Authentication Fails (governor)"
+        ),
+    )
+    ok, message = asyncio.run(
+        llm.test_connection(Settings(model="deepseek/deepseek-chat"))
+    )
+    assert ok is False
+    assert message == llm.AUTH_ERROR
+    # The raw provider text is gone: it named the wrong place to fix the problem.
+    assert "DeepseekException" not in message
