@@ -36,7 +36,7 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "jinja2>=3.1",
     "python-multipart>=0.0.12",
-    "pydantic>=2.9",
+    "pydantic>=2.13.5",
     "pyyaml>=6.0",
     # CV import.
     "pypdf>=5.1",
