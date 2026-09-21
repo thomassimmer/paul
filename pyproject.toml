@@ -58,12 +58,12 @@ dev = [
     # The TestClient drives the app through httpx2, httpx's successor. With the
     # plain httpx package installed, Starlette warns on every import of it.
     "httpx2>=2.13",
-    "pytest>=8.0",
-    "pytest-cov>=7.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
     # The two gates run in CI (.github/workflows/ci.yml). Pin the linter no tighter
     # than needed here; ruff's own rule names are what the config below relies on.
-    "ruff>=0.16",
-    "pyright>=1.1",
+    "ruff>=0.16.8",
+    "pyright>=1.1.414",
 ]
 
 [tool.setuptools.packages.find]
