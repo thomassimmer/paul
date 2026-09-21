@@ -2,7 +2,7 @@
 
 Three or four model calls plus a LibreOffice page measurement: far too long to hold
 an HTTP request open, so the work runs as a background task and the page polls a
-small state every two seconds. One process, one user: a single in-memory job is
+small state every second. One process, one user: a single in-memory job is
 enough, and losing it on a restart costs nothing, because the application folder on
 disk is the source of truth.
 

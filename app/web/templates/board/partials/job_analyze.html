@@ -3,7 +3,7 @@
    runs the panel polls itself; once it is done it offers a link to the new offer
    instead of navigating there, because the reader may be busy adding another one. #}
 {% set panel_poll_url = "/progress/analyze?sort=" ~ sort ~ "&dir=" ~ direction ~ "&status=" ~ status_filter %}
-<div id="job-analyze"{% if analyze_run and analyze_run.running %} hx-get="{{ panel_poll_url }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+<div id="job-analyze"{% if analyze_run and analyze_run.running %} hx-get="{{ panel_poll_url }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
   {% if analyze_run %}
   <div class="card">
     <div class="page-head">

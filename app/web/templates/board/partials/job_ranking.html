@@ -1,6 +1,6 @@
 {# The ranking run, self-polling. The polling answer also refreshes the table, so
    scores appear as they are computed. #}
-<div id="job-ranking"{% if ranking_job and ranking_job.running %} hx-get="/progress/ranking?sort={{ sort }}&dir={{ direction }}&status={{ status_filter }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+<div id="job-ranking"{% if ranking_job and ranking_job.running %} hx-get="/progress/ranking?sort={{ sort }}&dir={{ direction }}&status={{ status_filter }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
   {% if ranking_job %}
   <div class="card">
     <div class="page-head">

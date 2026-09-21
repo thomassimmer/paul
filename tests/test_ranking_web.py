@@ -305,7 +305,7 @@ def test_a_running_job_polls_itself(client):
 
     response = client.get("/")
 
-    assert 'hx-trigger="every 2s"' in response.text
+    assert 'hx-trigger="every 1s"' in response.text
     assert "Ranking in progress" in response.text
 
 
@@ -320,7 +320,7 @@ def test_a_finished_job_stops_polling(client, monkeypatch):
     response = client.get("/")
 
     assert "Last run" in response.text
-    assert 'hx-trigger="every 2s"' not in response.text
+    assert 'hx-trigger="every 1s"' not in response.text
 
 
 def test_stopping_a_job(client):

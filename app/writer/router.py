@@ -287,7 +287,7 @@ async def application_prepare(offer_id: int, request: Request):
     return _move(
         request,
         back,
-        message="Preparing in the background. The page updates itself every 2 seconds.",
+        message="Preparing in the background. The page updates itself every second.",
     )
 
 

@@ -292,7 +292,7 @@ def test_the_ranking_panel_polls_and_refreshes_the_table(client, monkeypatch):
 
     page = client.get("/").text
     assert 'hx-get="/progress/ranking?sort=' in page
-    assert 'hx-trigger="every 2s"' in page
+    assert 'hx-trigger="every 1s"' in page
 
     response = client.get("/progress/ranking")
     assert response.status_code == 200

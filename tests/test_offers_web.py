@@ -284,7 +284,7 @@ def test_analyzing_returns_to_the_board_while_it_works(client, monkeypatch):
     # The board shows the run and polls it until it is done.
     page = client.get("/").text
     assert 'hx-get="/progress/analyze?sort=' in page
-    assert 'hx-trigger="every 2s"' in page
+    assert 'hx-trigger="every 1s"' in page
     assert "Analyzing the offer" in page
 
     status = client.get("/progress/analyze")

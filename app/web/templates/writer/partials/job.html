@@ -5,7 +5,7 @@
    was a click to dismiss. The board wraps the body in its own element instead,
    because it has two jobs to track and keeps its panel to offer the link. #}
 <div id="job"{% if job %} class="job-toast"{% endif %}
-  {%- if job and job.running %} hx-get="{{ poll_url }}" hx-trigger="every 2s" hx-swap="outerHTML"
+  {%- if job and job.running %} hx-get="{{ poll_url }}" hx-trigger="every 1s" hx-swap="outerHTML"
   {%- elif job and job.status == 'done' %} hx-post="/applications/dismiss" hx-swap="outerHTML"
       hx-vals='{"panel_id": "job", "next": "{{ next_url }}", "job_id": "{{ job.id }}"}'
       hx-trigger="load delay:1s"

@@ -617,7 +617,7 @@ def test_the_job_poll_only_redraws_the_documents_when_they_changed(client, monke
     assert f'hx-get="/offers/{offer_id}/progress"' in page.text
     assert "Regeneration in progress" in page.text
 
-    # Every two seconds the answer is the panel alone. Redrawing the framed previews
+    # Every second the answer is the panel alone. Redrawing the framed previews
     # would reload them for nothing, and htmx shuttling the preserved frames through
     # its pantry is what dragged the page to the bottom.
     polled = client.get(f"/offers/{offer_id}/progress")

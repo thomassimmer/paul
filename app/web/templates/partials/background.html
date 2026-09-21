@@ -4,7 +4,7 @@
    navigate to the result; a failed run is shown here, and the element then stops
    polling because it is rendered without a trigger. #}
 {% if run %}
-<div id="background-run"{% if run.running %} hx-get="{{ poll_url }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+<div id="background-run"{% if run.running %} hx-get="{{ poll_url }}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
   <div class="card">
     <div class="page-head">
       <h2>{{ run.label }}</h2>
