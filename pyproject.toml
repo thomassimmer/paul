@@ -9,6 +9,8 @@ description = "Paul — apply more, apply better. Self-hosted assistant for job 
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
+# Shipped inside the wheel, so the licence travels with the code.
+license-files = ["LICENSE"]
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
