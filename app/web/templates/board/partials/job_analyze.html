@@ -1,0 +1,36 @@
+{# The offer analysis started from the "Analyze an offer" page, which now returns to
+   the board at once so another offer can be pasted while this one is read. While it
+   runs the panel polls itself; once it is done it offers a link to the new offer
+   instead of navigating there, because the reader may be busy adding another one. #}
+{% set panel_poll_url = "/progress/analyze?sort=" ~ sort ~ "&dir=" ~ direction ~ "&status=" ~ status_filter %}
+<div id="job-analyze"{% if analyze_run and analyze_run.running %} hx-get="{{ panel_poll_url }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  {% if analyze_run %}
+  <div class="card">
+    <div class="page-head">
+      <h2>{{ analyze_run.label }}</h2>
+      {% if analyze_run.running %}
+      <span class="hint">{{ analyze_run.elapsed | round | int }} s</span>
+      {% else %}
+      <form method="post" action="/analyze/dismiss" class="inline-form"
+            hx-post="/analyze/dismiss" hx-target="#job-analyze" hx-swap="outerHTML">
+        <button type="submit">Dismiss</button>
+      </form>
+      {% endif %}
+    </div>
+
+    {% if analyze_run.error %}
+    <p class="banner banner-error" role="alert">{{ analyze_run.error }}</p>
+    {% elif analyze_run.running %}
+    <div class="progress"><div class="progress-bar" style="width: 100%"></div></div>
+    <p class="hint">{{ analyze_run.message or 'Reading the offer…' }}</p>
+    {% else %}
+    <p class="banner banner-{{ 'warning' if analyze_run.level == 'warning' else 'ok' }}" role="status">
+      {{ analyze_run.message }}
+    </p>
+    <div class="actions">
+      <a class="button primary" href="{{ analyze_run.return_url }}">Open the offer</a>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

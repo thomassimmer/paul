@@ -28,8 +28,6 @@
 <p class="banner banner-error" role="alert">{{ error }}</p>
 {% endif %}
 
-{% include "partials/background.html" %}
-
 <form method="post" action="/offers/new" class="card">
   <label for="url">Offer link</label>
   <input id="url" name="url" type="url" value="{{ url }}" required
@@ -50,5 +48,11 @@
     <button type="submit" class="primary">Analyze</button>
     <a class="button" href="/">Cancel</a>
   </div>
+
+  <p class="hint">
+    The analysis runs in the background: you land back on <a href="/">Offers</a>
+    right away and can paste another one while it works. Its status, and a link to
+    the offer once it is ready, are shown there.
+  </p>
 </form>
 {% endblock %}

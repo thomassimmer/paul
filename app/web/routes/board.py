@@ -16,8 +16,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from app import background
 from app.config import format_wishes, load_settings, save_settings
 from app.models import Profile
+from app.offers import ANALYZE
 from app.offers import store as offers_store
 from app.profiler import service as profiler_service
 from app.profiler import store as profile_store
@@ -114,6 +116,9 @@ def context(sort: str, direction: str, status: str) -> dict:
         "total_count": len(offers),
         "ranking_job": ranking_jobs.current(),
         "ranking_status_labels": ranking_jobs.STATUS_LABELS,
+        # The offer analysis started from the "Analyze an offer" page, which returns
+        # here at once so another offer can be pasted while this one is read.
+        "analyze_run": background.current(ANALYZE),
         # The preparation job, and whether anything is running at all.
         "job": writer_jobs.current(),
         "status_labels": writer_jobs.STATUS_LABELS,
@@ -174,3 +179,28 @@ async def writing_progress(
 ):
     """The preparation job panel, plus the refreshed table."""
     return render(request, "board/partials/progress_writing.html", **context(sort, dir, status))
+
+
+@router.get("/progress/analyze", response_class=HTMLResponse)
+async def analyze_progress(
+    request: Request,
+    sort: str = board.DEFAULT_SORT,
+    dir: str = board.DEFAULT_DIRECTION,
+    status: str = board.DEFAULT_FILTER,
+):
+    """The analysis panel, plus the refreshed table.
+
+    The table is refreshed out of band so the offer being analyzed appears in the
+    list the moment it is stored, without a reload or a trip to the offer page.
+    """
+    return render(request, "board/partials/progress_analyze.html", **context(sort, dir, status))
+
+
+@router.post("/analyze/dismiss")
+async def analyze_dismiss(request: Request):
+    """Close the analysis panel once its run is over."""
+    background.clear(ANALYZE)
+    if request.headers.get("HX-Request") == "true":
+        # The panel takes itself off the page; there is nothing to fetch back.
+        return HTMLResponse('<div id="job-analyze"></div>')
+    return redirect("/")

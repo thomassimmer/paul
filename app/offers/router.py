@@ -16,7 +16,7 @@ from app import background
 from app.config import load_settings
 from app.llm import LLMError
 from app.models import Offer, OfferRecord, Profile
-from app.offers import clean, editor, service, store
+from app.offers import ANALYZE, REANALYZE, clean, editor, service, store
 from app.profiler import store as profile_store
 from app.ranking import store as ranking_store
 from app.tracker import service as tracker_service
@@ -28,10 +28,6 @@ from app.writer import store as writer_store
 from app.writer import view as writer_view
 
 router = APIRouter(prefix="/offers", tags=["offers"])
-
-# The single-call background runs this router starts, and where their page polls.
-ANALYZE = "offer_analyze"
-REANALYZE = "offer_reanalyze"
 
 
 def _load(offer_id: int):
@@ -239,16 +235,9 @@ async def offer_analyze(request: Request):
         "Analyzing the offer…",
         _analyze_work(settings, fragment, cleaned, url),
     )
-    return render(
-        request,
-        "offers/new.html",
-        active="offers",
-        fragment=fragment,
-        url=url,
-        settings=settings,
-        run=background.current(ANALYZE),
-        poll_url="/offers/new/status",
-    )
+    # Straight back to the board: the analysis runs in the background and the board
+    # shows its status, so another offer can be pasted without waiting for this one.
+    return redirect("/")
 
 
 def _analyze_work(settings, raw, cleaned, url: str):
@@ -259,16 +248,6 @@ def _analyze_work(settings, raw, cleaned, url: str):
         run.return_url = f"/offers/{outcome.record.id}"
 
     return work
-
-
-@router.get("/new/status", response_class=HTMLResponse)
-async def offer_analyze_status(request: Request):
-    """Polled by the analyze page: the run card, or a move to the new offer."""
-    run = background.current(ANALYZE)
-    if run is not None and not run.running and not run.error:
-        background.clear(ANALYZE)
-        return htmx_redirect(run.return_url, message=run.message, level=run.level)
-    return render(request, "partials/background.html", run=run, poll_url="/offers/new/status")
 
 
 @router.get("/{offer_id}", response_class=HTMLResponse)

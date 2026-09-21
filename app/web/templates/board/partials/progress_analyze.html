@@ -1,0 +1,6 @@
+{# Answer to the analysis poll: the panel, plus the refreshed table, so the offer
+   that was just analyzed appears in the list without a reload. #}
+{% include "board/partials/job_analyze.html" %}
+<div id="board-table" hx-swap-oob="outerHTML">
+  {% include "board/partials/table.html" %}
+</div>

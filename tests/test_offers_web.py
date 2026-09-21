@@ -56,7 +56,8 @@ def _analyze(client) -> int:
         data={"url": URL, "fragment": FRAGMENT},
         follow_redirects=False,
     )
-    assert response.status_code == 200
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
     run = background.current("offer_analyze")
     assert run is not None and run.return_url.startswith("/offers/")
     return int(run.return_url.rsplit("/", 1)[-1])
@@ -264,7 +265,7 @@ def test_offer_can_be_analyzed_again(client, monkeypatch):
 # --- the analysis runs in the background ---------------------------------------
 
 
-def test_the_analyze_page_shows_the_run_while_it_works(client, monkeypatch):
+def test_analyzing_returns_to_the_board_while_it_works(client, monkeypatch):
     save_settings(Settings(model="openai/gpt-4o"))
     _patch_extract(monkeypatch)
 
@@ -273,30 +274,40 @@ def test_the_analyze_page_shows_the_run_while_it_works(client, monkeypatch):
 
     monkeypatch.setattr("app.background.start", no_wait)
     response = client.post(
-        "/offers/new", data={"url": URL, "fragment": FRAGMENT}
+        "/offers/new", data={"url": URL, "fragment": FRAGMENT}, follow_redirects=False
     )
 
-    assert response.status_code == 200
-    assert 'hx-get="/offers/new/status"' in response.text
-    assert "Analyzing the offer" in response.text
+    # The redirect is immediate: the analysis is not awaited on the page.
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
 
-    status = client.get("/offers/new/status")
+    # The board shows the run and polls it until it is done.
+    page = client.get("/").text
+    assert 'hx-get="/progress/analyze?sort=' in page
+    assert 'hx-trigger="every 2s"' in page
+    assert "Analyzing the offer" in page
+
+    status = client.get("/progress/analyze")
     assert status.status_code == 200
-    assert 'hx-get="/offers/new/status"' in status.text
+    assert 'id="job-analyze"' in status.text
+    assert 'id="board-table" hx-swap-oob="outerHTML"' in status.text
 
 
-def test_a_finished_analysis_sends_the_page_to_the_new_offer(client):
+def test_a_finished_analysis_offers_a_link_from_the_board(client):
     run = background.remember(background.build("offer_analyze", "Analyzing the offer…"))
     run.status = "done"
     run.message = "Offer analyzed."
     run.return_url = "/offers/42"
 
-    response = client.get("/offers/new/status", follow_redirects=False)
+    page = client.get("/").text
 
-    assert response.status_code == 200
-    assert response.headers["HX-Redirect"] == "/offers/42"
-    # Consumed: the next page must not show the card again.
-    assert background.current("offer_analyze") is None
+    # A link to the offer, not a hijacked navigation: the reader may be busy adding
+    # another offer.
+    assert "Offer analyzed." in page
+    assert 'href="/offers/42"' in page
+    assert "Open the offer" in page
+    # Done: the panel stops polling.
+    assert 'hx-get="/progress/analyze' not in page
 
 
 def test_a_failed_analysis_is_shown_and_stops_polling(client):
@@ -304,10 +315,22 @@ def test_a_failed_analysis_is_shown_and_stops_polling(client):
     run.status = "error"
     run.error = "provider is down"
 
-    response = client.get("/offers/new/status")
+    page = client.get("/").text
 
-    assert "provider is down" in response.text
-    assert "hx-get" not in response.text
+    assert "provider is down" in page
+    assert 'hx-get="/progress/analyze' not in page
+
+
+def test_the_analysis_panel_can_be_dismissed(client):
+    background.remember(background.build("offer_analyze", "Analyzing the offer…"))
+
+    response = client.post("/analyze/dismiss", headers={"HX-Request": "true"})
+
+    assert response.status_code == 200
+    assert 'id="job-analyze"' in response.text
+    assert background.current("offer_analyze") is None
+    # Gone from the board as well.
+    assert "Analyzing the offer" not in client.get("/").text
 
 
 def test_the_offer_page_shows_a_running_reanalysis(client):
