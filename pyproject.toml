@@ -42,7 +42,7 @@ dependencies = [
     "pypdf>=5.1",
     "python-docx>=1.1",
     # Offer HTML cleaning.
-    "beautifulsoup4>=4.12",
+    "beautifulsoup4>=4.15.0",
     # LiteLLM is the single entry point to every provider (OpenAI, Anthropic,
     # Mistral, Ollama, ...). Loaded lazily, only when a call is made.
     "litellm>=1.55",
