@@ -37,7 +37,7 @@ dependencies = [
     "jinja2>=3.1",
     "python-multipart>=0.0.32",
     "pydantic>=2.13.5",
-    "pyyaml>=6.0",
+    "pyyaml>=6.0.3",
     # CV import.
     "pypdf>=5.1",
     "python-docx>=1.1",
