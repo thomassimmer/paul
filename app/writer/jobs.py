@@ -231,7 +231,7 @@ async def run(job: Job, settings: Settings, profile: Profile, record: OfferRecor
         job.status = "error"
         job.error = str(exc)
         _close_steps(job, "error")
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception as exc:  # noqa: BLE001  # pragma: no cover - defensive
         job.status = "error"
         job.error = f"{type(exc).__name__}: {exc}"
         _close_steps(job, "error")

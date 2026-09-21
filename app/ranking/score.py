@@ -10,8 +10,8 @@ from __future__ import annotations
 from app.config import Settings, Wish
 from app.llm import complete_structured
 from app.models import AxisScore, Offer, Profile, Score, ScoringGrid
-from app.prompts import load_prompt
 from app.prompt_context import offer_text, profile_text, wishes_text
+from app.prompts import load_prompt
 
 # Fixed on purpose: the candidate tunes their *wishes*, not the grid. If the model
 # chose the weights, the total would drift between runs for invisible reasons.

@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 
-from app.ats import AtsReport, AtsKeyword
+from app.ats import AtsKeyword, AtsReport
 from app.models import Keyword, OfferDraft, OfferRecord
 from app.writer import store
 

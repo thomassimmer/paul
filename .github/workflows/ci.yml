@@ -1,0 +1,107 @@
+# Continuous integration.
+#
+# The README promises that the test suite is the first thing to run: this is
+# where that promise is kept. Two jobs decide pass or fail — the tests, and the
+# linter and type checker together in one venv — and a third builds the Docker image
+# and waits for /health. The coverage report is not a job of its own: it rides along
+# on the 3.12 leg of the test matrix, because the suite is the expensive part and
+# running it a second time would only buy the same table back. Formatting is
+# deliberately not checked either, so no contribution is turned away over a line
+# break.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The workflow only reads the repository.
+permissions:
+  contents: read
+
+# A new push supersedes the run in flight for the same branch or pull request.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Every version is worth knowing about, so one failure does not hide the
+      # others.
+      fail-fast: false
+      matrix:
+        # 3.12 is the floor declared in pyproject.toml and the version the Docker
+        # image ships; 3.14 is what the current dependencies resolve to. LiteLLM
+        # caps itself below 3.15, so that is the ceiling.
+        python: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev]"
+      # One Python version prints the coverage report, the others just run the suite.
+      # It is reported, not gated: the threshold question is answered in pyproject.toml,
+      # and the missing lines are printed so a reviewer can see what a change cost.
+      - name: Test with coverage
+        if: matrix.python == '3.12'
+        run: pytest -q --cov --cov-report=term-missing
+      - name: Test
+        if: matrix.python != '3.12'
+        run: pytest -q
+
+  checks:
+    name: Lint and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      # One venv for both tools. Pyright resolves the third-party imports (fastapi,
+      # pydantic, litellm) from the virtualenv named in pyproject.toml, so the venv is
+      # built at .venv and ruff is run from it too. The rule set and the version
+      # floors live in pyproject.toml, in one place, and this job installs them once.
+      - name: Install
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e ".[dev]"
+      # Ruff first: it answers in a second, where pyright takes half a minute.
+      - name: Ruff
+        run: .venv/bin/ruff check
+      - name: Pyright
+        run: .venv/bin/pyright
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # WITH_PDF=0 skips the LibreOffice layer. The application layer and the
+      # dependency resolution are the same either way, and the PDF path is covered
+      # by the test suite, which mocks the converter. The default image is the one
+      # users get from docker compose; this job only proves it still builds.
+      - name: Build the image
+        run: docker build --build-arg WITH_PDF=0 --tag paul:ci .
+      # No volume and no settings: this is the first-run state, on a data
+      # directory the app has to create itself.
+      - name: Run it and wait for /health
+        run: |
+          docker run --detach --name paul --publish 127.0.0.1:8000:8000 paul:ci
+          # --retry-all-errors, not just --retry-connrefused: Docker's port
+          # forwarding accepts the connection before the app listens, and a
+          # half-open connection comes back as an empty reply rather than a
+          # refusal. The app's own HEALTHCHECK waits for the same thing.
+          curl --fail --silent --show-error \
+            --retry 30 --retry-delay 2 --retry-all-errors \
+            http://127.0.0.1:8000/health
+      - name: Container logs
+        if: failure()
+        run: docker logs paul

@@ -4,7 +4,16 @@ import asyncio
 
 from app.config import Settings, Wish
 from app.llm import LLMError
-from app.models import Elimination, Identity, Offer, OfferDraft, Profile, RankingRecord, Score, ScoringGrid
+from app.models import (
+    Elimination,
+    Identity,
+    Offer,
+    OfferDraft,
+    Profile,
+    RankingRecord,
+    Score,
+    ScoringGrid,
+)
 from app.offers import store as offers_store
 from app.ranking import score, service, store
 

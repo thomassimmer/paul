@@ -20,7 +20,7 @@ def _install_fake_litellm(monkeypatch, *, reply: str = "ok", error: Exception | 
         return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message)])
 
     module = types.ModuleType("litellm")
-    setattr(module, "acompletion", acompletion)
+    monkeypatch.setattr(module, "acompletion", acompletion, raising=False)
     monkeypatch.setitem(sys.modules, "litellm", module)
     return calls
 

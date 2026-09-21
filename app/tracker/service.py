@@ -11,7 +11,7 @@ features at once, so it belongs with the page that shows it.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from app.models import Application
 
@@ -87,4 +87,4 @@ def next_dates(status: str, application: Application, today: date) -> tuple[str,
 
 
 def today_utc() -> date:
-    return datetime.now(timezone.utc).date()
+    return datetime.now(UTC).date()

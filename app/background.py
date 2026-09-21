@@ -97,7 +97,7 @@ async def execute(run: Run, work: Callable[[Run], Awaitable[None]]) -> None:
         run.status = "error"
         run.error = "Stopped."
         raise
-    except Exception as exc:  # provider and domain errors are shown verbatim
+    except Exception as exc:  # noqa: BLE001 - provider and domain errors are shown verbatim
         run.status = "error"
         run.error = str(exc) or type(exc).__name__
     finally:

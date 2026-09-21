@@ -33,8 +33,9 @@ from app.models import (
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 # A skill line is often written as the candidate's template writes it, with a
 # category in front of the values ("Languages: Rust, Python"). The category is a
-# label, not a claim, so only the values are checked.
-_SKILL_SPLIT = re.compile(r"[;,]| — | – ")
+# label, not a claim, so only the values are checked. The dashes below are the
+# separators being matched, so the lookalike characters are the point.
+_SKILL_SPLIT = re.compile(r"[;,]| — | – ")  # noqa: RUF001
 
 
 def check(lines: list[DraftLine], profile: Profile) -> GroundingReport:
@@ -80,9 +81,8 @@ def check(lines: list[DraftLine], profile: Profile) -> GroundingReport:
                 issues.append(
                     _issue(index, line, "does not match any experience, school or project in your profile")
                 )
-        elif line.role == "name" and profile_name:
-            if profile_name not in text:
-                issues.append(_issue(index, line, "is not the name in your profile"))
+        elif line.role == "name" and profile_name and profile_name not in text:
+            issues.append(_issue(index, line, "is not the name in your profile"))
 
     return GroundingReport(checked=len(lines), issues=issues)
 

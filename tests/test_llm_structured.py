@@ -23,7 +23,7 @@ def _fake_litellm(monkeypatch, *answers: str) -> list[dict]:
         return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message)])
 
     module = types.ModuleType("litellm")
-    setattr(module, "acompletion", acompletion)
+    monkeypatch.setattr(module, "acompletion", acompletion, raising=False)
     monkeypatch.setitem(sys.modules, "litellm", module)
     return calls
 
@@ -76,7 +76,7 @@ def test_provider_errors_become_llm_errors(monkeypatch):
         raise RuntimeError("no such model")
 
     module = types.ModuleType("litellm")
-    setattr(module, "acompletion", acompletion)
+    monkeypatch.setattr(module, "acompletion", acompletion, raising=False)
     monkeypatch.setitem(sys.modules, "litellm", module)
 
     with pytest.raises(llm.LLMError, match="RuntimeError: no such model"):

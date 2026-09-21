@@ -171,9 +171,11 @@ def _text_box_issues(root: ElementTree.Element) -> list[str]:
     if not count:
         return []
     return [
-        f"{_counted(count, 'text box', 'text boxes')} detected. Applicant tracking systems "
-        "often skip text boxes, so anything written there can disappear from the parsed "
-        "CV. Rewrite it as ordinary paragraphs."
+        (
+            f"{_counted(count, 'text box', 'text boxes')} detected. Applicant tracking systems "
+            "often skip text boxes, so anything written there can disappear from the parsed "
+            "CV. Rewrite it as ordinary paragraphs."
+        )
     ]
 
 
@@ -182,9 +184,11 @@ def _drawing_issues(root: ElementTree.Element) -> list[str]:
     if not count:
         return []
     return [
-        f"{_counted(count, 'image', 'images')} detected. An ATS reads text, not pixels: "
-        "your logo is ignored and a picture of text is invisible to it. Keep every piece "
-        "of information as real text."
+        (
+            f"{_counted(count, 'image', 'images')} detected. An ATS reads text, not pixels: "
+            "your logo is ignored and a picture of text is invisible to it. Keep every piece "
+            "of information as real text."
+        )
     ]
 
 
@@ -203,8 +207,10 @@ def _column_issues(root: ElementTree.Element) -> list[str]:
     if not any(_column_count(cols) > 1 for cols in root.iter(f"{_W}cols")):
         return []
     return [
-        "A multi-column layout is used. An ATS reads the page as a single column, so "
-        "your columns can be interleaved and reordered. Lay the CV out in one column."
+        (
+            "A multi-column layout is used. An ATS reads the page as a single column, so "
+            "your columns can be interleaved and reordered. Lay the CV out in one column."
+        )
     ]
 
 
@@ -213,9 +219,11 @@ def _table_issues(root: ElementTree.Element) -> list[str]:
     if not count:
         return []
     return [
-        f"{_counted(count, 'table', 'tables')} detected. Parsers read a table cell by cell "
-        "and often merge or reorder it, and a table is also how a two-column layout is "
-        "built. Use plain paragraphs unless the content is really tabular."
+        (
+            f"{_counted(count, 'table', 'tables')} detected. Parsers read a table cell by cell "
+            "and often merge or reorder it, and a table is also how a two-column layout is "
+            "built. Use plain paragraphs unless the content is really tabular."
+        )
     ]
 
 
@@ -226,9 +234,11 @@ def _header_footer_issues(archive: zipfile.ZipFile) -> list[str]:
         root = ElementTree.fromstring(archive.read(name))
         if any((node.text or "").strip() for node in root.iter(f"{_W}t")):
             return [
-                "Text is present in a page header or footer. Some ATS parsers ignore "
-                "headers and footers, so keep your name and contact details in the main "
-                "body too."
+                (
+                    "Text is present in a page header or footer. Some ATS parsers ignore "
+                    "headers and footers, so keep your name and contact details in the main "
+                    "body too."
+                )
             ]
     return []
 

@@ -46,7 +46,7 @@ def test_extract_offer_applies_the_keyword_cleanup(monkeypatch):
         return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message)])
 
     module = types.ModuleType("litellm")
-    setattr(module, "acompletion", acompletion)
+    monkeypatch.setattr(module, "acompletion", acompletion, raising=False)
     monkeypatch.setitem(sys.modules, "litellm", module)
 
     draft = asyncio.run(

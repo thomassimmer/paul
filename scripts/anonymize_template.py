@@ -355,7 +355,9 @@ def _report(source: Path, blueprint, profile, demo, pools: dict) -> None:
 
     print(f"template   {source}")
     print(f"blocks     {len(blueprint.blocks)}")
-    print(f"roles      {', '.join(f'{role}×{count}' for role, count in Counter(b.role for b in blueprint.blocks).most_common())}")
+    counts = Counter(b.role for b in blueprint.blocks).most_common()
+    tally = ", ".join(f"{role}×{count}" for role, count in counts)  # noqa: RUF001 - on purpose
+    print(f"roles      {tally}")
     print()
     print(f"strings to remove   {len(replacements)} shape(s) of {_shapes(profile)}")
     print()

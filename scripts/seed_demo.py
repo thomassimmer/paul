@@ -147,7 +147,7 @@ def seed(*, model: str = "", today: date | None = None) -> dict:
             elimination = Elimination(eliminated=True, **entry["elimination"])
             score = None
         else:
-            grid = ScoringGrid(**{axis: verdict for axis, verdict in entry["score"].items()})
+            grid = ScoringGrid(**entry["score"])
             elimination, score = Elimination(), ranking_score.build_score(grid)
 
         ranking_store.save_ranking(

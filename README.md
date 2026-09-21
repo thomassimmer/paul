@@ -2,6 +2,8 @@
 
 **Apply more, apply better.**
 
+[![CI](https://github.com/thomassimmer/paul/actions/workflows/ci.yml/badge.svg)](https://github.com/thomassimmer/paul/actions/workflows/ci.yml)
+
 Paul is a self-hosted, open-source assistant for job hunting. Paste an offer: it
 ranks it against your profile, writes a CV and a cover letter **in your own
 template**, drafts the answers to the application form, and keeps every application
@@ -84,7 +86,15 @@ volume, so it survives updates (`git pull && docker compose up --build`).
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 uvicorn app.main:app --reload
-pytest
+```
+
+The gates CI runs, on demand:
+
+```bash
+pytest                # the suite
+pytest --cov          # the same, with coverage (config in pyproject.toml)
+ruff check            # lint (config in pyproject.toml)
+pyright               # types, read from the .venv named in pyproject.toml
 ```
 
 ## Principles
@@ -186,8 +196,9 @@ Travail_).
 ## Contributing
 
 Issues and pull requests are welcome. Please keep the code small and readable, add a
-test for new behavior, and never include real personal data in examples or bug
-reports (use the fictional profile in `app/examples/`).
+test for new behavior, leave `pytest`, `ruff check` and `pyright` green, and never
+include real personal data in examples or bug reports (use the fictional profile in
+`app/examples/`).
 
 ### A demo workspace
 

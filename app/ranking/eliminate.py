@@ -10,8 +10,8 @@ from __future__ import annotations
 from app.config import Settings
 from app.llm import complete_structured
 from app.models import Elimination, Offer, Profile
-from app.prompts import load_prompt
 from app.prompt_context import offer_text, profile_text
+from app.prompts import load_prompt
 
 
 def build_elimination(decision: Elimination) -> Elimination:

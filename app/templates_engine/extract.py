@@ -72,8 +72,7 @@ def _iter_paragraphs(document):
                     if id(cell._tc) in seen:
                         continue
                     seen.add(id(cell._tc))
-                    for paragraph in cell.paragraphs:
-                        yield paragraph
+                    yield from cell.paragraphs
 
 
 def _hint(paragraph: Paragraph) -> str:

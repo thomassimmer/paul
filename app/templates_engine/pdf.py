@@ -72,7 +72,7 @@ def count_pages(docx_bytes: bytes, *, timeout: float = 120.0) -> int | None:
         from pypdf import PdfReader
 
         return len(PdfReader(io.BytesIO(data)).pages)
-    except Exception:
+    except Exception:  # noqa: BLE001 - an unreadable PDF falls back to the estimate
         return None
 
 

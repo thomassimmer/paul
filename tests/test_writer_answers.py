@@ -48,8 +48,10 @@ def _profile(*, facts: Facts | None = None, identity: Identity | None = None) ->
         ("Do you hold a valid work permit?", "work_authorization"),
         ("Do you have a work permit?", "work_authorization"),
         (
-            "If you are working in Canada on the basis of a work permit, what is the "
-            "expiry date of your current work permit? (select date)",
+            (
+                "If you are working in Canada on the basis of a work permit, what is the "
+                "expiry date of your current work permit? (select date)"
+            ),
             "work_permit_expiry",
         ),
         ("What is the expiry date of your visa?", "work_permit_expiry"),

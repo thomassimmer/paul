@@ -21,7 +21,8 @@ from app.models import (
     ScoringGrid,
 )
 from app.offers import store as offers_store
-from app.ranking import score, service as ranking_service
+from app.ranking import score
+from app.ranking import service as ranking_service
 from app.web import board
 
 TODAY = date(2026, 9, 19)

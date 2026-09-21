@@ -317,7 +317,9 @@ async def yaml_save(request: Request, yaml_text: str = Form("")):
         if not isinstance(raw, dict):
             raise ValueError("the file must contain a YAML mapping")
         profile = Profile.model_validate(raw)
-    except Exception as exc:
+    except (yaml.YAMLError, ValueError) as exc:
+        # Pydantic's ValidationError is a ValueError. Anything else is a bug here, and
+        # is better seen than turned into a form message.
         # Re-render with the submitted text so nothing the user typed is lost.
         return render(
             request,

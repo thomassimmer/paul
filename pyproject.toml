@@ -32,6 +32,11 @@ dev = [
     # plain httpx package installed, Starlette warns on every import of it.
     "httpx2>=2.13",
     "pytest>=8.0",
+    "pytest-cov>=7.0",
+    # The two gates run in CI (.github/workflows/ci.yml). Pin the linter no tighter
+    # than needed here; ruff's own rule names are what the config below relies on.
+    "ruff>=0.16",
+    "pyright>=1.1",
 ]
 
 [tool.setuptools.packages.find]
@@ -72,3 +77,53 @@ typeCheckingMode = "standard"
 pythonVersion = "3.12"
 venvPath = "."
 venv = ".venv"
+# ``build/lib/app`` is a stale setuptools copy of the package, and the data
+# directories hold user files rather than modules. Pyright reads neither
+# .gitignore nor the linter's config, so it is told here.
+exclude = ["build", "data", "demo-data"]
+
+# Coverage is reported in CI, not gated: a threshold would let a number decide a
+# review, and the branches that matter here (a provider answering something
+# invalid, a template that will not open) are argued case by case.
+[tool.coverage.run]
+# What ships: the application and the two README scripts. The suite is the
+# yardstick, not the thing measured, so tests/ is left out.
+source = ["app", "scripts"]
+# A line executed by the tests is not the same as a branch decided by them.
+branch = true
+
+# Lint rules. The set is spelled out instead of relying on ruff's defaults, so that
+# a new ruff release cannot widen the gate in CI on its own.
+[tool.ruff]
+# 88 is ruff's default and would rewrap every import list the author keeps on one
+# line; the code is written to a comfortable hundred. E501 stays off either way
+# (see below), so this only decides where the import fixer and, if it is ever
+# adopted, the formatter let a line end.
+line-length = 100
+target-version = "py312"
+extend-exclude = ["build", "data", "demo-data"]
+
+[tool.ruff.lint]
+select = [
+    "E4",  # pycodestyle: imports, statements, syntax — not layout
+    "E7",  # pycodestyle: statement and comparison mistakes
+    "E9",  # pycodestyle: runtime errors (syntax, IO)
+    "F",   # pyflakes: undefined and unused names
+    "W",   # pycodestyle warnings
+    "I",   # import order
+    "UP",  # syntax the declared Python already allows (pyupgrade)
+    "B",   # flake8-bugbear: likely bugs
+    "C4",  # needlessly convoluted comprehensions
+    "SIM", # simplifiable code
+    "ISC", # implicit string concatenation, the missing-comma bug
+    "BLE", # blind ``except Exception``
+    "RUF", # ruff's own checks
+]
+# E501 stays out: how long a line may run is settled when it is wrapped by hand,
+# and a long message, prompt or regex reads better on one line than broken up.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI reads ``Depends()``, ``File()`` and ``Form()`` in argument defaults. That
+# is the framework's API, not a call performed at import time by accident.
+"**/router.py" = ["B008"]

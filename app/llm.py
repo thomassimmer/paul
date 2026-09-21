@@ -17,7 +17,6 @@ from __future__ import annotations
 import json
 import re
 import time
-from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -27,8 +26,6 @@ from app.config import Settings
 class LLMError(RuntimeError):
     """No usable answer could be obtained from the configured model."""
 
-
-T = TypeVar("T", bound=BaseModel)
 
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
 
@@ -110,7 +107,7 @@ async def _complete(litellm, settings: Settings, messages: list[dict], *, timeou
         raise LLMError("The model returned no message.") from exc
 
 
-async def complete_structured(
+async def complete_structured[T: BaseModel](
     settings: Settings,
     *,
     schema: type[T],

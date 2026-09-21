@@ -64,10 +64,9 @@ def _from_pdf(data: bytes) -> str:
 
     try:
         reader = PdfReader(io.BytesIO(data))
-        if reader.is_encrypted:
-            # Many PDFs are "encrypted" with an empty password; try that, then give up.
-            if not reader.decrypt(""):
-                raise CvError("This PDF is password-protected: remove the password first.")
+        # Many PDFs are "encrypted" with an empty password; try that, then give up.
+        if reader.is_encrypted and not reader.decrypt(""):
+            raise CvError("This PDF is password-protected: remove the password first.")
         return "\n".join(page.extract_text() or "" for page in reader.pages)
     except CvError:
         raise

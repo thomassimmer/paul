@@ -13,10 +13,9 @@ from fastapi.responses import HTMLResponse
 
 from app import background
 from app.config import load_settings
-from app.templates_engine import analyze, store
-from app.templates_engine import view
+from app.templates_engine import analyze, store, view
 from app.templates_engine.extract import TemplateError
-from app.templates_engine.roles import ROLES, ROLE_LABELS
+from app.templates_engine.roles import ROLE_LABELS, ROLES
 from app.web.templating import htmx_redirect, redirect, render
 
 router = APIRouter(prefix="/templates", tags=["templates"])

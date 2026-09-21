@@ -10,7 +10,7 @@ once per offer, and there is no reason to read a row back just to return it.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app import db
 from app.models import Elimination, RankingRecord, Score
@@ -20,7 +20,7 @@ OVERRIDES = ("", "kept", "eliminated")
 
 def _now() -> str:
     """A timestamp in the same shape SQLite's ``datetime('now')`` produces."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _record(row) -> RankingRecord:

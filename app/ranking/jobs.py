@@ -154,7 +154,7 @@ async def run(
 
     try:
         await asyncio.gather(*(work(state) for state in job.offers))
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception as exc:  # noqa: BLE001  # pragma: no cover - defensive
         job.error = f"{type(exc).__name__}: {exc}"
     finally:
         if job.finished_at is None:

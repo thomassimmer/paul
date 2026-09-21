@@ -18,5 +18,11 @@ dist/
 .mypy_cache/
 .ruff_cache/
 
+# Coverage (pytest-cov), from a local run or a ``--cov-report``.
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
 # Docker / OS
 .DS_Store
