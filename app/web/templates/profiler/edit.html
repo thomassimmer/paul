@@ -1,5 +1,17 @@
 {% extends "base.html" %}
+{% from "partials/quick_nav.html" import quick_nav %}
 {% block title %}Edit profile{% endblock %}
+
+{% block quick_nav %}
+{{ quick_nav('Sections of this page', [
+  {'anchor': 'identity', 'label': 'Identity'},
+  {'anchor': 'facts', 'label': 'Facts'},
+  {'anchor': 'experience', 'label': 'Experience'},
+  {'anchor': 'education', 'label': 'Education'},
+  {'anchor': 'projects', 'label': 'Projects'},
+  {'anchor': 'preferences', 'label': 'Preferences'},
+]) }}
+{% endblock %}
 
 {% block content %}
 <div class="page-head">
@@ -16,7 +28,7 @@
 </p>
 
 <form id="profile-form" method="post" action="/profiler/edit">
-  <section class="card">
+  <section class="card" id="identity">
     <h2>Identity</h2>
     <div class="grid-2">
       <div><label for="identity.name">Name</label>
@@ -42,7 +54,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="facts">
     <h2>Facts <span class="tag">answered by you</span></h2>
     <div class="grid-2">
       <div><label for="facts.work_authorization">Work authorization</label>
@@ -62,7 +74,7 @@
     </div>
   </section>
 
-  <section class="card" data-row-list="exp">
+  <section class="card" id="experience" data-row-list="exp">
     <h2>Experience</h2>
     <input type="hidden" name="exp_count" value="{{ experience_count }}">
 
@@ -91,7 +103,7 @@
     <button type="button" class="button" data-add-row hidden>Add another experience</button>
   </section>
 
-  <section class="card" data-row-list="edu">
+  <section class="card" id="education" data-row-list="edu">
     <h2>Education</h2>
     <input type="hidden" name="edu_count" value="{{ education_rows | length }}">
     {% for row in education_rows %}
@@ -112,7 +124,7 @@
     <button type="button" class="button" data-add-row hidden>Add another education</button>
   </section>
 
-  <section class="card" data-row-list="proj">
+  <section class="card" id="projects" data-row-list="proj">
     <h2>Projects</h2>
     <input type="hidden" name="proj_count" value="{{ project_rows | length }}">
     {% for row in project_rows %}
@@ -133,7 +145,7 @@
     <button type="button" class="button" data-add-row hidden>Add another project</button>
   </section>
 
-  <section class="card">
+  <section class="card" id="preferences">
     <h2>Preferences</h2>
     <div class="grid-2">
       <div><label for="preferences.target_roles">Target roles</label>

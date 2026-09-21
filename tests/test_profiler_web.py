@@ -481,6 +481,15 @@ def test_the_profile_page_has_a_quick_navigation_over_its_sections(client):
         assert f'id="{anchor}"' in page
 
 
+def test_the_edit_page_has_a_quick_navigation_over_its_sections(client):
+    page = client.get("/profiler/edit").text
+
+    assert 'class="quick-nav"' in page
+    for anchor in ("identity", "facts", "experience", "education", "projects", "preferences"):
+        assert f'href="#{anchor}"' in page
+        assert f'id="{anchor}"' in page
+
+
 def test_the_quick_navigation_skips_a_card_that_is_not_rendered(client):
     store.save_profile(Profile(identity=Identity(name="Camille Moreau")))
 

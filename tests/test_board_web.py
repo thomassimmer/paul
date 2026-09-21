@@ -342,9 +342,8 @@ def test_the_checklist_disappears_once_everything_is_done(client):
     tracker_store.set_status(offer_id, "applied", today=tracker_service.today_utc())
 
     page = client.get("/").text
-    # A finished checklist leaves nothing behind — no card, no dead anchor.
+    # A finished checklist leaves nothing behind.
     assert 'id="get-started"' not in page
-    assert 'href="#get-started"' not in page
 
 
 def test_the_checklist_can_be_hidden_before_it_is_finished(client):
@@ -354,7 +353,6 @@ def test_the_checklist_can_be_hidden_before_it_is_finished(client):
 
     page = client.get("/").text
     assert 'id="get-started"' not in page
-    assert 'href="#get-started"' not in page
 
 
 def test_settings_brings_the_checklist_back(client):
@@ -365,20 +363,6 @@ def test_settings_brings_the_checklist_back(client):
     client.post("/settings", data={"show_get_started": "1"})
 
     assert 'id="get-started" open' in client.get("/").text
-
-
-# --- the quick navigation -----------------------------------------------------
-
-
-def test_the_board_has_a_quick_navigation_over_its_sections(client):
-    page = client.get("/").text
-
-    assert 'class="quick-nav"' in page
-    assert 'href="#get-started"' in page
-    assert 'href="#offers"' in page
-    # Both targets exist, so neither link is dead.
-    assert 'id="get-started"' in page
-    assert 'id="offers"' in page
 
 
 # --- the navigation -----------------------------------------------------------

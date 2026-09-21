@@ -1,14 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/quick_nav.html" import quick_nav %}
 {% block title %}Offers{% endblock %}
-
-{% block quick_nav %}
-{# The checklist's entry goes with the checklist: a hidden card would leave a dead
-   anchor behind. #}
-{{ quick_nav('Sections of this page',
-  ([{'anchor': 'get-started', 'label': 'Get started'}] if get_started.visible else [])
-  + [{'anchor': 'offers', 'label': 'Offers'}]) }}
-{% endblock %}
 
 {% block content %}
 <div class="page-head">

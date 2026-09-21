@@ -192,6 +192,19 @@ def test_offer_can_be_completed_by_hand(client, monkeypatch):
     assert len(offer.form) == 1 and offer.form[0].required is True
 
 
+def test_the_edit_page_has_a_quick_navigation_over_its_sections(client, monkeypatch):
+    save_settings(Settings(model="openai/gpt-4o"))
+    _patch_extract(monkeypatch)
+    offer_id = _analyze(client)
+
+    page = client.get(f"/offers/{offer_id}/edit").text
+
+    assert 'class="quick-nav"' in page
+    for anchor in ("overview", "content", "constraints", "company", "form"):
+        assert f'href="#{anchor}"' in page
+        assert f'id="{anchor}"' in page
+
+
 def test_the_posting_url_is_saved_and_linked_on_the_offer_page(client, monkeypatch):
     save_settings(Settings(model="openai/gpt-4o"))
     _patch_extract(monkeypatch)

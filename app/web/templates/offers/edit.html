@@ -1,5 +1,16 @@
 {% extends "base.html" %}
+{% from "partials/quick_nav.html" import quick_nav %}
 {% block title %}Complete the offer{% endblock %}
+
+{% block quick_nav %}
+{{ quick_nav('Sections of this page', [
+  {'anchor': 'overview', 'label': 'Overview'},
+  {'anchor': 'content', 'label': 'Content'},
+  {'anchor': 'constraints', 'label': 'Constraints'},
+  {'anchor': 'company', 'label': 'Company'},
+  {'anchor': 'form', 'label': 'Application form'},
+]) }}
+{% endblock %}
 
 {% block content %}
 <div class="page-head">
@@ -20,7 +31,7 @@
 {% endif %}
 
 <form method="post" action="/offers/{{ record_id }}/edit">
-  <section class="card">
+  <section class="card" id="overview">
     <h2>Overview</h2>
     <div class="grid-2">
       <div><label for="title">Title</label>
@@ -45,7 +56,7 @@
     <p class="hint">The posting URL is the page you copied the offer from, so you can find it again.</p>
   </section>
 
-  <section class="card">
+  <section class="card" id="content">
     <h2>Content</h2>
     <label for="responsibilities">Responsibilities</label>
     <textarea id="responsibilities" name="responsibilities" rows="5">{{ offer.responsibilities | join('\n') }}</textarea>
@@ -67,7 +78,7 @@
     <p class="hint">One <code>term: variant, variant</code> line per keyword. Variants come from the offer text.</p>
   </section>
 
-  <section class="card">
+  <section class="card" id="constraints">
     <h2>Constraints</h2>
     <div class="grid-2">
       <div><label for="constraints.work_authorization">Work authorization</label>
@@ -88,7 +99,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="company">
     <h2>Company</h2>
     <div class="grid-2">
       <div><label for="company.size">Size</label>
@@ -102,7 +113,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="form">
     <h2>Application form</h2>
     <input type="hidden" name="form_count" value="{{ form_count }}">
     {% for row in form_rows %}
