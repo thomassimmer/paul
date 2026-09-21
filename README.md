@@ -12,6 +12,11 @@ tracked on a single board.
 It runs on your machine. Your profile, offers and documents never leave it — except
 the text you send to the LLM provider you configure.
 
+![The board: one row per analyzed offer, with its score, verdict, status and follow-up](docs/img/home.png)
+
+*The board: every offer you analyzed, with its score, its verdict and where it
+stands.*
+
 ## Why
 
 Applying seriously means repeating the same loop dozens of times: read the offer,
@@ -35,6 +40,65 @@ nothing is ever sent for you.
 | **Tracker**           | Status, dates and notes for each application, with follow-up reminders.                                                                          |
 | **Settings**          | LLM provider, model and key, follow-up delay, output language, CV and letter templates.                                                          |
 
+## Screenshots
+
+Every screenshot below is taken from the [demo workspace](CONTRIBUTING.md#a-demo-workspace):
+a fictional profile (Camille Moreau), five made-up offers and one prepared
+application, all built by the app's own code.
+
+### The profile
+
+![The profile page: identity, facts, experience, education and preferences](docs/img/profile.png)
+
+*The single source every document is generated from. The facts an application asks
+for — notice period, salary expectation, work authorization — are answered by you,
+never generated.*
+
+![The interview: one question at a time, on its own card](docs/img/interview.png)
+
+*The interview asks one question at a time and writes each answer into the profile,
+so you can stop whenever you like and pick it up later.*
+
+### Analyze an offer
+
+![The "Analyze an offer" page: a field for the offer link, and a box for the HTML fragment or plain text](docs/img/offer_analysis.png)
+
+*Paste the offer's link and its raw HTML fragment. The text is cleaned and the
+application form is read from the markup in the request; the model extraction runs in
+the background, so you can paste the next offer right away.*
+
+![An offer's page, as read back by the analyzer](docs/img/offer_page.png)
+
+*What came back: seniority, contract, remote policy and salary, then the
+responsibilities, the must-haves and the application form — with a gate to prepare the
+documents.*
+
+### Rank the offers
+
+![The "Ranking" dialog on the board: elimination rules, weighted wishes, calls in flight, and what to rank](docs/img/home_ranking_modale.png)
+
+*Your criteria, kept with your settings: the rules that eliminate, the wishes that
+weigh, and how many calls run at once. Change any of them and only the offers they
+touch are marked out of date.*
+
+![The ranking of one offer: 90/100, then the four weighted axes with their justification](docs/img/offer_ranking.png)
+
+*The verdict for one offer: a total computed in code from four weighted axes, each
+carrying the model's one-sentence justification. You can disagree with a single line;
+the checks below it report the ATS coverage and whether every claim is supported.*
+
+### Prepare the documents
+
+![The "Prepare the documents" dialog: the CV and letter checkboxes, and the application form](docs/img/offer_prepare_modale.png)
+
+*Tick what applying asks for, and answer the form — here pasted from the offer's page.
+Reopening the dialog later only writes what is missing.*
+
+![The review screen for the cover letter: the editable source, and the rendered letter beside it](docs/img/offer_cover_letter.png)
+
+*Every document is edited in place before export: one line per block in the editor, the
+rendered result next to it, and a Regenerate button that takes an optional instruction.*
+
 ## How it works
 
 ```mermaid
@@ -52,23 +116,7 @@ flowchart LR
     B -->|status, follow-ups| U((You))
 ```
 
-Typical session:
-
-1. **Once.** Import your CV, answer the interview — one question at a time, and you
-   can stop and come back whenever you like — then import your templates, write your
-   rules and your wishes.
-2. **Per offer.** Paste the HTML fragment. The offer is analyzed, filtered and
-   scored in seconds.
-3. **For the best matches.** Open the offer, click _Prepare documents_, tick what
-   applying actually asks for and paste the application form if the offer's page
-   did not carry it. Review the generated CV, letter and answers, fix what you
-   want, export, then apply on the company's site. Reopening the dialog later —
-   say new questions came up — only writes what is missing: the CV and the letter
-   that are already there are kept.
-4. **Afterwards.** Update the status in the table and get reminded when a follow-up
-   is due.
-
-Those steps, and the code behind each one, are written up under [`docs/`](docs/): the
+Each step, and the code behind it, is written up under [`docs/`](docs/): the
 [five flows](docs/flows.md) and the [data model](docs/data-model.md).
 
 ## Quick start
@@ -123,28 +171,6 @@ pyright               # types, read from the .venv named in pyproject.toml
   scraping behind a login.
 - **Plain files.** Profile in YAML, applications in folders of Markdown/DOCX. You
   can read, back up and version everything without the app.
-- **Small and readable.** One process, one database file, no front-end build step.
-
-## How this was built
-
-Paul was written in a small number of concentrated sessions, mostly by directing an
-AI coding agent (DeepSeek V4 Flash). It is worth saying plainly, because it changes how the code should
-be read.
-
-- **Directed, not generated on its own.** The architecture, the module boundaries,
-  the data model and the security stance (untrusted offer text, no auto-apply,
-  deterministic scoring) are deliberate choices, and each one is worth challenging in
-  an issue.
-- **Tests came with the code.** The suite is about as large as the application. That
-  is what makes an AI-assisted codebase reviewable: it pins the behaviour that
-  matters, and it is the first thing to run.
-- **Human reviewed.** Every generated document passes through an editing loop, and
-  the same goes for the code: the diff is read, the failing case is reproduced, and
-  the behaviour is checked against the principles above before it lands.
-
-The point is not the tooling. It is that "an agent helped write it" and "it is
-trustworthy" are not in tension, as long as someone can explain every decision in
-it — which is the bar this repository holds itself to.
 
 ## Data and privacy
 
@@ -163,18 +189,15 @@ it — which is the bar this repository holds itself to.
 
 ## Configuration
 
-| Setting               | Default                | Description                                                                                |
-| --------------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
-| `model`               | none                   | LiteLLM model string, e.g. `anthropic/claude-sonnet-4-5`, `openai/gpt-4o`, `ollama/llama3` |
-| `api_key`             | none                   | Provider key (not needed for local models)                                                 |
-| `api_base`            | none                   | Custom or local endpoint                                                                   |
-| `output_language`     | `auto`                 | `auto` follows the offer; or `en`, `fr`, ...                                               |
-| `followup_days`       | `7`                    | Days without news before a follow-up is suggested                                          |
-| `ranking_concurrency` | `4`                    | Model calls the ranker keeps in flight; `1` is the polite setting for a strict rate limit  |
-| `target_pages`        | `2` (CV), `1` (letter) | Used by the fit check                                                                      |
-| `filter_rules`        | none                   | Your elimination rules, in prose, edited from the ranking dialog                            |
-| `wishes`              | none                   | One `label` or `label: weight` per line, scored as the `wishes` axis                       |
-| `show_get_started`    | `true`                 | Show the "Get started" checklist on the board; also hidden once every step is done         |
+| Setting           | Default | Description                                                                                |
+| ----------------- | ------- | ------------------------------------------------------------------------------------------ |
+| `model`           | none    | LiteLLM model string, e.g. `anthropic/claude-sonnet-4-5`, `openai/gpt-4o`, `ollama/llama3` |
+| `api_key`         | none    | Provider key (not needed for local models)                                                 |
+| `api_base`        | none    | Custom or local endpoint                                                                   |
+| `output_language` | `auto`  | `auto` follows the offer; or `en`, `fr`, ...                                               |
+| `followup_days`   | `7`     | Days without news before a follow-up is suggested                                          |
+| `filter_rules`    | none    | Your elimination rules, in prose, edited from the ranking dialog                            |
+| `wishes`          | none    | One `label` or `label: weight` per line, scored as the `wishes` axis                       |
 
 ### Prompts
 
@@ -212,54 +235,11 @@ Next:
 - **No hosted version or accounts.** Local tool only.
 - **No guarantee on ATS behavior.** The score is a keyword indicator.
 
-## The name
-
-The name is a French pun. _Paul_ sounds like _Pôle_, so **Paul Emploi** is a
-near-homophone of **Pôle Emploi**, the French public employment agency (now _France
-Travail_).
-
 ## Contributing
 
-Issues and pull requests are welcome. Please keep the code small and readable, add a
-test for new behavior, leave `pytest`, `ruff check` and `pyright` green, and never
-include real personal data in examples or bug reports (use the fictional profile in
-`app/examples/`).
-
-### A demo workspace
-
-A throwaway workspace for trying things out, taking screenshots or recording a
-demo. Both scripts refuse to touch a directory they did not create:
-
-```bash
-python scripts/seed_demo.py --data-dir ./demo-data --model deepseek/deepseek-flash
-python scripts/anonymize_template.py --data-dir ./demo-data --report
-```
-
-`seed_demo.py` fills the directory with the fictional profile, five made-up offers,
-their verdicts and one prepared application folder. It goes through the app's own
-stores, so the scores, the rendered DOCX and the keyword coverage come from the real
-code; only the two model steps — analyzing an offer, writing the documents — are
-fixtures. Pass the model you will actually use: a stored score carries a fingerprint
-of its inputs, the model included, and typing a different one later would flag every
-offer as out of date.
-
-`anonymize_template.py` rewrites an imported `.docx` template with the fictional
-text while keeping its layout, so a demo can show a real template without showing a
-real CV. `--report` prints what would change and writes nothing.
-
-Then run the app on it, on another port so your own workspace can stay open. The
-image is the one built in [Quick start](#quick-start):
-
-```bash
-docker run --rm -p 127.0.0.1:8001:8000 -v "$PWD/demo-data:/app/data" -e PAUL_DATA_DIR=/app/data paul
-
-# or from the source tree, with LibreOffice installed for the PDF preview
-PAUL_DATA_DIR=./demo-data uvicorn app.main:app --port 8001
-```
-
-It serves on <http://localhost:8001>. The profile there is Camille Moreau: if you
-see your own name, or your own offers on the board, you are looking at your real
-workspace rather than at the demo.
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
+guidelines, how the project was built, and the demo workspace the screenshots above
+come from.
 
 ## License
 
