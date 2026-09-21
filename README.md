@@ -160,15 +160,18 @@ it — which is the bar this repository holds itself to.
 
 ## Configuration
 
-| Setting           | Default                | Description                                                                                |
-| ----------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
-| `model`           | none                   | LiteLLM model string, e.g. `anthropic/claude-sonnet-4-5`, `openai/gpt-4o`, `ollama/llama3` |
-| `api_key`         | none                   | Provider key (not needed for local models)                                                 |
-| `api_base`        | none                   | Custom or local endpoint                                                                   |
-| `output_language` | `auto`                 | `auto` follows the offer; or `en`, `fr`, ...                                               |
-| `followup_days`   | `7`                    | Days without news before a follow-up is suggested                                          |
-| `target_pages`    | `2` (CV), `1` (letter) | Used by the fit check                                                                      |
-| `show_get_started` | `true`                | Show the "Get started" checklist on the board; also hidden once every step is done         |
+| Setting               | Default                | Description                                                                                |
+| --------------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
+| `model`               | none                   | LiteLLM model string, e.g. `anthropic/claude-sonnet-4-5`, `openai/gpt-4o`, `ollama/llama3` |
+| `api_key`             | none                   | Provider key (not needed for local models)                                                 |
+| `api_base`            | none                   | Custom or local endpoint                                                                   |
+| `output_language`     | `auto`                 | `auto` follows the offer; or `en`, `fr`, ...                                               |
+| `followup_days`       | `7`                    | Days without news before a follow-up is suggested                                          |
+| `ranking_concurrency` | `4`                    | Model calls the ranker keeps in flight; `1` is the polite setting for a strict rate limit  |
+| `target_pages`        | `2` (CV), `1` (letter) | Used by the fit check                                                                      |
+| `filter_rules`        | none                   | Your elimination rules, in prose, edited from the ranking dialog                            |
+| `wishes`              | none                   | One `label` or `label: weight` per line, scored as the `wishes` axis                       |
+| `show_get_started`    | `true`                 | Show the "Get started" checklist on the board; also hidden once every step is done         |
 
 ### Prompts
 
