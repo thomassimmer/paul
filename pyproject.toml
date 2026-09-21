@@ -11,6 +11,26 @@ requires-python = ">=3.12"
 license = "MIT"
 # Shipped inside the wheel, so the licence travels with the code.
 license-files = ["LICENSE"]
+keywords = [
+    "job-search",
+    "resume",
+    "cover-letter",
+    "applicant-tracking",
+    "llm",
+    "self-hosted",
+    "local-first",
+]
+# ``License ::`` is deliberately absent: it is not compatible with the SPDX
+# expression above, and setuptools refuses the pair.
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+]
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
@@ -27,6 +47,11 @@ dependencies = [
     # Mistral, Ollama, ...). Loaded lazily, only when a call is made.
     "litellm>=1.55",
 ]
+
+[project.urls]
+Homepage = "https://github.com/thomassimmer/paul"
+Repository = "https://github.com/thomassimmer/paul"
+Issues = "https://github.com/thomassimmer/paul/issues"
 
 [project.optional-dependencies]
 dev = [
