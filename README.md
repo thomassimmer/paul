@@ -150,6 +150,7 @@ it — which is the bar this repository holds itself to.
 | `output_language` | `auto`                 | `auto` follows the offer; or `en`, `fr`, ...                                               |
 | `followup_days`   | `7`                    | Days without news before a follow-up is suggested                                          |
 | `target_pages`    | `2` (CV), `1` (letter) | Used by the fit check                                                                      |
+| `show_get_started` | `true`                | Show the "Get started" checklist on the board; also hidden once every step is done         |
 
 **Stack:** Python 3.12, FastAPI, Jinja2 + HTMX, SQLite, Pydantic, LiteLLM,
 BeautifulSoup, `python-docx`, `pypdf`, Docker Compose.

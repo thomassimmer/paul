@@ -47,6 +47,10 @@ class Settings(BaseModel):
     target_pages: TargetPages = Field(default_factory=TargetPages)
     filter_rules: str = ""
     wishes: list[Wish] = Field(default_factory=list)
+    # Whether the board shows the "Get started" checklist. Dismissing it sets this
+    # to false; it also disappears on its own once every step is done, so the flag
+    # only decides the in-progress case. Editable from the Settings page.
+    show_get_started: bool = True
 
 
 def load_settings() -> Settings:

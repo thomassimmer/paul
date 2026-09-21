@@ -6,6 +6,7 @@
 {{ quick_nav('Sections of this page', [
   {'anchor': 'provider', 'label': 'LLM provider'},
   {'anchor': 'output', 'label': 'Output'},
+  {'anchor': 'interface', 'label': 'Interface'},
   {'anchor': 'criteria', 'label': 'Filtering and ranking'},
   {'anchor': 'templates', 'label': 'Templates'},
 ]) }}
@@ -90,6 +91,16 @@
         <input id="target_pages_letter" name="target_pages_letter" type="number" min="1" step="1" value="{{ settings.target_pages.letter }}">
       </div>
     </div>
+  </section>
+
+  <section class="card" id="interface">
+    <h2>Interface</h2>
+
+    <label class="check">
+      <input type="checkbox" name="show_get_started" value="1" {% if settings.show_get_started %}checked{% endif %}>
+      Show the “Get started” checklist on the Offers page
+    </label>
+    <p class="hint">It hides itself once every step is done, so this only matters while you are setting up.</p>
   </section>
 
   <section class="card" id="criteria">

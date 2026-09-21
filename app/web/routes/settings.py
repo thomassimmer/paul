@@ -75,6 +75,8 @@ def _form_to_settings(form: Mapping[str, object], current: Settings) -> tuple[Se
         target_pages=TargetPages(**page_targets),
         filter_rules=str(form.get("filter_rules") or "").strip(),
         wishes=parse_wishes(str(form.get("wishes") or "")),
+        # An unticked checkbox sends nothing, which is exactly "do not show it".
+        show_get_started=bool(form.get("show_get_started")),
     )
     return settings, errors
 

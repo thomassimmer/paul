@@ -7,7 +7,7 @@ tested together here.
 
 from __future__ import annotations
 
-from app.config import Settings, Wish, save_settings
+from app.config import Settings, Wish, load_settings, save_settings
 from app.models import (
     Application,
     Elimination,
@@ -332,7 +332,7 @@ def test_the_checklist_is_open_on_a_fresh_install(client):
     assert 'id="get-started" open' in client.get("/").text
 
 
-def test_the_checklist_folds_away_once_everything_is_done(client):
+def test_the_checklist_disappears_once_everything_is_done(client):
     _configure()
     _seed_profile()
     offer_id = _seed_offer()
@@ -342,8 +342,29 @@ def test_the_checklist_folds_away_once_everything_is_done(client):
     tracker_store.set_status(offer_id, "applied", today=tracker_service.today_utc())
 
     page = client.get("/").text
-    assert 'id="get-started" open' not in page
-    assert "everything is set up" in page
+    # A finished checklist leaves nothing behind — no card, no dead anchor.
+    assert 'id="get-started"' not in page
+    assert 'href="#get-started"' not in page
+
+
+def test_the_checklist_can_be_hidden_before_it_is_finished(client):
+    response = client.post("/get-started/dismiss", follow_redirects=False)
+    assert response.status_code == 303
+    assert load_settings().show_get_started is False
+
+    page = client.get("/").text
+    assert 'id="get-started"' not in page
+    assert 'href="#get-started"' not in page
+
+
+def test_settings_brings_the_checklist_back(client):
+    client.post("/get-started/dismiss")
+    assert 'id="get-started"' not in client.get("/").text
+
+    # The Settings form posts every field, so a ticked box is enough to restore it.
+    client.post("/settings", data={"show_get_started": "1"})
+
+    assert 'id="get-started" open' in client.get("/").text
 
 
 # --- the quick navigation -----------------------------------------------------

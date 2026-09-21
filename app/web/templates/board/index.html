@@ -3,10 +3,11 @@
 {% block title %}Offers{% endblock %}
 
 {% block quick_nav %}
-{{ quick_nav('Sections of this page', [
-  {'anchor': 'get-started', 'label': 'Get started'},
-  {'anchor': 'offers', 'label': 'Offers'},
-]) }}
+{# The checklist's entry goes with the checklist: a hidden card would leave a dead
+   anchor behind. #}
+{{ quick_nav('Sections of this page',
+  ([{'anchor': 'get-started', 'label': 'Get started'}] if get_started.visible else [])
+  + [{'anchor': 'offers', 'label': 'Offers'}]) }}
 {% endblock %}
 
 {% block content %}

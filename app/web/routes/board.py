@@ -16,7 +16,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from app.config import format_wishes, load_settings
+from app.config import format_wishes, load_settings, save_settings
 from app.models import Profile
 from app.offers import store as offers_store
 from app.profiler import service as profiler_service
@@ -27,7 +27,7 @@ from app.ranking import store as ranking_store
 from app.tracker import service as tracker_service
 from app.tracker import store as tracker_store
 from app.web import board
-from app.web.templating import render
+from app.web.templating import local_url, redirect, render
 from app.writer import jobs as writer_jobs
 
 router = APIRouter()
@@ -67,6 +67,14 @@ def context(sort: str, direction: str, status: str) -> dict:
     configured = bool(settings.model.strip())
     ranked = len(rankings)
     prepared = sum(1 for application in applications.values() if application.folder)
+    done = bool(
+        configured
+        and profile is not None
+        and offers
+        and ranked
+        and prepared
+        and counts["applied"]
+    )
     return {
         "settings": settings,
         "has_profile": profile is not None,
@@ -79,14 +87,11 @@ def context(sort: str, direction: str, status: str) -> dict:
             "ranked": ranked,
             "prepared": prepared,
             "applied": counts["applied"],
-            "done": bool(
-                configured
-                and profile is not None
-                and offers
-                and ranked
-                and prepared
-                and counts["applied"]
-            ),
+            "done": done,
+            # The card is shown while setup is unfinished, unless the reader has
+            # dismissed it. Done always wins: a completed checklist leaves nothing
+            # behind, which is the whole point of not keeping it as furniture.
+            "visible": settings.show_get_started and not done,
         },
         # The table, its filter and its order.
         "rows": board.sort_rows(filtered, sort, direction),
@@ -133,6 +138,19 @@ async def board_page(
 ):
     return render(
         request, "board/index.html", active="offers", busy=_busy(), **context(sort, dir, status)
+    )
+
+
+@router.post("/get-started/dismiss")
+async def get_started_dismiss(request: Request):
+    """Hide the onboarding checklist. Settings is the way back."""
+    form = await request.form()
+    settings = load_settings()
+    settings.show_get_started = False
+    save_settings(settings)
+    return redirect(
+        local_url(form.get("next"), "/"),
+        message="Checklist hidden. Show it again from Settings.",
     )
 
 
