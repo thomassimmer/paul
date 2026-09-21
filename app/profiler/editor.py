@@ -15,27 +15,6 @@ from app.profiler.ids import assign_ids
 from app.profiler.text import split_lines, split_list
 
 
-def parse_skills(text: str) -> dict[str, list[str]]:
-    """Parse the skills textarea: one ``Group: item, item`` line per family."""
-    groups: dict[str, list[str]] = {}
-    for line in (text or "").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        name, separator, rest = line.partition(":")
-        group = name.strip() if separator else "Other"
-        items = split_list(rest if separator else line)
-        if items:
-            groups.setdefault(group or "Other", []).extend(items)
-    return groups
-
-
-def format_skills(skills: Mapping[str, list[str]]) -> str:
-    return "\n".join(
-        f"{name}: {', '.join(items)}" for name, items in skills.items() if items
-    )
-
-
 def _text(form: Mapping[str, object], key: str, default: str = "") -> str:
     value = form.get(key)
     return default if value is None else str(value).strip()
@@ -66,7 +45,6 @@ def editor_view(profile: Profile) -> dict:
         "experience_count": len(profile.experiences) + 1,
         "education_rows": rows(profile.education, Education),
         "project_rows": rows(profile.projects, Project),
-        "skills_text": format_skills(profile.skills),
     }
 
 
@@ -107,7 +85,6 @@ def profile_from_form(form: Mapping[str, object], current: Profile | None = None
     preferences.remote = _text(form, "preferences.remote")
     profile.preferences = preferences
 
-    profile.skills = parse_skills(_text(form, "skills"))
     profile.experiences = _experiences_from_form(form)
     profile.education = _education_from_form(form)
     profile.projects = _projects_from_form(form)

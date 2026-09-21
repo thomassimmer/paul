@@ -165,7 +165,6 @@ class Profile(BaseModel):
     experiences: list[Experience] = Field(default_factory=list)
     education: list[Education] = Field(default_factory=list)
     projects: list[Project] = Field(default_factory=list)
-    skills: dict[str, list[str]] = Field(default_factory=dict)
     preferences: Preferences = Field(default_factory=Preferences)
 
 
@@ -180,7 +179,6 @@ class ProfileDraft(BaseModel):
     experiences: list[Experience] = Field(default_factory=list)
     education: list[Education] = Field(default_factory=list)
     projects: list[Project] = Field(default_factory=list)
-    skills: dict[str, list[str]] = Field(default_factory=dict)
 
     def to_profile(self) -> Profile:
         return Profile(**self.model_dump())

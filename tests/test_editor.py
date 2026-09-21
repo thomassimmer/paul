@@ -4,19 +4,6 @@ from app.models import Experience, Facts, Profile
 from app.profiler import editor
 
 
-def test_parse_and_format_skills_round_trip():
-    text = "Languages: Rust, Python\nTools: Kafka, Docker"
-    assert editor.parse_skills(text) == {
-        "Languages": ["Rust", "Python"],
-        "Tools": ["Kafka", "Docker"],
-    }
-    assert editor.format_skills(editor.parse_skills(text)) == text
-
-
-def test_skills_without_a_group_go_to_other():
-    assert editor.parse_skills("Rust, Python") == {"Other": ["Rust", "Python"]}
-
-
 def test_editor_view_ends_every_list_with_a_blank_row():
     profile = Profile(
         experiences=[
@@ -42,7 +29,6 @@ def _base_form(**overrides: str) -> dict[str, str]:
         "identity.name": "Camille Moreau",
         "identity.links": "https://example.com, https://github.com/x",
         "facts.languages": "French, English",
-        "skills": "Languages: Rust",
         "exp_count": "0",
         "edu_count": "0",
         "proj_count": "0",
@@ -51,12 +37,11 @@ def _base_form(**overrides: str) -> dict[str, str]:
     return form
 
 
-def test_profile_from_form_sets_scalars_lists_and_skills():
+def test_profile_from_form_sets_scalars_and_lists():
     profile = editor.profile_from_form(_base_form())
     assert profile.identity.name == "Camille Moreau"
     assert profile.identity.links == ["https://example.com", "https://github.com/x"]
     assert profile.facts.languages == ["French", "English"]
-    assert profile.skills == {"Languages": ["Rust"]}
 
 
 def test_profile_from_form_adds_an_experience_with_highlights():

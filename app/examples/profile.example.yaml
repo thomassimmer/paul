@@ -34,6 +34,7 @@ experiences:
       - Kafka
       - PostgreSQL
       - Kubernetes
+      - Docker
     highlights:
       - Cut end-to-end ingestion latency by 60% by batching writes and replacing a
         synchronous fan-out with a Kafka consumer group.
@@ -66,19 +67,6 @@ projects:
     skills:
       - Python
       - BeautifulSoup
-skills:
-  Languages:
-    - Rust
-    - Python
-    - SQL
-  Frameworks:
-    - Django
-    - FastAPI
-  Tools:
-    - Kafka
-    - Kubernetes
-    - PostgreSQL
-    - Docker
 preferences:
   target_roles:
     - Senior Backend Engineer

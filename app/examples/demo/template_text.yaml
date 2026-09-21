@@ -48,8 +48,8 @@ bullet:
   - Wrote the deployment pipeline shared by every backend service.
 
 skill_line:
-  - "Languages: Rust, Python, SQL"
-  - "Frameworks: Django, FastAPI"
+  - "Languages: Rust, Python"
+  - "Frameworks: Django"
   - "Tools: Kafka, Kubernetes, PostgreSQL, Docker"
   - "Data: streaming pipelines, parallel aggregation, pgvector"
   - "Spoken languages: French (native), English (C1)"

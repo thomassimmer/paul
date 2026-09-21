@@ -28,12 +28,12 @@ def _profile(*, facts: Facts | None = None) -> Profile:
     return Profile(
         identity=Identity(name="Camille Moreau", email="camille@example.com"),
         facts=facts if facts is not None else Facts(notice_period="One month"),
-        skills={"Languages": ["Rust"]},
         experiences=[
             Experience(
                 id="exp-acme-2022",
                 company="Acme",
                 title="Lead Backend Engineer",
+                stack=["Rust"],
                 highlights=["Cut ingestion latency by 60%"],
             )
         ],

@@ -17,7 +17,6 @@ Rules:
   is only a starting point: the writer rewrites the headline for every offer.
 - Put the technologies a job actually used into its "stack" list, using the names
   the CV uses.
-- Group "skills" by family ("Languages", "Frameworks", "Tools", ...).
 - Periods are free text copied from the CV, for example "2022-03 / 2024-06".
 - Leave "team_size" empty unless the CV states it: the interview asks the
   candidate for what a CV leaves out.

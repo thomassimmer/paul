@@ -9,13 +9,12 @@ from app.writer import grounding
 def _profile() -> Profile:
     return Profile(
         identity=Identity(name="Camille Moreau"),
-        skills={"Languages": ["Rust", "Python"]},
         experiences=[
             Experience(
                 id="exp-acme-2022",
                 company="Acme",
                 title="Lead Backend Engineer",
-                stack=["Kafka"],
+                stack=["Kafka", "Rust", "Python"],
                 highlights=["Cut ingestion latency by 60%"],
             )
         ],

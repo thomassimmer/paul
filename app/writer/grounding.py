@@ -17,9 +17,8 @@ entry title just like a job.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
 
-from app.ats import normalize
+from app.ats import normalize, profile_material
 from app.models import (
     FACTUAL_ROLES,
     NUMBER_CHECKED_ROLES,
@@ -29,9 +28,8 @@ from app.models import (
     Profile,
 )
 
-# Keys dropped from the material: the ids themselves. Otherwise the digits of
-# "exp-acme-2022-a1" would make almost every number look supported.
-_ID_KEY = "id"
+# A number a line states must already appear in the material, which the ids are
+# dropped from: the digits of "exp-acme-2022" support nothing on their own.
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 # A skill line is often written as the candidate's template writes it, with a
 # category in front of the values ("Languages: Rust, Python"). The category is a
@@ -40,7 +38,7 @@ _SKILL_SPLIT = re.compile(r"[;,]| — | – ")
 
 
 def check(lines: list[DraftLine], profile: Profile) -> GroundingReport:
-    material = _material(profile)
+    material = profile_material(profile)
     known_ids = _source_ids(profile)
     entries = _entries(profile)
     profile_name = normalize(profile.identity.name)
@@ -91,28 +89,6 @@ def check(lines: list[DraftLine], profile: Profile) -> GroundingReport:
 
 def _issue(index: int, line: DraftLine, reason: str) -> GroundingIssue:
     return GroundingIssue(index=index, role=line.role, text=line.text, reason=reason)
-
-
-def _material(profile: Profile) -> str:
-    return normalize(" \n ".join(_flatten(profile.model_dump(exclude_defaults=True))))
-
-
-def _flatten(value: object) -> Iterator[str]:
-    """Every string and number the profile states, minus the ids."""
-    if isinstance(value, bool) or value is None:
-        return
-    if isinstance(value, str):
-        yield value
-    elif isinstance(value, (int, float)):
-        yield str(value)
-    elif isinstance(value, dict):
-        for key, item in value.items():
-            if key == _ID_KEY:
-                continue
-            yield from _flatten(item)
-    elif isinstance(value, (list, tuple)):
-        for item in value:
-            yield from _flatten(item)
 
 
 def _source_ids(profile: Profile) -> set[str]:

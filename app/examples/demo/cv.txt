@@ -36,8 +36,8 @@ Specialisation in distributed systems.
 
 SKILLS
 
-Languages: Rust, Python, SQL
-Frameworks: Django, FastAPI
+Languages: Rust, Python
+Frameworks: Django
 Tools: Kafka, Kubernetes, PostgreSQL, Docker
 
 LANGUAGES

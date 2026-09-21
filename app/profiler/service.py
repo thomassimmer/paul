@@ -160,7 +160,6 @@ def summary(profile: Profile | None) -> dict[str, object]:
             "has_profile": False,
             "experiences": 0,
             "highlights": 0,
-            "skills": 0,
             "missing_facts": [],
         }
     missing = [
@@ -172,6 +171,5 @@ def summary(profile: Profile | None) -> dict[str, object]:
         "has_profile": True,
         "experiences": len(profile.experiences),
         "highlights": sum(len(e.highlights) for e in profile.experiences),
-        "skills": sum(len(items) for items in profile.skills.values()),
         "missing_facts": missing,
     }

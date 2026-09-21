@@ -14,7 +14,7 @@
   it. Ids are generated for new entries and kept for existing ones.
 </p>
 
-<form method="post" action="/profiler/edit">
+<form id="profile-form" method="post" action="/profiler/edit">
   <section class="card">
     <h2>Identity</h2>
     <div class="grid-2">
@@ -130,11 +130,7 @@
   </section>
 
   <section class="card">
-    <h2>Skills and preferences</h2>
-    <label for="skills">Skills</label>
-    <textarea id="skills" name="skills" rows="4" placeholder="Languages: Rust, Python&#10;Tools: Docker, Kafka">{{ skills_text }}</textarea>
-    <p class="hint">One <code>Group: item, item</code> line per family.</p>
-
+    <h2>Preferences</h2>
     <div class="grid-2">
       <div><label for="preferences.target_roles">Target roles</label>
         <input id="preferences.target_roles" name="preferences.target_roles" value="{{ profile.preferences.target_roles | join(', ') }}"></div>
@@ -150,10 +146,10 @@
         <input id="preferences.less_of" name="preferences.less_of" value="{{ profile.preferences.less_of | join(', ') }}"></div>
     </div>
   </section>
-
-  <div class="actions">
-    <button type="submit" class="primary">Save profile</button>
-    <a class="button" href="/profiler">Cancel</a>
-  </div>
 </form>
+
+<div class="actions sticky">
+  <button type="submit" form="profile-form" class="primary">Save profile</button>
+  <a class="button" href="/profiler">Cancel</a>
+</div>
 {% endblock %}

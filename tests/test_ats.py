@@ -84,10 +84,9 @@ def test_coverage_without_keywords_is_zero_and_does_not_raise():
 
 def test_coverage_marks_keywords_found_in_the_profile():
     profile = Profile(
-        skills={"Backend": ["Terraform"]},
         experiences=[
             Experience(
-                stack=["Kubernetes"],
+                stack=["Kubernetes", "Terraform"],
                 highlights=["A migré la plateforme vers Rust."],
             )
         ],

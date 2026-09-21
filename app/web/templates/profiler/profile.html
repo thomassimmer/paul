@@ -10,8 +10,8 @@
 ] %}
 {# Only the cards that are actually rendered get an entry: the other two are
    always there, so a link would go nowhere if they were listed blindly. #}
-{% if profile.education or profile.projects or profile.skills %}
-{% set sections = sections + [{'anchor': 'education', 'label': 'Education & skills'}] %}
+{% if profile.education or profile.projects %}
+{% set sections = sections + [{'anchor': 'education', 'label': 'Education & projects'}] %}
 {% endif %}
 {% if profile.preferences %}
 {% set sections = sections + [{'anchor': 'preferences', 'label': 'Preferences'}] %}
@@ -107,9 +107,9 @@
   {% endfor %}
 </div>
 
-{% if profile.education or profile.projects or profile.skills %}
+{% if profile.education or profile.projects %}
 <div class="card" id="education">
-  <h2>Education, projects and skills</h2>
+  <h2>Education and projects</h2>
 
   {% for education in profile.education %}
   <article class="entry">
@@ -126,15 +126,6 @@
     <p class="entry-meta">{{ project.links | join(', ') }} <code>{{ project.id }}</code></p>
   </article>
   {% endfor %}
-
-  {% if profile.skills %}
-  <dl class="kv">
-    {% for group, items in profile.skills.items() %}
-    <dt>{{ group }}</dt>
-    <dd>{{ items | join(', ') }}</dd>
-    {% endfor %}
-  </dl>
-  {% endif %}
 </div>
 {% endif %}
 

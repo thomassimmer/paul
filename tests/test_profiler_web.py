@@ -63,7 +63,6 @@ def _edit_form(**overrides: str) -> dict[str, str]:
         "preferences.contract_types": "",
         "preferences.more_of": "",
         "preferences.less_of": "",
-        "skills": "Languages: Rust, Python",
         "exp_count": "1",
         "exp.0.id": "",
         "exp.0.company": "Acme",
@@ -455,7 +454,11 @@ def test_dashboard_links_to_the_profiler(client):
 
 
 def test_the_profile_page_has_a_quick_navigation_over_its_sections(client):
-    _seed_profile(client)
+    client.post(
+        "/profiler/edit",
+        data=_edit_form(**{"edu.0.school": "INSA Lyon", "edu.0.degree": "MSc"}),
+        follow_redirects=False,
+    )
 
     page = client.get("/profiler").text
 
@@ -472,8 +475,8 @@ def test_the_quick_navigation_skips_a_card_that_is_not_rendered(client):
 
     assert 'href="#identity"' in page
     assert 'href="#preferences"' in page
-    # No education, project or skill: the card is not rendered, so neither is
-    # the link that would go nowhere.
+    # No education and no project: the card is not rendered, so neither is the
+    # link that would go nowhere.
     assert 'href="#education"' not in page
     assert 'id="education"' not in page
 

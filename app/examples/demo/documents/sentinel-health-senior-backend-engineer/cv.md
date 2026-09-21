@@ -16,8 +16,8 @@
 [entry_dates] 2019-09 – 2022-02
 [bullet] Designed the multi-tenant data model still in use today. {exp-northwind-2019}
 [section_title] TECHNICAL SKILLS
-[skill_line] Languages: Rust, Python, SQL
-[skill_line] Frameworks: Django, FastAPI
+[skill_line] Languages: Rust, Python
+[skill_line] Frameworks: Django
 [skill_line] Tools: Kafka, Kubernetes, PostgreSQL, Docker
 [section_title] EDUCATION
 [entry_title] INSA Lyon — MSc in Computer Science

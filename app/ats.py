@@ -17,6 +17,7 @@ import io
 import re
 import unicodedata
 import zipfile
+from collections.abc import Iterator
 from xml.etree import ElementTree
 
 from pydantic import BaseModel, Field
@@ -88,17 +89,39 @@ def keyword_present(cv_text: str, keyword: AtsKeyword) -> bool:
     return False
 
 
-def _profile_text(profile: Profile) -> str:
-    """Everything the profile states as a skill, a stack or a result.
+# The ids are dropped: their digits ("exp-acme-2022") would otherwise make almost
+# every number look supported, and an id is a label, not something the profile
+# claims.
+_ID_KEY = "id"
 
-    This is what tells the candidate which missing keywords they can honestly
-    add: if the profile mentions it, the CV should say it too.
+
+def _flatten(value: object) -> Iterator[str]:
+    """Every string and number the profile states, minus the ids."""
+    if isinstance(value, bool) or value is None:
+        return
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, (int, float)):
+        yield str(value)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            if key == _ID_KEY:
+                continue
+            yield from _flatten(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _flatten(item)
+
+
+def profile_material(profile: Profile) -> str:
+    """Everything the profile states, ids aside, as one normalized blob.
+
+    The ATS hint and the grounding check ask the same question — does the profile
+    mention this term? — so they read the same text, built here once. It covers
+    the whole profile rather than a hand-kept skills list: a technology is stated
+    by the job or the project that used it, not by a bare keyword.
     """
-    parts: list[str] = [skill for skills in profile.skills.values() for skill in skills]
-    for experience in profile.experiences:
-        parts.extend(experience.stack)
-        parts.extend(experience.highlights)
-    return "\n".join(parts)
+    return normalize(" \n ".join(_flatten(profile.model_dump(exclude_defaults=True))))
 
 
 def _hint(present: bool, in_profile: bool) -> str:
@@ -115,7 +138,7 @@ def coverage(
     ``coverage_percent`` stays 0 when there is no keyword: an offer we could not
     read a single term from must not look like a perfect match.
     """
-    profile_text = _profile_text(profile) if profile is not None else ""
+    profile_text = profile_material(profile) if profile is not None else ""
     checked: list[AtsKeyword] = []
     for keyword in keywords:
         present = keyword_present(cv_text, keyword)
