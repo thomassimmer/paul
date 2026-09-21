@@ -253,4 +253,8 @@ workspace rather than at the demo.
 
 ## License
 
-MIT.
+MIT. See [LICENSE](LICENSE).
+
+The one third-party file that ships with the app, the vendored htmx build, keeps
+its own licence: Zero-Clause BSD, reproduced in
+[`app/web/static/THIRD_PARTY.md`](app/web/static/THIRD_PARTY.md).
