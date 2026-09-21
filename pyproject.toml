@@ -40,7 +40,7 @@ dependencies = [
     "pyyaml>=6.0",
     # CV import.
     "pypdf>=5.1",
-    "python-docx>=1.1",
+    "python-docx>=1.2.0",
     # Offer HTML cleaning.
     "beautifulsoup4>=4.15.0",
     # LiteLLM is the single entry point to every provider (OpenAI, Anthropic,
