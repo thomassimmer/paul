@@ -197,6 +197,7 @@ def test_a_missing_offer_is_reported(client):
 
 def test_prepare_starts_a_background_job(client, monkeypatch):
     offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
 
     response = client.post(f"/applications/{offer_id}/prepare", follow_redirects=False)
 
@@ -695,6 +696,7 @@ def test_the_editors_have_the_ids_the_insert_needs(client, monkeypatch):
 
 def test_starting_a_preparation_with_htmx_swaps_the_job_panel(client, monkeypatch):
     offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
 
     response = client.post(
         f"/applications/{offer_id}/prepare",
