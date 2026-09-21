@@ -17,7 +17,12 @@ from app.config import Settings
 from app.llm import LLMError
 from app.models import Offer, OfferRecord, Profile, RankingRecord, effective_eliminated
 from app.prompt_context import profile_text
+from app.prompts import digest as prompts_digest
 from app.ranking import eliminate, score, store
+
+# The prompts whose wording shapes a verdict. Their text is part of the
+# fingerprint, so editing one marks stored scores out of date.
+RANKING_PROMPTS = ("ranking/eliminate.md", "ranking/score.md")
 
 
 class RankingError(RuntimeError):
@@ -49,15 +54,16 @@ class RankOutcome:
 def fingerprint(settings: Settings, profile: Profile, offer: Offer) -> str:
     """A hash of everything that produced the verdict for one offer.
 
-    Change a rule, a wish, the profile or the offer itself and a stored score
-    stops matching. That is how an outdated ranking is spotted without asking
-    the model anything.
+    Change a rule, a wish, the profile, the offer itself or a ranking prompt and
+    a stored score stops matching. That is how an outdated ranking is spotted
+    without asking the model anything.
     """
     payload = json.dumps(
         {
             "model": settings.model.strip(),
             "rules": settings.filter_rules.strip(),
             "wishes": [[wish.label, wish.weight] for wish in settings.wishes],
+            "prompts": prompts_digest(RANKING_PROMPTS),
             "profile": profile_text(profile),
             "offer": offer.model_dump(mode="json", exclude_defaults=True),
         },

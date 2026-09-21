@@ -9,6 +9,7 @@
   {'anchor': 'interface', 'label': 'Interface'},
   {'anchor': 'criteria', 'label': 'Filtering and ranking'},
   {'anchor': 'templates', 'label': 'Templates'},
+  {'anchor': 'prompts', 'label': 'Prompts'},
 ]) }}
 {% endblock %}
 
@@ -120,6 +121,8 @@
 </form>
 
 {% include "partials/templates.html" %}
+
+{% include "partials/prompts.html" %}
 
 <div class="actions sticky">
   <button type="submit" form="settings-form" class="primary">Save settings</button>

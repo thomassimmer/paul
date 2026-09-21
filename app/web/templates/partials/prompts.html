@@ -1,0 +1,40 @@
+{# The prompts, as a settings section. Deliberately outside the settings form:
+   each prompt carries its own small form. Every prompt can be edited here or
+   overridden by a file under data/prompts/; the built-in default is used until
+   then. #}
+<section id="prompts">
+  <h2>Prompts</h2>
+  <p class="lede">
+    Every prompt is a Markdown file. Edit one below and it is stored under
+    <code>data/prompts/</code>; delete that file — or use “Use the default” — to
+    go back to the built-in one. The JSON schema of each answer is added by the
+    code, so a prompt stays free of braces and placeholders.
+  </p>
+  <p class="banner banner-warning" role="status">
+    Some prompts name roles and fields the code checks the answer against
+    (<code>source_ids</code>, role names, exact citations). Removing one can drop
+    generated content without an error — keep those names as they are.
+  </p>
+
+  {% for prompt in prompts %}
+  <div class="card">
+    <div class="page-head">
+      <h2>{{ prompt.label }}</h2>
+      <span class="tag{% if prompt.overridden %} tag-warn{% endif %}">{{ 'customized' if prompt.overridden else 'default' }}</span>
+    </div>
+    <form method="post" action="/settings/prompts">
+      <input type="hidden" name="name" value="{{ prompt.name }}">
+      <textarea id="prompt-{{ loop.index }}" name="text" rows="12"
+                aria-label="{{ prompt.label }}" spellcheck="false">{{ prompt.text }}</textarea>
+      <p class="hint"><code>{{ prompt.name }}</code></p>
+      <div class="actions">
+        <button type="submit" class="primary">Save prompt</button>
+        {% if prompt.overridden %}
+        <button type="submit" name="action" value="reset"
+                onclick="return confirm('Use the built-in prompt again?');">Use the default</button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+  {% endfor %}
+</section>

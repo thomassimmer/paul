@@ -166,6 +166,17 @@ it — which is the bar this repository holds itself to.
 | `target_pages`    | `2` (CV), `1` (letter) | Used by the fit check                                                                      |
 | `show_get_started` | `true`                | Show the "Get started" checklist on the board; also hidden once every step is done         |
 
+### Prompts
+
+Every prompt is a Markdown file under `app/prompts/`, and every one can be
+edited: from the settings page, or by dropping a file of the same name (for
+example `ranking/score.md`) under `data/prompts/`. Delete that file — or use
+“Use the default” — to go back to the built-in one. Some prompts name roles and
+fields the code checks the answer against, so a careless edit can silently drop
+generated content; the settings page warns about this. Editing a
+ranking prompt marks the stored scores out of date, exactly like changing a rule
+or a model does.
+
 **Stack:** Python 3.12, FastAPI, Jinja2 + HTMX, SQLite, Pydantic, LiteLLM,
 BeautifulSoup, `python-docx`, `pypdf`, Docker Compose.
 

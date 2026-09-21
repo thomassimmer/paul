@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app import background
+from app import background, prompts
 from app.config import (
     LANGUAGES,
     Settings,
@@ -19,7 +19,7 @@ from app.config import (
 )
 from app.llm import test_connection
 from app.templates_engine import view as templates_view
-from app.web.templating import render
+from app.web.templating import redirect, render
 
 router = APIRouter()
 
@@ -101,6 +101,7 @@ def _render_settings(
         wishes_text=format_wishes(settings.wishes),
         has_api_key=bool(settings.api_key),
         templates=templates_view.kinds(),
+        prompts=prompts.overview(),
         template_run=background.live(TEMPLATE_IMPORT),
         template_poll_url="/templates/import/status",
         errors=errors or [],
@@ -124,6 +125,25 @@ async def settings_save(request: Request):
         return _render_settings(request, settings, errors=errors)
     save_settings(settings)
     return RedirectResponse("/settings?saved=1", status_code=303)
+
+
+# Landing back where the prompts are shown: they are a settings section.
+PROMPTS_ANCHOR = "/settings#prompts"
+
+
+@router.post("/settings/prompts")
+async def prompt_save(request: Request):
+    """Save or reset one prompt. The name is whitelisted by ``app.prompts``."""
+    form = await request.form()
+    name = str(form.get("name") or "")
+    try:
+        if form.get("action") == "reset":
+            prompts.reset(name)
+            return redirect(PROMPTS_ANCHOR, message=f"“{name}” is back to its default.")
+        prompts.save_override(name, str(form.get("text") or ""))
+    except prompts.PromptError as exc:
+        return redirect(PROMPTS_ANCHOR, message=str(exc), level="error")
+    return redirect(PROMPTS_ANCHOR, message=f"“{name}” saved.")
 
 
 @router.post("/settings/test", response_class=HTMLResponse)
