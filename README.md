@@ -68,6 +68,9 @@ Typical session:
 4. **Afterwards.** Update the status in the table and get reminded when a follow-up
    is due.
 
+Those steps, and the code behind each one, are written up under [`docs/`](docs/): the
+[five flows](docs/flows.md) and the [data model](docs/data-model.md).
+
 ## Quick start
 
 Requirements: Docker with Compose.
