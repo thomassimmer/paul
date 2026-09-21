@@ -21,6 +21,7 @@ from app.templates_engine import router as templates_router
 from app.tracker import router as tracker_router
 from app.web import WEB_DIR
 from app.web.routes import board, settings
+from app.web.security import OriginGuard
 from app.writer import router as writer_router
 
 ROUTERS = (
@@ -43,6 +44,10 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Paul — apply more, apply better", lifespan=lifespan)
+# The UI has no authentication: what keeps it safe is the loopback bind, and this
+# is the part of that promise the socket cannot keep on its own. Added first, so it
+# runs before anything else and refuses a request no route has a chance to answer.
+app.add_middleware(OriginGuard)
 app.mount("/static", StaticFiles(directory=WEB_DIR / "static"), name="static")
 
 for router in ROUTERS:

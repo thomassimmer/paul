@@ -150,7 +150,11 @@ it — which is the bar this repository holds itself to.
 - What is sent to the LLM provider: profile excerpts, offer content and your rules.
   Use a local model (Ollama) if that is a concern.
 - The web UI has no authentication because it is bound to `127.0.0.1`. Do not expose
-  the port to a network.
+  the port to a network. The part of that promise the bind address cannot keep on
+  its own is enforced in code: a request arriving under another name (DNS rebinding),
+  or that a browser reports as coming from another site, is refused before any route
+  sees it. Behind a reverse proxy, name the host in `PAUL_ALLOWED_HOSTS`
+  (comma-separated, default `127.0.0.1,localhost,::1`).
 - Pasted HTML is parsed as data and never executed, and prompts treat it as
   untrusted text.
 

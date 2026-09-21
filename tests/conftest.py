@@ -47,5 +47,7 @@ def client():
 
     from app.main import app
 
-    with TestClient(app) as test_client:
+    # Loopback, like a real browser: the app refuses to answer under any other name
+    # (``app/web/security.py``), and the default ``testserver`` is not one of them.
+    with TestClient(app, base_url="http://127.0.0.1") as test_client:
         yield test_client

@@ -17,6 +17,16 @@ from pydantic import BaseModel, Field
 DATA_DIR = Path(os.environ.get("PAUL_DATA_DIR", "data"))
 SETTINGS_PATH = DATA_DIR / "settings.json"
 
+# The names the web UI answers to. It is meant to be reached on loopback only (see
+# docker-compose.yml), so anything else is either a DNS-rebinding attempt or a
+# reverse proxy the operator has to declare. Lower-case, without the port; the
+# middleware in ``app/web/security.py`` is what reads it.
+ALLOWED_HOSTS = frozenset(
+    name.strip().lower()
+    for name in os.environ.get("PAUL_ALLOWED_HOSTS", "127.0.0.1, localhost, ::1").split(",")
+    if name.strip()
+)
+
 # "auto" follows the language of the offer; the rest force an output language.
 LANGUAGES = ["auto", "en", "fr", "de", "es", "it", "nl", "pt"]
 
