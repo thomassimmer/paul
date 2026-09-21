@@ -45,7 +45,7 @@ dependencies = [
     "beautifulsoup4>=4.12",
     # LiteLLM is the single entry point to every provider (OpenAI, Anthropic,
     # Mistral, Ollama, ...). Loaded lazily, only when a call is made.
-    "litellm>=1.55",
+    "litellm>=1.101.0",
 ]
 
 [project.urls]
