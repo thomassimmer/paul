@@ -1,0 +1,64 @@
+name: Feature request
+description: A change to what Paul does, or to a decision it made.
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The README's **Principles** and **Non-goals** are the design decisions this
+        project holds itself to. A request that challenges one of them is welcome —
+        the reasoning is worth arguing in an issue, which is what they say — but say
+        so, so the discussion starts at the right level.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and where Paul gets in the way. Describe the situation, not the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today
+      description: The workaround, however ugly. It says how much the feature is worth.
+    validations:
+      required: false
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+      description: Optional. How you would see it work in the UI or in the data.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part
+      options:
+        - Profiler (CV import, interview, profile)
+        - Offer analysis
+        - Filter and ranker
+        - Writer (documents, form answers, ATS)
+        - Templates
+        - Board and tracker
+        - Settings, prompts
+        - Something else
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Which principle does this touch, if any
+      description: Leave them all unticked if it changes none of them.
+      options:
+        - label: Local first — it would need to send data somewhere new.
+        - label: No invented facts — it would let a document say something the profile does not.
+        - label: Explainable scores — it would make a verdict harder to justify line by line.
+        - label: Human in the loop — it would act without review.
+        - label: Plain files — it would store something unreadable without the app.

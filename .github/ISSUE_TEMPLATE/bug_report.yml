@@ -1,0 +1,91 @@
+name: Bug report
+description: Something Paul did, or failed to do, that it should not have.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Two things before you start:
+
+        **Never paste real personal data.** No real CV, no real offer, no API key.
+        The fictional profile in `app/examples/` reproduces most problems.
+
+        **If this is a security issue**, do not open an issue: see
+        [SECURITY.md](../blob/main/SECURITY.md) for the private channel.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, verbatim where you can, including any error message.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      description: The page you were on, what you clicked, what you pasted.
+      placeholder: |
+        1. Open the board with two offers analyzed
+        2. Tick both, then Run ranking
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How are you running Paul
+      options:
+        - Docker Compose
+        - From the source tree (uvicorn)
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: The LiteLLM model string from Settings, e.g. `anthropic/claude-sonnet-4-5`. Say "none" if the bug needs no model.
+      placeholder: ollama/llama3
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      description: The output of `git rev-parse --short HEAD`, or the release tag.
+    validations:
+      required: false
+
+  - type: textarea
+    id: gates
+    attributes:
+      label: The gates, if you modified the code
+      description: |
+        `pytest`, `ruff check`, `pyright` — paste what they said, and which of them
+        is red. Leave this empty if you are only running the app.
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have removed every real name, CV, offer and API key from what I pasted above.
+          required: true
+        - label: I have searched the open issues for the same problem.
+          required: true

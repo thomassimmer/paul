@@ -1,0 +1,32 @@
+# Dependency updates.
+#
+# Weekly, in one place for all four sources. The point is to see what moved, not to
+# merge everything: a bumped LiteLLM or python-docx can change what a document looks
+# like, so the suite is what decides, and a red one is a useful answer.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # The two gates: a ruff or pyright release changes the build on its own, and
+      # one PR says so more clearly than three.
+      dev-tooling:
+        patterns:
+          - pytest*
+          - ruff
+          - pyright
+          - httpx2
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # The Dockerfile pins python:3.12-slim and installs LibreOffice from apt.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

@@ -1,0 +1,8 @@
+# Opened for anything that does not fit the two forms: a usage question, a typo in
+# the README, a discussion.
+blank_issues_enabled: true
+
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/thomassimmer/paul/security/advisories/new
+    about: Privately, and not in an issue. See SECURITY.md for what is in scope.
