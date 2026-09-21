@@ -28,13 +28,8 @@ flowchart TD
     F --> G["forget_questions: the interview starts over"]
 ```
 
-The I/O half of an import happens in the HTTP request — reading the upload,
-extracting the text, tidying it — because those failures are cheap and the page can
-answer them at once. Only the model call and the save run in the background
-(`app/background.py`), with the page polling a small state.
-
 `ProfileDraft` deliberately has no `facts` and no `preferences`. Those are answers
-only you can give, and the *type* makes it impossible for an import to invent a
+only you can give, and the _type_ makes it impossible for an import to invent a
 notice period. A re-import copies the existing ones back over the fresh draft.
 
 The interview is where the profile grows:
@@ -64,7 +59,7 @@ Three things about that loop are worth noticing, because they explain the shape 
 - **Nothing about the next question is stored.** It is computed from the profile as
   it stands, every time. That is what lets you stop and come back days later: the
   interview resumes from the profile, not from a saved cursor. The only thing
-  persisted is what was already *asked* (`interview_asked` in SQLite), or the model
+  persisted is what was already _asked_ (`interview_asked` in SQLite), or the model
   would start from the same first gap on every visit.
 - **One model call per answer.** The call that writes your answer down is the call
   that asks the next question, so an exchange is one round trip.
@@ -74,7 +69,7 @@ Three things about that loop are worth noticing, because they explain the shape 
   comes back — you only have the page to rephrase what was lost.
 
 Merging follows the field, and the code decides: a list gains the items it lacked,
-free text gains a line, and a fact is *corrected* rather than accumulated ("1 month",
+free text gains a line, and a fact is _corrected_ rather than accumulated ("1 month",
 then "2 months" means two months). Nothing is dropped, except a highlight the model
 explicitly marked as superseded by the line it was merged into.
 
@@ -95,7 +90,7 @@ flowchart TD
 markup: scripts, styles, SVG and tracking parameters are dropped, and what survives
 becomes a compact Markdown-ish text. **The model never sees raw page HTML.**
 
-The application form is parsed from the markup *by code*, not asked of the model
+The application form is parsed from the markup _by code_, not asked of the model
 (`app/offers/clean.py`): labels, `name`, `type`, `required`, `maxlength`,
 `placeholder` and `<option>` values are facts of the HTML, and reading them in code
 is both more faithful and cheaper than a model pass. `OfferDraft` has no `form`
@@ -132,7 +127,7 @@ flowchart TD
     K --> L["Store the verdict and the score, with the fingerprint"]
 ```
 
-**Stage 1 — elimination** can only use a rule *you* wrote, and only with the passage
+**Stage 1 — elimination** can only use a rule _you_ wrote, and only with the passage
 that triggered it quoted back. An elimination missing either is downgraded to
 nothing in code, so an offer never disappears without a reason you can read. With no
 rules written, no model call is made at all.
@@ -145,8 +140,8 @@ line of it.
 
 Every stored verdict carries a **fingerprint** — a hash of the model, the rules, the
 wishes, the text of the two ranking prompts, the profile and the offer. It is what
-makes *out of date* detectable without asking the model: change any of those and
-`service.is_stale` returns true, the board tags the offer *out of date*, and the
+makes _out of date_ detectable without asking the model: change any of those and
+`service.is_stale` returns true, the board tags the offer _out of date_, and the
 `pending` scope picks it up again. A manual override (`kept` / `eliminated`) wins
 over the rules and survives a re-run.
 
@@ -215,7 +210,7 @@ model's mood.
 
 The **Regenerate** button rewrites one named section, optionally from the text
 currently on disk, then refreshes the ATS report. Everything runs as a background
-job with a per-step report; the folder is written *last*, so a cancelled or failed
+job with a per-step report; the folder is written _last_, so a cancelled or failed
 preparation never leaves a half-written application.
 
 ## 5. Track
@@ -241,7 +236,7 @@ everything else is derived by code in `app/tracker/service.py`.
   they were not given.
 - A follow-up is due when the status is `applied` and it has been `followup_days`
   since `last_contact`, falling back to `applied_on`. A later contact resets the
-  clock: what counts is how long the *silence* has lasted.
+  clock: what counts is how long the _silence_ has lasted.
 - Dates are compared as dates, in UTC, so whether a follow-up is due does not depend
   on the hour you open the page.
 - The board's row is a join of four tables and one file, so it is built in
