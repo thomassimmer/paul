@@ -140,6 +140,7 @@ def _run_inline(monkeypatch) -> None:
         instruction="",
         from_current=False,
         folder="",
+        sections=jobs.service.SECTIONS,
     ):
         job = jobs.remember(
             jobs.build_job(
@@ -149,6 +150,7 @@ def _run_inline(monkeypatch) -> None:
                 instruction=instruction,
                 from_current=from_current,
                 folder=folder,
+                sections=sections,
             )
         )
         assert job is not None
@@ -167,6 +169,35 @@ def _setup(monkeypatch) -> int:
 
 def _prepare(client, offer_id: int) -> None:
     client.post(f"/applications/{offer_id}/prepare")
+
+
+def _checkbox(page: str, name: str) -> str:
+    """The preparation modal's checkbox for one document, as the browser sees it."""
+    match = re.search(rf'<input id="plan-{name}"[^>]*>', page)
+    assert match is not None, f"no {name} checkbox on the page"
+    return match.group(0)
+
+
+def _form_box(page: str) -> str:
+    """What the preparation modal's form textarea holds."""
+    match = re.search(r'<textarea id="plan-form"[^>]*>(.*?)</textarea>', page, re.S)
+    assert match is not None, "no form box on the page"
+    return match.group(1)
+
+
+def _plan(client, offer_id: int, **fields) -> None:
+    """Save the preparation modal the way a browser would.
+
+    The dialog posts what it shows: the form box as it stands, and the ticked
+    checkboxes. Pass ``cv=""`` (or ``letter=""``) to untick one.
+    """
+    page = client.get(f"/offers/{offer_id}").text
+    data = {"plan": "1", "next": f"/offers/{offer_id}", "form": _form_box(page)}
+    for name in ("cv", "letter"):
+        if "checked" in _checkbox(page, name):
+            data[name] = "1"
+    data.update(fields)
+    client.post(f"/applications/{offer_id}/prepare", data=data)
 
 
 # --- preparing -----------------------------------------------------------------
@@ -294,6 +325,134 @@ def test_the_offer_page_shows_the_documents_of_a_prepared_offer(client, monkeypa
 
     page = client.get(f"/offers/{offer_id}")
     assert "Grounding of the CV" in page.text
+
+
+# --- the preparation modal -----------------------------------------------------
+
+
+def test_the_offer_page_offers_the_preparation_modal(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+
+    page = client.get(f"/offers/{offer_id}").text
+
+    assert 'id="prepare-modal"' in page
+    assert "data-open-prepare" in page
+    assert "Prepare documents" in page
+    assert 'name="plan" value="1"' in page
+    # The offer's own form is shown, so the reader sees what will be answered.
+    assert "What is your notice period?" in _form_box(page)
+    assert "Why us?" in _form_box(page)
+
+
+def test_the_modal_writes_only_the_documents_it_was_asked_for(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+
+    _plan(client, offer_id, letter="")
+
+    folder = store.list_folders()[0]
+    assert store.exists(folder, store.CV_MD)
+    assert not store.exists(folder, store.LETTER_MD)
+
+    page = client.get(f"/offers/{offer_id}").text
+    assert 'id="cv"' in page
+    assert 'id="letter"' not in page  # nothing was written for it
+    assert 'href="#letter"' not in page
+
+
+def test_reopening_the_modal_shows_the_plan_made_last_time(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+
+    _plan(client, offer_id, letter="", form="1. Available in September?\n2. Why us?")
+
+    page = client.get(f"/offers/{offer_id}").text
+    assert "checked" in _checkbox(page, "cv")
+    assert "checked" not in _checkbox(page, "letter")
+    assert "Available in September?" in _form_box(page)
+
+
+def test_a_pasted_form_becomes_the_offer_form(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+
+    _plan(
+        client,
+        offer_id,
+        form='<form><label for="q">Availability?</label><input id="q" name="q" maxlength="10"></form>',
+    )
+
+    page = client.get(f"/offers/{offer_id}").text
+    assert "Availability?" in page
+    assert "max 10" in page  # read from the markup, not guessed
+
+
+def test_preparing_again_does_not_rewrite_the_documents(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _plan(client, offer_id)
+    folder = store.list_folders()[0]
+    cv_before = store.read_bytes(folder, store.CV_DOCX)
+    letter_before = store.read_bytes(folder, store.LETTER_DOCX)
+
+    _plan(client, offer_id, form="A brand new question?")
+
+    assert store.read_bytes(folder, store.CV_DOCX) == cv_before
+    assert store.read_bytes(folder, store.LETTER_DOCX) == letter_before
+    assert "A brand new question?" in (store.read_text(folder, store.ANSWERS_MD) or "")
+
+
+def test_preparing_again_without_a_change_is_not_worth_a_run(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+    _plan(client, offer_id)
+
+    page = client.get(f"/offers/{offer_id}").text
+    response = client.post(
+        f"/applications/{offer_id}/prepare",
+        data={
+            "plan": "1",
+            "cv": "1",
+            "letter": "1",
+            "form": _form_box(page),
+            "next": f"/offers/{offer_id}",
+        },
+        follow_redirects=True,
+    )
+
+    assert "Nothing new to prepare" in response.text
+
+
+def test_a_pasted_form_that_reads_as_no_question_is_refused(client, monkeypatch):
+    offer_id = _setup(monkeypatch)
+    _run_inline(monkeypatch)
+
+    response = client.post(
+        f"/applications/{offer_id}/prepare",
+        data={"plan": "1", "cv": "1", "form": "!", "next": f"/offers/{offer_id}"},
+        follow_redirects=True,
+    )
+
+    assert "No question could be read" in response.text
+    assert store.list_folders() == []
+
+
+def test_asking_for_nothing_is_refused(client, monkeypatch):
+    _seed_profile()
+    _configure()
+    _patch_drafts(monkeypatch)
+    _run_inline(monkeypatch)
+    offer = OfferDraft(title="A role", company="Acme", language="en").to_offer([])
+    offer_id = offers_store.save_offer(offer, raw="", cleaned="A role", source="text").id
+
+    response = client.post(
+        f"/applications/{offer_id}/prepare",
+        data={"plan": "1", "next": f"/offers/{offer_id}"},
+        follow_redirects=True,
+    )
+
+    assert "Choose a document to write" in response.text
+    assert store.list_folders() == []
 
 
 # --- saving and regenerating ---------------------------------------------------

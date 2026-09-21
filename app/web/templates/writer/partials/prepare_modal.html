@@ -1,0 +1,57 @@
+{# What applying to this offer requires, decided when preparing it rather than when
+   the offer was analyzed: which documents to write, and the form to answer. The
+   whole thing is asynchronous, so the modal only says what to do and the job panel
+   behind it reports the work. Choices and pasted form are stored on the
+   application, so reopening the modal shows what was decided last time. #}
+<dialog id="prepare-modal" aria-labelledby="prepare-title">
+  <div class="modal-head">
+    <h2 id="prepare-title">Prepare the documents</h2>
+    <button type="button" class="button" data-close-prepare>Close</button>
+  </div>
+
+  <div class="modal-body">
+    <form method="post" action="/applications/{{ record.id }}/prepare">
+      <input type="hidden" name="plan" value="1">
+      <input type="hidden" name="next" value="/offers/{{ record.id }}">
+
+      <fieldset class="plan-documents">
+        <legend>What this application asks for</legend>
+        <label class="check" for="plan-cv">
+          <input id="plan-cv" name="cv" type="checkbox" value="1" {% if plan.cv %}checked{% endif %}>
+          A CV
+        </label>
+        {% if plan.has_cv %}<p class="hint">Already written: it is kept as it is.</p>{% endif %}
+        <label class="check" for="plan-letter">
+          <input id="plan-letter" name="letter" type="checkbox" value="1" {% if plan.letter %}checked{% endif %}>
+          A cover letter
+        </label>
+        {% if plan.has_letter %}<p class="hint">Already written: it is kept as it is.</p>{% endif %}
+      </fieldset>
+
+      <label for="plan-form">Application form <span class="optional">optional</span></label>
+      <textarea id="plan-form" name="form" rows="8" spellcheck="false"
+                placeholder="Paste the form's HTML fragment, or its questions one per line…">{{ plan.form }}</textarea>
+      <p class="hint">
+        {% if plan.questions %}
+        {{ plan.questions }} question(s) were read from the offer. Paste the ones you
+        found later — or leave this box as it is — and their answers are written too.
+        {% else %}
+        The offer's fragment carried no form. Paste it here if applying asks
+        questions: the answers are drafted for you, and the factual ones are read
+        from your profile.
+        {% endif %}
+      </p>
+
+      <div class="actions">
+        <button type="submit" class="primary" {% if not can_prepare %}disabled{% endif %}>Prepare</button>
+        <button type="button" class="button" data-close-prepare>Cancel</button>
+      </div>
+      {% if not can_prepare %}
+      <p class="banner banner-warning" role="status">
+        Preparing needs a profile and a configured model. Set both up first, in
+        <a href="/profiler">Profile</a> and <a href="/settings">Settings</a>.
+      </p>
+      {% endif %}
+    </form>
+  </div>
+</dialog>

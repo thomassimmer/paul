@@ -403,5 +403,9 @@ def test_the_offer_page_offers_to_prepare_the_documents(client, monkeypatch):
 
     page = client.get(f"/offers/{offer_id}")
 
+    # The button opens the preparation dialog; the dialog posts the plan.
+    assert "data-open-prepare" in page.text
+    assert "Prepare documents" in page.text
+    assert 'id="prepare-modal"' in page.text
     assert f'action="/applications/{offer_id}/prepare"' in page.text
-    assert "Prepare CV, letter and answers" in page.text
+    assert 'name="plan" value="1"' in page.text

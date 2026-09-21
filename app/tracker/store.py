@@ -21,6 +21,9 @@ def _record(row) -> Application:
         last_contact=row["last_contact"],
         notes=row["notes"],
         folder=row["folder"],
+        want_cv=bool(row["want_cv"]),
+        want_letter=bool(row["want_letter"]),
+        form_source=row["form_source"],
         updated_at=row["updated_at"],
     )
 
@@ -49,34 +52,59 @@ def save_application(
     last_contact: str,
     notes: str,
     folder: str | None = None,
+    want_cv: bool | None = None,
+    want_letter: bool | None = None,
+    form_source: str | None = None,
 ) -> Application:
-    """Write the row. ``folder`` is only touched when it is given.
+    """Write the row. A field left out is kept as it is.
 
     The tracker page saves the status and the notes without knowing anything about
-    the writer's folder, so ``None`` means "keep whatever is there" rather than
-    "erase it": losing the link to the generated documents on a status change
-    would be invisible and infuriating.
+    the writer's folder or the preparation plan, so ``None`` means "keep whatever
+    is there" rather than "erase it": losing the link to the generated documents,
+    or the form the user pasted, on a status change would be invisible and
+    infuriating.
     """
     db.init_db()
     current = load_application(offer_id)
     if folder is None:
         folder = current.folder if current is not None else ""
+    if want_cv is None:
+        want_cv = current.want_cv if current is not None else True
+    if want_letter is None:
+        want_letter = current.want_letter if current is not None else True
+    if form_source is None:
+        form_source = current.form_source if current is not None else ""
     updated_at = service.today_utc().isoformat()
     with db.connect() as conn:
         conn.execute(
             """
             INSERT INTO applications
-                (offer_id, status, applied_on, last_contact, notes, folder, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (offer_id, status, applied_on, last_contact, notes, folder,
+                 want_cv, want_letter, form_source, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(offer_id) DO UPDATE SET
                 status       = excluded.status,
                 applied_on   = excluded.applied_on,
                 last_contact = excluded.last_contact,
                 notes        = excluded.notes,
                 folder       = excluded.folder,
+                want_cv      = excluded.want_cv,
+                want_letter  = excluded.want_letter,
+                form_source  = excluded.form_source,
                 updated_at   = excluded.updated_at
             """,
-            (offer_id, status, applied_on, last_contact, notes, folder, updated_at),
+            (
+                offer_id,
+                status,
+                applied_on,
+                last_contact,
+                notes,
+                folder,
+                int(want_cv),
+                int(want_letter),
+                form_source,
+                updated_at,
+            ),
         )
     return Application(
         offer_id=offer_id,
@@ -85,6 +113,9 @@ def save_application(
         last_contact=last_contact,
         notes=notes,
         folder=folder,
+        want_cv=want_cv,
+        want_letter=want_letter,
+        form_source=form_source,
         updated_at=updated_at,
     )
 
@@ -117,6 +148,27 @@ def set_folder(offer_id: int, folder: str) -> Application:
         last_contact=current.last_contact,
         notes=current.notes,
         folder=folder,
+    )
+
+
+def set_plan(
+    offer_id: int, *, want_cv: bool, want_letter: bool, form_source: str
+) -> Application:
+    """Remember what applying to this offer requires.
+
+    Written when the preparation modal is saved, so reopening it shows the choices
+    made last time rather than the defaults.
+    """
+    current = load_application(offer_id) or Application(offer_id=offer_id)
+    return save_application(
+        offer_id,
+        status=current.status,
+        applied_on=current.applied_on,
+        last_contact=current.last_contact,
+        notes=current.notes,
+        want_cv=want_cv,
+        want_letter=want_letter,
+        form_source=form_source,
     )
 
 

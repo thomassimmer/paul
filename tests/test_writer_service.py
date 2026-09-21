@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import date
 
 import pytest
 
 from app.config import Settings
 from app.models import (
+    Application,
     DraftAnswer,
     DraftLine,
     Experience,
@@ -196,6 +198,7 @@ def test_prepare_computes_the_ats_coverage_from_the_offer_keywords(monkeypatch):
 
     prepared = _prepare(record, monkeypatch=monkeypatch)
 
+    assert prepared.ats is not None
     assert prepared.ats.coverage_percent == 100  # the only keyword is Rust, present
     assert prepared.ats.keywords[0].present is True
     stored = store.load_ats(prepared.folder)
@@ -246,6 +249,127 @@ def test_prepare_without_a_form_leaves_the_answers_empty(monkeypatch):
     assert calls["answers"] == []
 
 
+# --- what a preparation is asked to write --------------------------------------
+
+TODAY = date(2026, 9, 19)
+
+
+def test_sections_to_write_asks_for_everything_the_first_time():
+    record = _seed()
+
+    assert service.sections_to_write(
+        record, "", want_cv=True, want_letter=True, form_changed=False
+    ) == ("cv", "letter", "answers")
+
+
+def test_sections_to_write_leaves_out_the_documents_not_asked_for():
+    record = _seed()
+
+    assert service.sections_to_write(
+        record, "", want_cv=True, want_letter=False, form_changed=False
+    ) == ("cv", "answers")
+
+
+def test_sections_to_write_keeps_the_documents_already_written():
+    record = _seed()
+    folder = store.resolve_folder(record, TODAY)
+    store.write_text(folder, store.CV_MD, "[name] Camille Moreau\n")
+
+    assert service.sections_to_write(
+        record, folder, want_cv=True, want_letter=True, form_changed=False
+    ) == ("letter", "answers")
+
+
+def test_sections_to_write_only_rewrites_the_answers_when_the_form_changed():
+    record = _seed()
+    folder = store.resolve_folder(record, TODAY)
+    for name in (store.CV_MD, store.LETTER_MD, store.ANSWERS_MD):
+        store.write_text(folder, name, "x")
+
+    assert service.sections_to_write(
+        record, folder, want_cv=True, want_letter=True, form_changed=False
+    ) == ()
+    assert service.sections_to_write(
+        record, folder, want_cv=True, want_letter=True, form_changed=True
+    ) == ("answers",)
+
+
+def test_sections_to_write_ignores_the_answers_without_a_form():
+    record = _seed(form=[])
+
+    assert service.sections_to_write(
+        record, "", want_cv=True, want_letter=True, form_changed=True
+    ) == ("cv", "letter")
+
+
+def test_form_text_shows_the_pasted_form_when_there_is_one():
+    record = _seed()
+    application = Application(offer_id=record.id, form_source="<form><input name='x'></form>")
+
+    assert service.form_text(record, application) == "<form><input name='x'></form>"
+
+
+def test_form_text_falls_back_to_the_form_read_from_the_offer():
+    record = _seed()
+
+    text = service.form_text(record, None)
+
+    assert "What is your notice period?" in text
+    assert "Why us?" in text
+
+
+def test_prepare_writes_only_the_sections_it_was_asked_for(monkeypatch):
+    record = _seed()
+    _patch(monkeypatch)
+
+    prepared = _prepare(record, monkeypatch=monkeypatch, sections=("cv",))
+
+    assert store.exists(prepared.folder, store.CV_MD)
+    assert not store.exists(prepared.folder, store.LETTER_MD)
+    assert not store.exists(prepared.folder, store.ANSWERS_MD)
+    assert prepared.letter is None
+    assert prepared.answers == []
+    assert prepared.ats is not None  # computed from the CV that was written
+
+
+def test_prepare_does_not_rewrite_the_documents_it_was_not_asked_for(monkeypatch):
+    record = _seed()
+    _patch(monkeypatch)
+    first = _prepare(record, monkeypatch=monkeypatch, sections=("cv", "letter"))
+    cv_before = store.read_bytes(first.folder, store.CV_DOCX)
+
+    calls = _patch(monkeypatch)  # fresh recorders
+    second = _prepare(record, monkeypatch=monkeypatch, sections=("answers",))
+
+    assert second.folder == first.folder
+    assert store.read_bytes(second.folder, store.CV_DOCX) == cv_before
+    assert calls["cv"] == []
+    assert calls["letter"] == []
+    assert calls["answers"]  # the answers were drafted
+    assert store.exists(second.folder, store.ANSWERS_MD)
+
+
+def test_a_section_that_is_not_written_is_reported_as_skipped(monkeypatch):
+    record = _seed()
+    _patch(monkeypatch)
+    events: list[tuple[str, str]] = []
+
+    asyncio.run(
+        service.prepare(
+            _settings(),
+            _profile(),
+            record,
+            sections=("cv",),
+            on_step=lambda key, status, detail="": events.append((key, status)),
+        )
+    )
+
+    assert ("cv", "done") in events
+    assert ("letter", "skipped") in events
+    assert ("answers", "skipped") in events
+    assert ("ats", "done") in events
+
+
 # --- the fit check -------------------------------------------------------------
 
 
@@ -289,6 +413,7 @@ def test_ungrounded_lines_are_reported(monkeypatch):
     prepared = _prepare(record, monkeypatch=monkeypatch)
 
     assert any("unverified" in warning for warning in prepared.warnings)
+    assert prepared.cv is not None
     assert prepared.cv.grounding.issues
 
 

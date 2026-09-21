@@ -15,7 +15,6 @@
       {{ sort_header('score', 'Score') }}
       <th>Verdict</th>
       {{ sort_header('status', 'Status') }}
-      <th>Documents</th>
       {{ sort_header('followup', 'Follow-up') }}
     </tr>
   </thead>
@@ -62,19 +61,6 @@
           </select>
           <button type="submit">Set</button>
         </form>
-      </td>
-      <td>
-        {% if row.prepared %}
-          <a href="/offers/{{ row.record.id }}#cv">Review</a>
-        {% elif has_profile and has_model %}
-          <form method="post" action="/applications/{{ row.record.id }}/prepare" class="inline-form">
-            <input type="hidden" name="next" value="/">
-            <button type="submit" {% if busy %}disabled{% endif %}
-                    onclick="this.disabled=true; this.form.submit();">Prepare</button>
-          </form>
-        {% else %}
-          <span class="muted">Not prepared</span>
-        {% endif %}
       </td>
       <td>
         {% if row.followup_due %}

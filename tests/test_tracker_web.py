@@ -17,10 +17,21 @@ def _seed_offer(title: str = "Senior Backend Engineer") -> int:
     return offers_store.save_offer(offer, raw="", cleaned="cleaned", source="text").id
 
 
-def _seed_application(offer_id: int, **fields) -> Application:
-    base = {"status": "analyzed", "applied_on": "", "last_contact": "", "notes": ""}
-    base.update(fields)
-    return store.save_application(offer_id, **base)
+def _seed_application(
+    offer_id: int,
+    *,
+    status: str = "analyzed",
+    applied_on: str = "",
+    last_contact: str = "",
+    notes: str = "",
+) -> Application:
+    return store.save_application(
+        offer_id,
+        status=status,
+        applied_on=applied_on,
+        last_contact=last_contact,
+        notes=notes,
+    )
 
 
 # --- the tracking form on the offer page --------------------------------------

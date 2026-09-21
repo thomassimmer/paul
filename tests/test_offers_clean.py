@@ -180,3 +180,41 @@ def test_truncates_a_huge_fragment():
     assert cleaned.truncated is True
     assert len(cleaned.text) <= clean.MAX_CHARS
     assert len(huge) > clean.MAX_CHARS
+
+
+# --- the form pasted later, in the preparation modal ---------------------------
+
+
+def test_parse_questions_reads_a_markup_form_like_an_analysis():
+    questions = clean.parse_questions(FORM_FRAGMENT)
+
+    assert [question.name for question in questions] == ["why", "country", "permit", "phone"]
+    assert questions[0].max_length == 500
+    assert questions[0].required is True
+
+
+def test_parse_questions_reads_a_form_typed_by_hand():
+    questions = clean.parse_questions(
+        "1. Why do you want to join us?\n"
+        "- What is your notice period?\n"
+        "\n"
+        "What are your salary expectations?\n"
+    )
+
+    assert [question.label for question in questions] == [
+        "Why do you want to join us?",
+        "What is your notice period?",
+        "What are your salary expectations?",
+    ]
+    assert all(question.type == "textarea" for question in questions)
+
+
+def test_parse_questions_falls_back_to_the_text_of_markup_without_controls():
+    questions = clean.parse_questions("<div><p>Why us?</p><p>Notice period?</p></div>")
+
+    assert [question.label for question in questions] == ["Why us?", "Notice period?"]
+
+
+def test_parse_questions_returns_nothing_for_an_empty_paste():
+    assert clean.parse_questions("") == []
+    assert clean.parse_questions("   \n  ") == []

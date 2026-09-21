@@ -73,6 +73,9 @@ class Job:
     instruction: str = ""
     from_current: bool = False
     folder: str = ""
+    # Which sections a preparation was asked to write. A ``regenerate`` job ignores
+    # it: it rewrites the one section it names.
+    sections: tuple[str, ...] = service.SECTIONS
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
     started_at: float = field(default_factory=time.monotonic)
     finished_at: float | None = None
@@ -165,6 +168,7 @@ def build_job(
     instruction: str = "",
     from_current: bool = False,
     folder: str = "",
+    sections: tuple[str, ...] = service.SECTIONS,
 ) -> Job:
     """The step list for a job, before anything has happened."""
     labels = STEP_LABELS.get(kind, STEP_LABELS["prepare"])
@@ -178,6 +182,7 @@ def build_job(
         instruction=instruction,
         from_current=from_current,
         folder=folder,
+        sections=sections,
     )
 
 
@@ -206,7 +211,9 @@ async def run(job: Job, settings: Settings, profile: Profile, record: OfferRecor
     """Do the work, marking each step, and never leave the job unfinished."""
     try:
         if job.kind == "prepare":
-            prepared = await service.prepare(settings, profile, record, on_step=_report_to(job))
+            prepared = await service.prepare(
+                settings, profile, record, sections=job.sections, on_step=_report_to(job)
+            )
             job.result_folder = prepared.folder
             job.warnings = prepared.warnings
         else:
@@ -250,6 +257,7 @@ async def start_job(
     instruction: str = "",
     from_current: bool = False,
     folder: str = "",
+    sections: tuple[str, ...] = service.SECTIONS,
 ) -> Job:
     """Register a job and run it in the background, so the request can return."""
     global _task
@@ -261,6 +269,7 @@ async def start_job(
             instruction=instruction,
             from_current=from_current,
             folder=folder,
+            sections=sections,
         )
     )
     assert job is not None

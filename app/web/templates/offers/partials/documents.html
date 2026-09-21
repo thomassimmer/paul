@@ -1,21 +1,16 @@
 {# The tailored documents: written by the writer, shown here, edited in place. #}
-{% if prepared %}
+{% if prepared and review.has_documents %}
   {% include "writer/partials/review_body.html" %}
 {% else %}
 <section class="card" id="documents-empty">
   <h2>Tailored documents</h2>
   <p class="hint">
-    Preparing writes a CV and a cover letter for this offer, in your own template,
-    plus the form answers and an ATS coverage report. It needs a profile and a
-    configured model.
+    Preparing writes what applying actually asks for: a CV, a cover letter, or
+    both, in your own template, plus the form answers and an ATS coverage report.
+    Choose in the dialog; it needs a profile and a configured model.
   </p>
   <div class="actions">
-    <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form"
-          hx-post="/applications/{{ record.id }}/prepare"
-          hx-target="#job" hx-swap="outerHTML" hx-disabled-elt="find button">
-      <input type="hidden" name="next" value="/offers/{{ record.id }}">
-      <button type="submit" class="primary" {% if job and job.running %}disabled{% endif %}>Prepare CV, letter and answers</button>
-    </form>
+    <button type="button" class="primary" data-open-prepare>Prepare documents</button>
   </div>
 </section>
 {% endif %}

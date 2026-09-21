@@ -55,6 +55,7 @@
 {% set answers_busy = job_running and (job.kind != 'regenerate' or job.section == 'answers') %}
 {% set writing = 'Writing' if job and job.kind != 'regenerate' else 'Rewriting' %}
 
+{% if review.cv_present or review.letter_present %}
 <section class="card" id="checks">
   <details class="collapse">
     <summary>
@@ -103,7 +104,9 @@
     {{ grounding(review.letter_grounding, 'Letter') }}
   </details>
 </section>
+{% endif %}
 
+{% if review.cv_present %}
 <section class="card" id="cv">
   <div class="doc-head">
     <h2>CV</h2>
@@ -146,7 +149,9 @@
   </div>
   {{ regeneration('cv', 'CV', 'shorter, more focus on data engineering…') }}
 </section>
+{% endif %}
 
+{% if review.letter_present %}
 <section class="card" id="letter">
   <div class="doc-head">
     <h2>Cover letter</h2>
@@ -185,6 +190,7 @@
   </div>
   {{ regeneration('letter', 'letter', 'shorter, warmer…') }}
 </section>
+{% endif %}
 
 <section class="card" id="answers">
   <div class="doc-head">
@@ -194,7 +200,7 @@
       <a href="/applications/{{ record.id }}/download/ats.json">ats.json</a>
     </div>
   </div>
-  {% if review.answers %}
+  {% if review.answers_present and review.answers %}
   <p class="hint">
     Questions about your name, email and phone, or about work authorization,
     notice period, salary, relocation and languages, are answered from your profile
@@ -229,8 +235,8 @@
   {{ regeneration('answers', 'answers', 'shorter, more specific…') }}
   {% else %}
   <p class="hint">
-    No application form was found in this offer. If it has one, paste its HTML
-    fragment on the offer page and analyze it again.
+    No application form was found in this offer. If applying asks questions, paste
+    the form in the <em>Prepare</em> dialog and their answers are drafted here.
   </p>
   {% endif %}
 </section>

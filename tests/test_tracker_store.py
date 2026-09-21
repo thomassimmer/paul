@@ -112,3 +112,53 @@ def test_deleting_an_offer_deletes_its_application():
 
 def test_an_application_defaults_to_analyzed():
     assert Application(offer_id=1).status == "analyzed"
+
+
+# --- the preparation plan ------------------------------------------------------
+
+
+def test_a_new_application_asks_for_both_documents():
+    plan = store.load_application(_offer())
+    assert plan is None
+    assert Application(offer_id=1).want_cv is True
+    assert Application(offer_id=1).want_letter is True
+    assert Application(offer_id=1).form_source == ""
+
+
+def test_set_plan_round_trips():
+    offer_id = _offer()
+    store.set_plan(offer_id, want_cv=True, want_letter=False, form_source="<form>x</form>")
+
+    loaded = store.load_application(offer_id)
+    assert loaded is not None
+    assert loaded.want_cv is True
+    assert loaded.want_letter is False
+    assert loaded.form_source == "<form>x</form>"
+
+
+def test_a_status_change_keeps_the_plan():
+    offer_id = _offer()
+    store.set_plan(offer_id, want_cv=False, want_letter=True, form_source="Why us?")
+
+    store.set_status(offer_id, "applied", today=TODAY)
+
+    loaded = store.load_application(offer_id)
+    assert loaded is not None
+    assert loaded.want_cv is False
+    assert loaded.want_letter is True
+    assert loaded.form_source == "Why us?"
+
+
+def test_the_tracker_save_keeps_the_plan_and_the_folder():
+    offer_id = _offer()
+    store.set_plan(offer_id, want_cv=False, want_letter=True, form_source="Why us?")
+    store.set_folder(offer_id, "2026-09-acme")
+
+    store.save_application(offer_id, status="ready", applied_on="", last_contact="", notes="hi")
+
+    loaded = store.load_application(offer_id)
+    assert loaded is not None
+    assert loaded.folder == "2026-09-acme"
+    assert loaded.want_cv is False
+    assert loaded.want_letter is True
+    assert loaded.form_source == "Why us?"

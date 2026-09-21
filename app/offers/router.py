@@ -23,6 +23,7 @@ from app.tracker import service as tracker_service
 from app.tracker import store as tracker_store
 from app.web.templating import htmx_redirect, redirect, render
 from app.writer import jobs as writer_jobs
+from app.writer import service as writer_service
 from app.writer import store as writer_store
 from app.writer import view as writer_view
 
@@ -48,12 +49,21 @@ def _profile() -> Profile | None:
         return None
 
 
-def _nav_sections(offer: Offer, prepared: bool) -> list[dict]:
+def _nav_sections(
+    offer: Offer,
+    prepared: bool,
+    *,
+    has_cv: bool = False,
+    has_letter: bool = False,
+    has_answers: bool = False,
+) -> list[dict]:
     """The offer page's sections, in reading order.
 
     Two groups rather than a flat list of a dozen entries: what the offer says,
     and what we made of it. Ranking sits between them, at the top level, because
-    it judges the offer rather than belonging to either.
+    it judges the offer rather than belonging to either. Only the document
+    sections the folder actually holds are listed: an application can be a CV
+    without a letter.
     """
     offer_cards = [
         {"anchor": "overview", "label": "Overview"},
@@ -71,13 +81,14 @@ def _nav_sections(offer: Offer, prepared: bool) -> list[dict]:
     # What the application is: the documents written for this offer, and where
     # it stands. Before a preparation, only the second part exists.
     application: list[dict] = []
-    if prepared:
-        application += [
-            {"anchor": "checks", "label": "Checks"},
-            {"anchor": "cv", "label": "CV"},
-            {"anchor": "letter", "label": "Cover letter"},
-            {"anchor": "answers", "label": "Form answers"},
-        ]
+    if prepared and (has_cv or has_letter):
+        application.append({"anchor": "checks", "label": "Checks"})
+    if has_cv:
+        application.append({"anchor": "cv", "label": "CV"})
+    if has_letter:
+        application.append({"anchor": "letter", "label": "Cover letter"})
+    if has_answers:
+        application.append({"anchor": "answers", "label": "Form answers"})
     application.append({"anchor": "tracking", "label": "Tracking"})
 
     return [
@@ -99,6 +110,12 @@ def _offer_context(record: OfferRecord) -> dict:
     folder = application.folder if application else ""
     profile = _profile()
     prepared = bool(folder) and profile is not None and writer_store.folder_exists(folder)
+    # Which documents the folder actually holds: an application only needs the ones
+    # the user asked for, and the page shows those and no others.
+    has_cv = prepared and writer_store.exists(folder, writer_store.CV_MD)
+    has_letter = prepared and writer_store.exists(folder, writer_store.LETTER_MD)
+    has_answers = prepared and writer_store.exists(folder, writer_store.ANSWERS_MD)
+    settings = load_settings()
 
     observe = background.live(REANALYZE)
     if observe is not None and observe.context.get("offer_id") != offer_id:
@@ -112,9 +129,20 @@ def _offer_context(record: OfferRecord) -> dict:
         "application": application,
         "status": tracker_service.normalize_status(application.status if application else ""),
         "statuses": tracker_service.STATUS_LABELS,
-        "followup_days": load_settings().followup_days,
+        "followup_days": settings.followup_days,
         "prepared": prepared,
         "folder": folder,
+        # What the preparation modal shows: the plan already made for this offer,
+        # the form to answer, and whether the documents already exist.
+        "plan": {
+            "cv": application.want_cv if application else True,
+            "letter": application.want_letter if application else True,
+            "form": writer_service.form_text(record, application),
+            "questions": len(record.offer.form),
+            "has_cv": has_cv,
+            "has_letter": has_letter,
+        },
+        "can_prepare": profile is not None and bool(settings.model.strip()),
         # The re-analysis run, while one is in flight for this offer.
         "analysis_run": observe,
         "analysis_poll_url": f"/offers/{offer_id}/analysis-status",
@@ -125,10 +153,16 @@ def _offer_context(record: OfferRecord) -> dict:
         "poll_url": f"/offers/{offer_id}/progress",
         "next_url": f"/offers/{offer_id}",
         # The quick navigation. Built here rather than in the template so the page
-        # and its polling endpoint cannot drift: preparing an offer adds the four
-        # document sections, and the poll has to render the longer list.
+        # and its polling endpoint cannot drift: preparing an offer adds the
+        # document sections it wrote, and the poll has to render the same list.
         "nav_label": "Sections of this offer",
-        "nav_sections": _nav_sections(record.offer, prepared),
+        "nav_sections": _nav_sections(
+            record.offer,
+            prepared,
+            has_cv=has_cv,
+            has_letter=has_letter,
+            has_answers=has_answers,
+        ),
     }
     if prepared:
         assert profile is not None  # ``prepared`` already required it

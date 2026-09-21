@@ -10,21 +10,10 @@
 <div class="page-head">
   <h1>{{ offer.title or 'Untitled offer' }}</h1>
   <div class="actions">
-    {% if prepared %}
-    <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form"
-          hx-post="/applications/{{ record.id }}/prepare"
-          hx-target="#job" hx-swap="outerHTML" hx-disabled-elt="find button">
-      <input type="hidden" name="next" value="/offers/{{ record.id }}">
-      <button type="submit" class="primary" {% if job and job.running %}disabled{% endif %}>Prepare again</button>
-    </form>
-    {% else %}
-    <form method="post" action="/applications/{{ record.id }}/prepare" class="inline-form"
-          hx-post="/applications/{{ record.id }}/prepare"
-          hx-target="#job" hx-swap="outerHTML" hx-disabled-elt="find button">
-      <input type="hidden" name="next" value="/offers/{{ record.id }}">
-      <button type="submit" class="primary" {% if job and job.running %}disabled{% endif %}>Prepare CV, letter and answers</button>
-    </form>
-    {% endif %}
+    <button type="button" class="primary" data-open-prepare
+            {% if job and job.running %}disabled{% endif %}>
+      {{ 'Prepare again' if prepared else 'Prepare documents' }}
+    </button>
     <a class="button" href="/offers/{{ record.id }}/edit">Complete / edit</a>
     {% if record.url %}
     <a class="button" href="{{ record.url }}" target="_blank" rel="noopener noreferrer">Open posting ↗</a>
@@ -68,7 +57,33 @@
 
 {% include "offers/partials/tracking.html" %}
 
+{% include "writer/partials/prepare_modal.html" %}
+
 <script>
+  // The preparation modal: one dialog, opened wherever it is asked for (the page
+  // header, and the empty documents card), so the markup stays free of inline
+  // script. The form inside posts normally: the work runs in the background and
+  // the page comes back with its job panel tracking it.
+  (function () {
+    var modal = document.getElementById("prepare-modal");
+    if (!modal) return;
+
+    document.addEventListener("click", function (event) {
+      if (!event.target.closest) return;
+      if (event.target.closest("[data-open-prepare]")) {
+        event.preventDefault();
+        modal.showModal();
+      } else if (event.target.closest("[data-close-prepare]")) {
+        modal.close();
+      }
+    });
+
+    // A click that lands on the dialog itself landed on the backdrop.
+    modal.addEventListener("click", function (event) {
+      if (event.target === modal) modal.close();
+    });
+  })();
+
   // Adding a line without knowing the vocabulary: the buttons above each editor
   // drop the "[role] " prefix at the caret. The caret is remembered on blur,
   // because clicking a button has already taken focus away from the textarea by

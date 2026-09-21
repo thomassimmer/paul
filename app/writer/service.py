@@ -19,6 +19,7 @@ from app.ats import AtsReport, coverage, extract_keywords, format_issues, to_ats
 from app.config import Settings
 from app.llm import LLMError
 from app.models import (
+    Application,
     DraftAnswer,
     DraftLine,
     FormAnswer,
@@ -81,13 +82,18 @@ class Document:
 
 @dataclass
 class Prepared:
-    """Everything ``prepare`` produced, for the routes and the tests."""
+    """Everything ``prepare`` produced, for the routes and the tests.
+
+    A document is ``None`` when the preparation was not asked to write it (the
+    user only checked the other one), which is also how a reader can tell an
+    absent letter from an empty one.
+    """
 
     folder: str
-    cv: Document
-    letter: Document
+    cv: Document | None
+    letter: Document | None
     answers: list[FormAnswer]
-    ats: AtsReport
+    ats: AtsReport | None
     warnings: list[str] = field(default_factory=list)
 
 
@@ -106,10 +112,24 @@ class ReviewView:
     letter_grounding: GroundingReport
     ats: AtsReport | None
     files: list[str]
+    # Which documents the folder actually holds: an application only needs the
+    # ones the user asked for, and the review screen shows those and no others.
+    cv_present: bool = True
+    letter_present: bool = True
+    answers_present: bool = True
     # Tokens that change when the DOCX is written again, used to cache-bust the
     # framed PDF preview below.
     cv_revision: str = ""
     letter_revision: str = ""
+
+    @property
+    def has_documents(self) -> bool:
+        return self.cv_present or self.letter_present or self.answers_present
+
+
+# The sections a preparation can write. A preparation that was not asked for one
+# leaves whatever is already on disk alone rather than erasing it.
+SECTIONS = ("cv", "letter", "answers")
 
 
 # --- Rendering and the fit check ----------------------------------------------
@@ -188,19 +208,69 @@ def _offer_source(record: OfferRecord) -> str:
     return cleaned.strip() or raw
 
 
+def form_text(record: OfferRecord, application: Application | None) -> str:
+    """The form the preparation modal shows in its box.
+
+    What the user pasted last time when there is something, the questions read
+    from the offer's own fragment otherwise, one per line. The box is therefore
+    never empty when the offer already carries a form, and the reader can see and
+    edit what will be answered instead of typing it again.
+    """
+    source = (application.form_source if application is not None else "").strip()
+    if source:
+        return source
+    return "\n".join(answers.question_title(question) for question in record.offer.form)
+
+
+def _present(folder: str, filename: str) -> bool:
+    """True when the folder exists and already holds that file."""
+    return bool(folder) and store.folder_exists(folder) and store.exists(folder, filename)
+
+
+def sections_to_write(
+    record: OfferRecord,
+    folder: str,
+    *,
+    want_cv: bool,
+    want_letter: bool,
+    form_changed: bool,
+) -> tuple[str, ...]:
+    """The sections a preparation still has to write, in their canonical order.
+
+    A document already in the folder is never rewritten: preparing again after new
+    form questions arrived must not throw away the CV and the cover letter that are
+    already there. The answers are written the first time the form asks anything,
+    and rewritten only when that form changed — the Regenerate button is the way to
+    redraft them otherwise.
+    """
+    todo: list[str] = []
+    if want_cv and not _present(folder, store.CV_MD):
+        todo.append("cv")
+    if want_letter and not _present(folder, store.LETTER_MD):
+        todo.append("letter")
+    if record.offer.form and (form_changed or not _present(folder, store.ANSWERS_MD)):
+        todo.append("answers")
+    return tuple(todo)
+
+
 async def prepare(
     settings: Settings,
     profile: Profile,
     record: OfferRecord,
     *,
+    sections: tuple[str, ...] = SECTIONS,
     today: date | None = None,
     on_step: OnStep | None = None,
 ) -> Prepared:
-    """Build the whole application folder for one offer.
+    """Write the sections of one application that ``sections`` asks for.
 
-    Raises ``LLMError`` when the model cannot produce the documents at all; the
-    folder is only written once both documents exist. ``on_step`` is how the
-    background job follows along; it is optional, so the tests can call this
+    A section the caller did not ask for is left exactly as it is on disk, never
+    erased: reopening the modal to answer new form questions must not throw away
+    the CV and the cover letter that are already there.
+
+    Raises ``LLMError`` when the model cannot produce a document at all; the
+    folder is only written once every requested section exists. ``on_step`` is how
+    the background job follows along; it is optional, so the tests can call this
     directly.
     """
     _report(on_step, "offer", "running")
@@ -210,64 +280,84 @@ async def prepare(
     _report(on_step, "offer", "done", folder)
 
     warnings: list[str] = []
-    cv_blueprint = templates_store.load_blueprint("cv")
-    letter_blueprint = templates_store.load_blueprint("letter")
+    cv: Document | None = None
+    letter: Document | None = None
+    report: AtsReport | None = None
+    form_answers: list[FormAnswer] | None = None
 
-    async def redraft_cv(instruction: str) -> list[DraftLine]:
-        return await draft.tailor_cv(
-            settings,
-            offer=record.offer,
-            profile=profile,
-            blueprint=cv_blueprint,
-            target_pages=settings.target_pages.cv,
-            instruction=instruction,
+    if "cv" in sections:
+        cv_blueprint = templates_store.load_blueprint("cv")
+
+        async def redraft_cv(instruction: str) -> list[DraftLine]:
+            return await draft.tailor_cv(
+                settings,
+                offer=record.offer,
+                profile=profile,
+                blueprint=cv_blueprint,
+                target_pages=settings.target_pages.cv,
+                instruction=instruction,
+            )
+
+        _report(on_step, "cv", "running")
+        cv_lines = await redraft_cv("")
+        cv = await _fit(
+            kind="cv",
+            lines=cv_lines,
+            target=settings.target_pages.cv,
+            redraft=redraft_cv,
+            warnings=warnings,
         )
+        cv.grounding = grounding.check(cv.lines, profile)
+        _grounding_warning(cv, warnings)
+        _report(on_step, "cv", "done", _document_detail(cv))
+    else:
+        _report(on_step, "cv", "skipped")
 
-    async def redraft_letter(instruction: str) -> list[DraftLine]:
-        return await draft.write_letter(
-            settings,
-            offer=record.offer,
-            profile=profile,
-            blueprint=letter_blueprint,
-            target_pages=settings.target_pages.letter,
-            instruction=instruction,
+    if "letter" in sections:
+        letter_blueprint = templates_store.load_blueprint("letter")
+
+        async def redraft_letter(instruction: str) -> list[DraftLine]:
+            return await draft.write_letter(
+                settings,
+                offer=record.offer,
+                profile=profile,
+                blueprint=letter_blueprint,
+                target_pages=settings.target_pages.letter,
+                instruction=instruction,
+            )
+
+        _report(on_step, "letter", "running")
+        letter_lines = await redraft_letter("")
+        letter = await _fit(
+            kind="letter",
+            lines=letter_lines,
+            target=settings.target_pages.letter,
+            redraft=redraft_letter,
+            warnings=warnings,
         )
+        letter.grounding = grounding.check(letter.lines, profile)
+        _grounding_warning(letter, warnings)
+        _report(on_step, "letter", "done", _document_detail(letter))
+    else:
+        _report(on_step, "letter", "skipped")
 
-    _report(on_step, "cv", "running")
-    cv_lines = await redraft_cv("")
-    cv = await _fit(
-        kind="cv",
-        lines=cv_lines,
-        target=settings.target_pages.cv,
-        redraft=redraft_cv,
-        warnings=warnings,
-    )
-    cv.grounding = grounding.check(cv.lines, profile)
-    _grounding_warning(cv, warnings)
-    _report(on_step, "cv", "done", _document_detail(cv))
+    if "answers" in sections:
+        _report(on_step, "answers", "running")
+        form_answers = await _draft_answers(
+            settings, record, profile, instruction="", warnings=warnings
+        )
+        _report(on_step, "answers", "done", _answers_detail(form_answers))
+    else:
+        _report(on_step, "answers", "skipped")
 
-    _report(on_step, "letter", "running")
-    letter_lines = await redraft_letter("")
-    letter = await _fit(
-        kind="letter",
-        lines=letter_lines,
-        target=settings.target_pages.letter,
-        redraft=redraft_letter,
-        warnings=warnings,
-    )
-    letter.grounding = grounding.check(letter.lines, profile)
-    _grounding_warning(letter, warnings)
-    _report(on_step, "letter", "done", _document_detail(letter))
-
-    _report(on_step, "answers", "running")
-    form_answers = await _draft_answers(
-        settings, record, profile, instruction="", warnings=warnings
-    )
-    _report(on_step, "answers", "done", _answers_detail(form_answers))
-
-    _report(on_step, "ats", "running")
-    report = await _ats_report(settings, record, profile, cv, source)
-    _report(on_step, "ats", "done", f"{report.coverage_percent}% coverage")
+    if cv is not None:
+        _report(on_step, "ats", "running")
+        report = await _ats_report(settings, record, profile, cv, source)
+        _report(on_step, "ats", "done", f"{report.coverage_percent}% coverage")
+    else:
+        # No keyword report is written without a CV to check: an untouched CV
+        # keeps the report it already has.
+        _report(on_step, "ats", "skipped")
 
     _report(on_step, "save", "running")
     _write_application(folder, record, source, cv, letter, form_answers, report)
@@ -278,8 +368,8 @@ async def prepare(
         folder=folder,
         cv=cv,
         letter=letter,
-        answers=form_answers,
-        ats=report,
+        answers=form_answers if form_answers is not None else [],
+        ats=report if report is not None else store.load_ats(folder),
         warnings=warnings,
     )
 
@@ -306,19 +396,24 @@ def _write_application(
     folder: str,
     record: OfferRecord,
     source: str,
-    cv: Document,
-    letter: Document,
-    form_answers: list[FormAnswer],
-    report: AtsReport,
+    cv: Document | None,
+    letter: Document | None,
+    form_answers: list[FormAnswer] | None,
+    report: AtsReport | None,
 ) -> None:
+    """Write the folder. A section that is ``None`` was not asked for and is kept."""
     store.save_offer(folder, record, source)
     store.ensure_notes(folder)
-    store.write_text(folder, store.CV_MD, markdown.render_lines(cv.lines))
-    store.write_bytes(folder, store.CV_DOCX, cv.docx)
-    store.write_text(folder, store.LETTER_MD, markdown.render_lines(letter.lines))
-    store.write_bytes(folder, store.LETTER_DOCX, letter.docx)
-    store.write_text(folder, store.ANSWERS_MD, markdown.render_answers(form_answers))
-    store.save_ats(folder, report)
+    if cv is not None:
+        store.write_text(folder, store.CV_MD, markdown.render_lines(cv.lines))
+        store.write_bytes(folder, store.CV_DOCX, cv.docx)
+    if letter is not None:
+        store.write_text(folder, store.LETTER_MD, markdown.render_lines(letter.lines))
+        store.write_bytes(folder, store.LETTER_DOCX, letter.docx)
+    if form_answers is not None:
+        store.write_text(folder, store.ANSWERS_MD, markdown.render_answers(form_answers))
+    if report is not None:
+        store.save_ats(folder, report)
 
 
 # --- Form answers --------------------------------------------------------------
@@ -451,6 +546,7 @@ def _rewrite_ats(profile: Profile, record: OfferRecord, folder: str) -> None:
 
 def load_review(profile: Profile, record: OfferRecord, folder: str) -> ReviewView:
     """Read a prepared folder back for the review screen."""
+    files = store.written_files(folder)
     cv_source = store.read_text(folder, store.CV_MD) or ""
     letter_source = store.read_text(folder, store.LETTER_MD) or ""
     answers_source = store.read_text(folder, store.ANSWERS_MD) or ""
@@ -466,7 +562,10 @@ def load_review(profile: Profile, record: OfferRecord, folder: str) -> ReviewVie
         cv_grounding=grounding.check(markdown.parse_lines(cv_source), profile),
         letter_grounding=grounding.check(markdown.parse_lines(letter_source), profile),
         ats=store.load_ats(folder),
-        files=store.written_files(folder),
+        files=files,
+        cv_present=store.CV_MD in files,
+        letter_present=store.LETTER_MD in files,
+        answers_present=store.ANSWERS_MD in files,
         cv_revision=store.revision(folder, store.CV_DOCX),
         letter_revision=store.revision(folder, store.LETTER_DOCX),
     )
@@ -538,7 +637,6 @@ def save(
     return saved
 
 
-SECTIONS = ("cv", "letter", "answers")
 SECTION_LABELS = {"cv": "CV", "letter": "Letter", "answers": "Form answers"}
 
 

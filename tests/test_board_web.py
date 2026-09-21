@@ -49,10 +49,21 @@ def _configure(**overrides) -> None:
     save_settings(Settings(**base))
 
 
-def _seed_application(offer_id: int, **fields) -> Application:
-    base = {"status": "analyzed", "applied_on": "", "last_contact": "", "notes": ""}
-    base.update(fields)
-    return tracker_store.save_application(offer_id, **base)
+def _seed_application(
+    offer_id: int,
+    *,
+    status: str = "analyzed",
+    applied_on: str = "",
+    last_contact: str = "",
+    notes: str = "",
+) -> Application:
+    return tracker_store.save_application(
+        offer_id,
+        status=status,
+        applied_on=applied_on,
+        last_contact=last_contact,
+        notes=notes,
+    )
 
 
 def _seed_ranking(offer_id: int, *, total: int = 74, eliminated: bool = False) -> None:
@@ -96,6 +107,16 @@ def test_the_board_lists_each_offer_with_its_score_and_verdict(client):
 def test_a_row_shows_the_default_status(client):
     _seed_offer()
     assert '<option value="analyzed" selected>' in client.get("/").text
+
+
+def test_the_board_row_has_no_prepare_button_or_documents_column(client):
+    """Preparing is decided on the offer page, where the dialog lives."""
+    _seed_offer()
+    page = client.get("/").text
+
+    assert "<th>Documents</th>" not in page
+    assert ">Prepare<" not in page
+    assert "/applications/" not in page
 
 
 def test_the_board_can_be_filtered(client):
@@ -291,7 +312,9 @@ def test_the_preparation_panel_polls_and_refreshes_the_table(client, monkeypatch
     page = client.get("/").text
     assert 'hx-get="/progress/writing?sort=' in page
     assert "Preparation in progress" in page
-    assert "disabled" in page  # preparing twice is not offered while one runs
+    # The board cannot start a preparation any more: the button lives on the offer
+    # page, behind its dialog.
+    assert "/prepare" not in page
     # Stop refreshes the board's own panel, whose poll URL carries the table state.
     assert 'hx-target="#job-writing"' in page
     assert 'name="poll_url" value="/progress/writing?sort=' in page

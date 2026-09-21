@@ -16,7 +16,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, Response
 
 from app.config import load_settings
-from app.models import OfferRecord, Profile
+from app.models import FormQuestion, OfferRecord, Profile
+from app.offers import clean as offers_clean
 from app.offers import store as offers_store
 from app.profiler import store as profile_store
 from app.templates_engine import pdf
@@ -42,6 +43,17 @@ PDF_SOURCES = {"cv.pdf": store.CV_DOCX, "letter.pdf": store.LETTER_DOCX}
 PREVIEW_KINDS = {"cv": store.CV_DOCX, "letter": store.LETTER_DOCX}
 
 BUSY_MESSAGE = "A preparation is already running. Wait for it, or stop it first."
+
+# Sent when the modal asked for documents that are already written and a form that
+# did not change: preparing again would only spend model calls on the same result.
+NOTHING_TO_PREPARE = (
+    "Nothing new to prepare: what you asked for is already there. Regenerate a "
+    "section below, or paste the form's new questions."
+)
+
+# Sent when the modal asked for nothing at all: no document to write, no form to
+# answer. Distinct from the above, because there is nothing on disk to point at.
+NOTHING_ASKED = "Choose a document to write, or paste the form's questions."
 
 # How a section is named inside a sentence, unlike ``service.SECTION_LABELS`` which
 # is a title.
@@ -183,6 +195,13 @@ def _prepared(offer_id: int):
 
 @router.post("/{offer_id}/prepare")
 async def application_prepare(offer_id: int, request: Request):
+    """Prepare an application, from the modal that says what applying requires.
+
+    The modal decides which documents are needed and pastes the form to answer;
+    the work itself is a background job because answering and writing take several
+    model calls. A document that is already on disk is never rewritten here — the
+    Regenerate buttons are the deliberate way to redraft one.
+    """
     form = await request.form()
     back = _back(form, BOARD)
     record = offers_store.load_offer(offer_id)
@@ -208,7 +227,61 @@ async def application_prepare(offer_id: int, request: Request):
     if _busy():
         return _move(request, back, message=BUSY_MESSAGE, level="warning")
 
-    await jobs.start_job(settings, profile, record, kind="prepare")
+    application = tracker_store.load_application(offer_id)
+    if form.get("plan") is not None:
+        # The preparation modal. Its box shows the questions read from the offer
+        # when nothing was pasted: submitting that untouched text must not re-parse
+        # it as plain lines and lose the markup's names, options and maxlength.
+        want_cv = bool(form.get("cv"))
+        want_letter = bool(form.get("letter"))
+        posted = str(form.get("form") or "").strip()
+        if posted == service.form_text(record, application).strip():
+            form_source, form_changed = (
+                application.form_source if application else "",
+                False,
+            )
+        else:
+            form_source, form_changed = posted, True
+            questions = offers_clean.parse_questions(posted)
+            if posted and not questions:
+                return _move(
+                    request,
+                    back,
+                    message=(
+                        "No question could be read from the pasted form. Paste its "
+                        "markup, or one question per line."
+                    ),
+                    level="warning",
+                )
+            if questions:
+                record = _store_form(offer_id, record, questions)
+        tracker_store.set_plan(
+            offer_id, want_cv=want_cv, want_letter=want_letter, form_source=form_source
+        )
+    else:
+        # A bare preparation, with no modal behind it: the stored plan is kept.
+        want_cv = application.want_cv if application else True
+        want_letter = application.want_letter if application else True
+        form_changed = False
+
+    folder = application.folder if application else ""
+    sections = service.sections_to_write(
+        record,
+        folder,
+        want_cv=want_cv,
+        want_letter=want_letter,
+        form_changed=form_changed,
+    )
+    if not sections:
+        asked = want_cv or want_letter or bool(record.offer.form)
+        return _move(
+            request,
+            back,
+            message=NOTHING_TO_PREPARE if asked else NOTHING_ASKED,
+            level="warning",
+        )
+
+    await jobs.start_job(settings, profile, record, kind="prepare", sections=sections)
     if _is_htmx(request):
         return _job_started(request, record)
     return _move(
@@ -216,6 +289,18 @@ async def application_prepare(offer_id: int, request: Request):
         back,
         message="Preparing in the background. The page updates itself every 2 seconds.",
     )
+
+
+def _store_form(offer_id: int, record: OfferRecord, questions: list[FormQuestion]) -> OfferRecord:
+    """Replace the offer's form with the questions just pasted, and return it.
+
+    The form is part of the offer as read from the markup, so pasting it later is
+    the same operation as pasting it with the offer: the page's "Application form"
+    card, the writer and the Regenerate buttons all read the one list.
+    """
+    offer = record.offer.model_copy(update={"form": questions})
+    offers_store.update_offer(offer_id, offer)
+    return record.model_copy(update={"offer": offer})
 
 
 # --- Saving and regenerating ---------------------------------------------------

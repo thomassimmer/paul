@@ -386,6 +386,13 @@ class Application(BaseModel):
     notes: str = ""
     # Where the writer put the generated documents, once it has run.
     folder: str = ""
+    # What applying to this offer actually requires, decided when preparing it
+    # rather than when it was analyzed: the documents to write, and the form the
+    # user pasted (raw HTML or text) when the offer's own fragment did not carry
+    # it. An empty ``form_source`` means the offer's parsed form is the one used.
+    want_cv: bool = True
+    want_letter: bool = True
+    form_source: str = ""
     updated_at: str = ""
 
 

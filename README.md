@@ -30,8 +30,8 @@ nothing is ever sent for you.
 | **Profiler**          | Imports your CV, then interviews you one question at a time: the model reads the profile, asks what is missing, and writes each answer into it.  |
 | **Offer analyzer**    | Paste the **raw HTML fragment** of an offer, or plain text. The agent extracts the structured offer and the application form's questions.        |
 | **Filter and ranker** | Eliminates the offers that break your rules, scores the others against your profile and your wishes, with a one-sentence justification per axis. |
-| **Writer**            | Produces a tailored CV and cover letter **in your imported template**, drafts the form answers, and reports keyword coverage (ATS).              |
-| **Board**             | The home page: one table for every offer — score, verdict, status, documents, follow-up.                                                         |
+| **Writer**            | Writes the tailored CV, cover letter or both, **in your imported template**, drafts the form answers (including a form you paste when you decide to apply) and reports keyword coverage (ATS). |
+| **Board**             | The home page: one table for every offer — score, verdict, status, follow-up.                                                         |
 | **Tracker**           | Status, dates and notes for each application, with follow-up reminders.                                                                          |
 | **Settings**          | LLM provider, model and key, follow-up delay, output language, CV and letter templates.                                                          |
 
@@ -59,8 +59,12 @@ Typical session:
    rules and your wishes.
 2. **Per offer.** Paste the HTML fragment. The offer is analyzed, filtered and
    scored in seconds.
-3. **For the best matches.** Click _Prepare_, review the generated CV, letter and
-   answers, fix what you want, export, then apply on the company's site.
+3. **For the best matches.** Open the offer, click _Prepare documents_, tick what
+   applying actually asks for and paste the application form if the offer's page
+   did not carry it. Review the generated CV, letter and answers, fix what you
+   want, export, then apply on the company's site. Reopening the dialog later —
+   say new questions came up — only writes what is missing: the CV and the letter
+   that are already there are kept.
 4. **Afterwards.** Update the status in the table and get reminded when a follow-up
    is due.
 

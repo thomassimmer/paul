@@ -408,6 +408,46 @@ def _clean_text(content: str) -> list[str]:
     return [line for line in _squash(content).split("\n") if line]
 
 
+# A leading list marker the reader copied along with the question itself.
+_LINE_MARKER = re.compile(r"^\s*(?:[-*•·]|\(?\d+[.)]|[a-z][.)])\s+", re.IGNORECASE)
+
+
+def _text_questions(text: str) -> list[FormQuestion]:
+    """Questions pasted as plain text: one non-empty line each.
+
+    The links of a pasted markup are gone by now, and a line of prose that is not a
+    question (an instruction such as "answer in 200 words") would become one too.
+    That is the honest trade: a form typed by hand has no markup to read, and
+    dropping a question is worse than keeping an extra line the user can delete.
+    """
+    questions: list[FormQuestion] = []
+    for line in _clean_text(text):
+        label = _LINE_MARKER.sub("", line).strip()
+        if len(label) < 2:
+            continue
+        questions.append(FormQuestion(label=label, type="textarea"))
+    return questions
+
+
+def parse_questions(content: str) -> list[FormQuestion]:
+    """Read the questions out of a form the user pasted, markup or plain text.
+
+    Used when the form is pasted later, in the preparation modal, rather than
+    carried by the offer fragment: the same parsing as an analysis, plus a
+    line-per-question fallback so a form typed by hand is usable.
+    """
+    text = (content or "").strip()
+    if not text:
+        return []
+    if looks_like_html(text):
+        soup = BeautifulSoup(text, "html.parser")
+        questions = _form_questions(soup)
+        if questions:
+            return questions
+        return _text_questions(soup.get_text("\n"))
+    return _text_questions(text)
+
+
 def clean_fragment(content: str) -> CleanedOffer:
     """Clean one pasted offer fragment into a compact document.
 

@@ -51,6 +51,7 @@ def _fake_prepare(monkeypatch, *, warnings=()):
         profile: Profile,
         record: OfferRecord,
         *,
+        sections=service.SECTIONS,
         on_step: service.OnStep | None = None,
         today=None,
     ):
@@ -61,6 +62,29 @@ def _fake_prepare(monkeypatch, *, warnings=()):
         return SimpleNamespace(folder="2026-09-acme", warnings=list(warnings))
 
     monkeypatch.setattr("app.writer.jobs.service.prepare", fake)
+
+
+def test_the_job_hands_the_service_the_sections_it_was_built_for(monkeypatch):
+    seen: dict = {}
+
+    async def fake(
+        settings: Settings,
+        profile: Profile,
+        record: OfferRecord,
+        *,
+        sections=service.SECTIONS,
+        on_step: service.OnStep | None = None,
+        today=None,
+    ):
+        seen["sections"] = sections
+        return SimpleNamespace(folder="2026-09-acme", warnings=[])
+
+    monkeypatch.setattr("app.writer.jobs.service.prepare", fake)
+    job = jobs.build_job(_record(), kind="prepare", sections=("cv",))
+
+    asyncio.run(jobs.run(job, Settings(), Profile(), _record()))
+
+    assert seen["sections"] == ("cv",)
 
 
 def test_a_successful_run_marks_every_step_done(monkeypatch):
@@ -85,6 +109,7 @@ def test_a_failing_run_is_reported_and_the_rest_is_skipped(monkeypatch):
         profile: Profile,
         record: OfferRecord,
         *,
+        sections=service.SECTIONS,
         on_step: service.OnStep | None = None,
         today=None,
     ):
@@ -110,6 +135,7 @@ def test_an_unexpected_error_keeps_its_type_name(monkeypatch):
         profile: Profile,
         record: OfferRecord,
         *,
+        sections=service.SECTIONS,
         on_step: service.OnStep | None = None,
         today=None,
     ):
@@ -130,6 +156,7 @@ def test_a_cancelled_run_is_marked_cancelled(monkeypatch):
         profile: Profile,
         record: OfferRecord,
         *,
+        sections=service.SECTIONS,
         on_step: service.OnStep | None = None,
         today=None,
     ):
