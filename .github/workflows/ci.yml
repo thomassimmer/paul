@@ -4,10 +4,9 @@
 # where that promise is kept. Two jobs decide pass or fail — the tests, and the
 # linter and type checker together in one venv — and a third builds the Docker image
 # and waits for /health. The coverage report is not a job of its own: it rides along
-# on the 3.12 leg of the test matrix, because the suite is the expensive part and
-# running it a second time would only buy the same table back. Formatting is
-# deliberately not checked either, so no contribution is turned away over a line
-# break.
+# in the test job, because the suite is the expensive part and running it a second
+# time would only buy the same table back. Formatting is deliberately not checked
+# either, so no contribution is turned away over a line break.
 name: CI
 
 on:
@@ -26,34 +25,24 @@ concurrency:
 
 jobs:
   tests:
-    name: Tests (Python ${{ matrix.python }})
+    name: Tests
     runs-on: ubuntu-latest
-    strategy:
-      # Every version is worth knowing about, so one failure does not hide the
-      # others.
-      fail-fast: false
-      matrix:
-        # 3.12 is the floor declared in pyproject.toml and the version the Docker
-        # image ships; 3.14 is what the current dependencies resolve to. LiteLLM
-        # caps itself below 3.15, so that is the ceiling.
-        python: ["3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: ${{ matrix.python }}
+          # Only the floor: 3.12 is what pyproject.toml declares and what the Docker
+          # image ships. The newer interpreters would only buy more runs of the same
+          # suite, for a compatibility answer this project does not promise.
+          python-version: "3.12"
           cache: pip
       - name: Install
         run: pip install -e ".[dev]"
-      # One Python version prints the coverage report, the others just run the suite.
-      # It is reported, not gated: the threshold question is answered in pyproject.toml,
-      # and the missing lines are printed so a reviewer can see what a change cost.
-      - name: Test with coverage
-        if: matrix.python == '3.12'
-        run: pytest -q --cov --cov-report=term-missing
+      # It is reported, not gated: the threshold question is answered in
+      # pyproject.toml, and the missing lines are printed so a reviewer can see what
+      # a change cost.
       - name: Test
-        if: matrix.python != '3.12'
-        run: pytest -q
+        run: pytest -q --cov --cov-report=term-missing
 
   checks:
     name: Lint and types
