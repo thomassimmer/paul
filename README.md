@@ -195,7 +195,7 @@ A throwaway workspace for trying things out, taking screenshots or recording a
 demo. Both scripts refuse to touch a directory they did not create:
 
 ```bash
-python scripts/seed_demo.py --data-dir ./demo-data --model openai/gpt-4o
+python scripts/seed_demo.py --data-dir ./demo-data --model deepseek/deepseek-flash
 python scripts/anonymize_template.py --data-dir ./demo-data --report
 ```
 
