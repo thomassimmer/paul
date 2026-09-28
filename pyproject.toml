@@ -57,12 +57,12 @@ Issues = "https://github.com/thomassimmer/paul/issues"
 dev = [
     # The TestClient drives the app through httpx2, httpx's successor. With the
     # plain httpx package installed, Starlette warns on every import of it.
-    "httpx2>=2.13",
+    "httpx2>=2.13.1",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     # The two gates run in CI (.github/workflows/ci.yml). Pin the linter no tighter
     # than needed here; ruff's own rule names are what the config below relies on.
-    "ruff>=0.16.8",
+    "ruff>=0.16.9",
     "pyright>=1.1.414",
 ]
 
