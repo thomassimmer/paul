@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # WITH_PDF=1 (default) bundles LibreOffice for DOCX -> PDF export, the page fit
 # check and the review preview (larger image, ~500 MB). Build without it for a
